@@ -1,0 +1,8 @@
+" ============================================================================
+" Listado que componentes externos a sisma que implican la regeneración de sisma
+" ============================================================================
+../
+./
+mepa conexhsm.c
+mepa filefun.c
+

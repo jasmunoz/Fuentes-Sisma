@@ -1,0 +1,53 @@
+#clear
+#EXEC=/sf/sisma/exec
+#INCLUD=/sf/sisma/includes
+#FUEN1=/sf/sisma/src
+#OBJ=/sf/sisma/obj
+
+#CFLAGS="-I/sf/sisma/include -DSUN_OS -DUNIX -DTRAZA=20"; export CC CFLAGS 
+#CC=cc CFLAGS="-I/sf/sisma/includes"; export CC CFLAGS
+
+#buildclient -o pmanejTux -f /sf/sisma/src/pmanejTux.c -f "$/sf/sisma/obj/filefun.o /sf/sisma/obj/libisma.a"
+
+#SOL_CC= "cc -m64 -DSUN_OS -DUNIX -DTRAZA=20 -DTUXEDO"
+#SOL_CC= "cc -DTRAZA=20"
+
+#UNIX_LIB=/sf/sisma/obj/filefun.o -L$ORACLE_HOME/lib32 -lclntsh
+#UNIX_INCS=-I/sf/sisma/includes -I$(TUXDIR)/include
+#BUILDCLIENT=$(TUXDIR)/bin/buildclient
+
+#pmanejTux : /sf/sisma/obj/pmanejTux.o  /sf/sisma/obj/filefun.o /sf/sisma/obj/libsisma.a
+#	CC=$(SOL_CC) CFLAGS="-m64 $(UNIX_INCS) $(UNIX_LIB)" $(BUILDCLIENT) -o  pmanejTux -f /sf/sisma/obj/pmanejTux.o -f /sf/sisma/obj/libsisma.a
+#	mv pmanejTux /sf/sisma/exec/pmanejTux
+#	chmod 777 /sf/sisma/exec/pmanejTux
+
+#/sf/sisma/obj/pmanejTux.o: /sf/sisma/src/pmanejTux.c
+#	cc -m64 -c -DSUN_OS -DUNIX -DTRAZA=20 -I/sf/sisma/includes -I${TUXDIR}/include /sf/sisma/src/pmanejTux.c
+#	mv pmanejTux.o /sf/sisma/obj/
+#	chmod 777 /sf/sisma/obj/pmanejTux.o
+#
+
+SOL_CC= "cc"
+
+LN=curses                                                  
+LN2=/opt/oracle/product/12.1.0/client_1/precomp/lib        
+LN3=nsl -lssl -lcrypto                                     
+LN6=sisma                                                  
+LN7=/opt/oracle/product/12.1.0/client_1/lib -lclntsh      
+
+UNIX_LIB=/sf/sisma/obj/filefun.o -l$(LN6) -L$(LN2) -L$(LN7) -l$(LN3)
+UNIX_INCS=-I$ORACLE_HOME/precomp/public/ -I/sf/sisma/includes -I$(TUXDIR)/include
+BUILDCLIENT=$(TUXDIR)/bin/buildclient
+
+
+pmanejTux : /sf/sisma/obj/pmanejTux.o  /sf/sisma/obj/filefun.o /sf/sisma/obj/libsisma.a
+        cc -m64 $(UNIX_INCS) $(UNIX_LIB) $(BUILDCLIENT) -o  pmanejTux -f /sf/sisma/obj/pmanejTux.o -f /sf/sisma/obj/libsisma.a
+        mv pmanejTux /sf/sisma/exec/pmanejTux
+        chmod 777 /sf/sisma/exec/pmanejTux
+
+/sf/sisma/obj/pmanejTux.o: /sf/sisma/src/pmanejTux.c
+        cc -m64 -c -I/sf/sisma/includes -I/opt/tuxedo/tuxedo12.2.2.0.0/include /sf/sisma/src/pmanejTux.c
+        mv pmanejTux.o /sf/sisma/obj/
+        chmod 777 /sf/sisma/obj/pmanejTux.o
+
+

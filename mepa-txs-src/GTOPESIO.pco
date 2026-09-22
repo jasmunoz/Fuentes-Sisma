@@ -1,0 +1,1840 @@
+      *GTOPESIO  COBOL4            08
+       IDENTIFICATION DIVISION.
+       PROGRAM-ID. GTOPESIO.
+      *
+      *    EXEC SQL
+      *    PROGRAM-ID GTOPESIO
+      *    END-EXEC.
+      *---------------------
+      *
+      *    DESCRIPCION GENERAL.
+      *       OPERACIONES DESTINO SIO
+      *
+      *    CODIGO TRANSACCION: 593790
+      *
+      *    FORMATO DE ENTRADA: 581020
+      *    PANTALLA ENTRADA:   TOPSIO
+      *
+      *    FORMATOS DE SALIDA: ZT0925
+      *                        ZT0926
+      *
+      *    PANTALLA DE SALIDA: TOPSI2
+      *
+      *    RUTINAS LLAMADAS DE FUERA DEL ESQUEMA:
+      *
+      *
+      *    COPYS:
+      *
+      *       SIOAPL.LRD :  AREA DE INTERFASE CON SIO
+      *       RUTSIO.LRD :  AREA COMUN RUTINAS RESUELVEN OPERATORIAS
+      *                      SIO
+      *
+      *    ARCHIVOS BASE DE DATOS:
+      *        XXXX        XXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+      *
+      *    TABLAS DE PDU:
+      *
+      *        TABCONDSIO : CONVERSION DE MOTIVOS DE ERROR GOLF
+      *                     A CODIGOS DE ACCION DE SIO
+      *
+      *    ANALISTA:       INFODESA
+      *    PROGRAMADOR:    INFODESA
+      *
+      *    FECHA:          5/6/2000
+      *
+      ********************* ZONA DE MODIFICACIONES *********************
+      * [  IDENT : DMND0035176                                         ]
+      * [  FECHA : 2020/06/27                                          ]
+      * [  AUTOR : INDRA                                               ]
+      * [  MOTIVO: MIGRACION SIO A PRICE                               ]
+      * [  IDENT : DMND0035176                                         ]
+      * [                                                              ]
+      * [  IDENT : PRJ0247167                                          ]
+      * [  FECHA : 2023/08/18                                          ]
+      * [  AUTOR : INDRA                                               ]
+      * [  MOTIVO: SE INCLUYE LA CLASIFICACION DE RIESGO               ]
+      * [                                                              ]
+      * [                                                              ]
+      * [  IDENT : PRJ0257005                                          ]
+      * [  FECHA : 2023/08/25                                          ]
+      * [  AUTOR : INDRA                                               ]
+      * [  MOTIVO: TARJETAS TOKENIZADAS                                ]
+      * [                                                              ]
+      *********************  FIN MODIFICACIONES ************************
+      *
+      /
+      *
+       ENVIRONMENT DIVISION.
+       CONFIGURATION SECTION.
+      *
+       SPECIAL-NAMES.
+            DECIMAL-POINT IS COMMA.
+      *
+       DATA DIVISION.
+       WORKING-STORAGE SECTION.
+      *
+           COPY "STATORA.LED".
+           COPY "INFOBLOC.LED".
+
+      * +--------------------------------------------------------------+BUG25291 
+      * [                  AREA DE INTERFACE DE DBSR                   ]BUG25291
+      * +--------------------------------------------------------------+BUG25291
+           EXEC SQL                                                     BUG25291
+               INCLUDE SQLCA                                            BUG25291
+           END-EXEC.                                                    BUG25291
+      *                                                                 BUG25291
+      * +--------------------------------------------------------------+BUG25291
+      * [                 ARCHIVOS DE LA BASE DE DATOS                 ]BUG25291
+      * +--------------------------------------------------------------+BUG25291
+           EXEC SQL BEGIN DECLARE SECTION END-EXEC.                     BUG25291
+      *                                                                 BUG25291
+           EXEC SQL INCLUDE TMEP          END-EXEC.                     BUG25291
+           EXEC SQL INCLUDE DEMI          END-EXEC.                     PRJ0105375
+      *                                                                 BUG25291
+           EXEC SQL END   DECLARE SECTION END-EXEC.                     BUG25291
+
+      *
+      *    AREA UTILIZADA POR LA GRDISPLA QUE IMPRIME TANTOS BYTES
+      *    COMO SE LE DIGAN EN ESTE CAMPO.
+      *
+       01  DLDISPLA-SQLDUMP       PIC 9(9)       COMP-5  VALUE 400.
+      *
+      *    AREA DE COMUNICACION CON LA GRDISPLA.
+      *
+           COPY "ISPLA.LRD"  .
+      *
+      *
+       01  AREA-RUTINAS.
+      *
+           02  AREA-GR-RUTSIO.
+               COPY "RUTSIO.LRD".
+      *
+           02  AREA-GRCALMAC.
+               05  MEM-MAC            PIC X(64).
+               05  IND-MAC            PIC 9(002).
+               05  RES-MAC            PIC X(016).
+               05  ENT-MAC            PIC 9(004).                       BUG21277
+      *
+           02  AREA-GRBDISPL.
+               COPY "BDISPL.LRD".
+      *                                                                 PRJ0105375
+           COPY "GRTRDEMI.LRD".                                         PRJ0105375
+      *
+           COPY "GRTRDSIO.LRD".                                         PRJ0105375
+      *
+       01  WORK-VARIABLES.
+      *
+           02  CAMPOS-DE-TRABAJO.
+      *
+               05  WK-ACCION           PIC X(004).
+               05  WK-ACC-RES          PIC X(002).
+               05  WK-AUX-SIOCAUR      PIC X(004).
+               05  IND                 PIC 9(002).
+               05  WI-IND-DAT-MAC      PIC 9(002).
+                   88  MAX-IND-DAT-MAC       VALUE 16.
+               05  WI-IND-RES-MAC      PIC 9(001).
+                   88  MAX-IND-RES-MAC       VALUE 6.
+      *
+               05  DATOS-MAC           PIC X(064).
+               05  DATOS-MAC-200       REDEFINES DATOS-MAC.
+                   10  MAC-200-PAN     PIC X(016).
+                   10  MAC-200-IMP     PIC X(008).
+                   10  MAC-200-IDTR    PIC 9(006).
+                   10  MAC-200-CMON    PIC X(004).
+                   10  MAC-200-RESP    PIC X(002).
+                   10  MAC-200-NAUT    PIC X(006).
+                   10  MAC-200-CLAV    PIC 9(002).
+                   10  MAC-200-FILL    PIC X(020).
+               05  DATOS-MAC-260       REDEFINES DATOS-MAC.
+                   10  MAC-260-IMP     PIC X(012).
+                   10  MAC-260-IDTR    PIC 9(006).
+                   10  MAC-260-CMON    PIC X(004).
+                   10  MAC-260-RESP    PIC X(002).
+                   10  MAC-260-NAUT    PIC X(006).
+                   10  MAC-260-CLAV    PIC 9(002).
+                   10  MAC-260-FILL    PIC X(032).
+               05  DATOS-MAC-600       REDEFINES DATOS-MAC.
+                   10  MAC-600-PAN     PIC X(016).
+                   10  MAC-600-IDTR    PIC 9(006).
+                   10  MAC-600-RESP    PIC X(002).
+                   10  MAC-600-NAUT    PIC X(006).
+                   10  MAC-600-CLAV    PIC 9(002).
+                   10  MAC-600-FILL    PIC X(032).
+      *
+               05  WK-AUX-MAC.
+                   10  WK-AUX-ELEM-MAC   OCCURS 16     PIC X(1).
+               05  WK-AUX-RES-MAC.
+                   10  WK-AUX-ELEM-RES-MAC   OCCURS 6  PIC 9(1).
+               05  WK-AUX-RES-MAC-R     REDEFINES WK-AUX-RES-MAC
+                                        PIC 9(006).
+               05  WK-HORA              PIC 9(008).
+               05  WFECHA-AAMMDD        PIC 9(6).
+
+               05  WK-RTS.                                              BUG25291
+                   10  WK-RTS-IDTR      PIC 9(6).                       BUG25291
+                   10  WK-RTS-FECHAL    PIC 9(6).                       BUG25291
+                   10  WK-RTS-HORAL     PIC 9(6).                       BUG25291
+                   10  WK-RTS-IDTERM    PIC X(12).                      BUG25291
+               05  WK-PAN-18.                                           PRJ0105375
+                   10  WK-PAN-16        PIC 9(16).                      PRJ0105375
+                   10  FILLER           PIC X(2).                       PRJ0105375
+      *                                                                 DMND0035176
+               05  FLAG-TRMS            PIC X(01).                      DMND0035176
+                   88 SI-TRMS           VALUE ' '.                      DMND0035176
+                   88 NO-TRMS           VALUE 'E'.                      DMND0035176
+      *
+      * +--------------------------------------------------------------+
+      * [           AREA DE SALIDA PROPIA DE LA TRANSACCION            ]
+      * +--------------------------------------------------------------+
+      *
+               05  TABLA-DE-TPOS.
+                   10  WK-AREA-DATOS-SIOAPL PIC X(3682).
+               05  FILLER  REDEFINES  TABLA-DE-TPOS.
+                   10  WK-TPO-DE-143        PIC X(143) OCCURS 25.
+                   10  WK-TPO-DE-121        PIC X(121).
+      *
+      * +--------------------------------------------------------------+
+      * [                 MASCARAS PARA DISPLAY                        ]
+      * +--------------------------------------------------------------+
+      *
+               05  MASC-DISPLA.
+                   10  MASC-DISPLA-T   PIC X(070).
+                   10  MASC-DISPLA-D-X PIC X(018).
+                   10  MASC-DISPLA-D-N REDEFINES   MASC-DISPLA-D-X
+                                       PIC 9(018).
+      * +--------------------------------------------------------------+
+      * [  CAMPOS UTILIZADOS PARA EL TRATAMIENTO ERRORES               ]
+      * +--------------------------------------------------------------+
+      *
+       01  MENSAJES-LISTADO.
+          05  MENSAJE1           PIC X(55)  VALUE
+             'NUMERO DE AUTORIZACION:                               '.
+      *
+          05  MENSAJE2           PIC X(55)  VALUE
+             'IDTR DE LA OPERACION:                                  '.
+      *
+          05  MENSAJE3           PIC X(55)  VALUE
+             'ERROR AL ABRIR FICHERO DE SALIDA.                     '.
+      *
+          05  MENSAJE4           PIC X(55)  VALUE
+             'CODIGO DE ERROR :                                     '.
+      /
+       01  DATOS-CONSIO.
+           COPY "CONSIO.LFD".
+      *
+      * +--------------------------------------------------------------+
+      * [                NCR-CONSTANT-STORAGE SECTION.                 ]
+      * [                -----------------------------                 ]
+      * +--------------------------------------------------------------+
+      *
+       01  VARIOS.
+           05  CODIGOTX           PIC X(6)       VALUE '593790'.
+           05  AREAGOLF           PIC X          VALUE 'T'.
+           05  NOMBREPG           PIC X(8)       VALUE 'GTOPESIO'.
+      *
+       01  FORMATOS.
+           05  FMTZT0925          PIC X(6)       VALUE 'ZT0925'.
+           05  FMTZT0926          PIC X(6)       VALUE 'ZT0926'.
+           05  FMTZT0937          PIC X(6)       VALUE 'ZT0937'.
+      *
+       01  CONDICIONES.
+           05  CONDB321           PIC X(4)       VALUE 'B321'.
+           05  CONDB327           PIC X(4)       VALUE 'B327'.
+           05  COND0301           PIC X(4)       VALUE '0301'.
+      *
+      *01  INCIDENCIAS.
+      **>> 05  INCI0098           PIC 9(4)       VALUE 0098.
+      *
+       01  TABLAS-PDU.
+           05  NTABTABCONDSIO     PIC X(10)      VALUE 'TABCONDSIO'.
+           05  NTABTABOPEREMI     PIC X(10)      VALUE 'TABOPEREMI'.    PRJ0105375
+      *
+       01  CONSTANTES.
+           05  K1U0               PIC 9(1)       VALUE 0.
+           05  K1U1               PIC 9(1)       VALUE 1.
+           05  K1U2               PIC 9(1)       VALUE 2.
+           05  K1U3               PIC 9(1)       VALUE 3.
+           05  K1U4               PIC 9(1)       VALUE 4.
+           05  K1U5               PIC 9(1)       VALUE 5.
+           05  K1U6               PIC 9(1)       VALUE 6.
+           05  K2U16              PIC 9(2)       VALUE 16.
+           05  K2U19              PIC 9(2)       VALUE 19.
+           05  K2U20              PIC 9(2)       VALUE 20.
+           05  K2U93              PIC 9(2)       VALUE 93.
+           05  K2U99              PIC 9(2)       VALUE 99.
+           05  K3U102             PIC 9(3)       VALUE 102.
+           05  K3U724             PIC 9(3)       VALUE 724.
+           05  K3U999             PIC 9(3)       VALUE 999.
+           05  K4U51              PIC 9(4)       VALUE 0051.            DMND0035176
+           05  K4U07              PIC 9(4)       VALUE 0007.            DMND0035176
+           05  K4U2222            PIC 9(4)       VALUE 2222.
+           05  K4U9999            PIC 9(4)       VALUE 9999.
+           05  K6UREBUT           PIC 9(6)       VALUE 532001.          DMND0035176
+           05  K6UTRIBUT          PIC 9(6)       VALUE 532002.          DMND0035176
+      *
+           05  K1XAST             PIC X(001)     VALUE '*'.
+           05  K2X3A              PIC X(001)     VALUE X'3A'.
+           05  K2X3B              PIC X(001)     VALUE X'3B'.
+           05  K2X3C              PIC X(001)     VALUE X'3C'.
+           05  K2X3D              PIC X(001)     VALUE X'3D'.
+           05  K2X3E              PIC X(001)     VALUE X'3E'.
+           05  K2X3F              PIC X(001)     VALUE X'3F'.
+      *
+           05  K1X2               PIC X(1)       VALUE '2'.
+           05  K1XC               PIC X(1)       VALUE 'C'.
+           05  K1XD               PIC X(1)       VALUE 'D'.
+           05  K1XI               PIC X(1)       VALUE 'I'.
+           05  K1XN               PIC X(1)       VALUE 'N'.
+           05  K1XO               PIC X(1)       VALUE 'O'.             PRJ0105375
+           05  K1XS               PIC X(1)       VALUE 'S'.
+           05  K1XV               PIC X(1)       VALUE 'V'.
+           05  K2X00              PIC X(2)       VALUE '00'.
+           05  K2X01              PIC X(2)       VALUE '01'.
+           05  K2X99              PIC X(2)       VALUE '99'.
+           05  K2X76              PIC X(2)       VALUE '76'.            DMND0035176
+           05  K2XRM              PIC X(2)       VALUE 'RM'.
+           05  K2X0R              PIC X(2)       VALUE '0R'.
+           05  K2XOK              PIC X(2)       VALUE 'OK'.            PRJ0105375
+           05  K3X000             PIC X(3)       VALUE '000'.
+           05  K3X190             PIC X(3)       VALUE '190'.
+           05  K3X400             PIC X(3)       VALUE '400'.
+           05  K3X900             PIC X(3)       VALUE '900'.
+           05  K3X909             PIC X(3)       VALUE '909'.
+           05  K4X0012            PIC X(4)       VALUE '0012'.
+           05  K4XSIO             PIC X(4)       VALUE 'SIO '.
+      *
+           05  WC-ER-DEFECTO           PIC X(002)  VALUE '76'.
+      *                                                                 PRJ0105375
+       01  CLAVE-TABOPEREMI.                                            PRJ0105375
+           05  OPEREM-EMISOR           PIC X(02).                       PRJ0105375
+           05  OPEREM-TIPO             PIC X(01).                       PRJ0105375
+           05  OPEREM-IDTM             PIC X(04).                       PRJ0105375
+           05  OPEREM-OPER             PIC X(02).                       PRJ0105375
+      *                                                                 PRJ0105375
+       01  DATOS-TABOPEREMI.                                            PRJ0105375
+           05  OPEREM-VALI             PIC X(02).                       PRJ0105375
+           05  OPEREM-DESCR            PIC X(50).                       PRJ0105375
+      *                                                                 DMND0035176
+       01  WK-COD-PROC                 PIC 9(06).                       DMND0035176
+      *
+       LINKAGE SECTION.
+      *
+       01  INPUT-AREA.
+           COPY "INPUTVLI.LED".
+           05  TPI-FORMATO             PIC X(006).
+           05  TPI-ORIGEN-MOV.
+               10  TIPO-ENTRA          PIC X(001).
+               10  COD-CAJERO          PIC X(001).
+               10  TIPO-TRADUC         PIC X(001).
+               10  TIPO-CONVE-INSTL    PIC X(001).
+               10  TIPO-TX             PIC X(001).
+               10  MODO-ENTRA          PIC X(001).
+                   88  OPER-ONLINE     VALUE '0'.
+                   88  OPER-OFF        VALUE '1'.
+           05  TPI-DATOS               PIC X(3696).
+               COPY   "TPIDATOR.LED".
+               10    FILLER            PIC X(2410).
+      *
+       01  FILLER REDEFINES INPUT-AREA.
+           02  FILLER                  PIC X(014).
+           02  FILLER                  PIC X(010).
+               COPY "SIOAPL.LRD"   .
+      /
+           COPY "INFOAREA.LED"   .
+      /
+           COPY "SAVEDATA.LED"   .
+           COPY "OUTPDATA.LED"   .
+      /
+           COPY "WORKAREA.LED"   .
+           COPY "WORKCOMU.LED"   .
+      /
+           COPY 'SALNA.LRD'.
+      /
+      *
+       PROCEDURE DIVISION  USING  DLTE-INFO-AREA
+                                  INPUT-AREA
+                                  DLMT-WORK-AREA
+                                  DLMT-OUTPUT-AREA
+                                  DLMT-SAVE-DATA.
+      *
+           COPY "ESQMP.LEP"   .
+      /
+       INICIO-TX.
+      *----------
+      *    DISPLAY "GTOPESIO V201703 [" AREA-DATOS-SIOAPL "]".
+      *    DISPLAY "GTOPESIO AGOSTO 2019 [" AREA-DATOS-SIOAPL "]".      PRJ0105375
+      *    DISPLAY "GTOPESIO JUNIO 2020 [" AREA-DATOS-SIOAPL "]".       PRJ0257005
+           DISPLAY "GTOPESIO AGOSTO 2023 [" AREA-DATOS-SIOAPL "]".      PRJ0257005
+           PERFORM DISPLAY-SIOAPL-ENT THRU FIN-DISPLAY-SIOAPL-ENT.      DMND0035176
+      *
+      **** MOVE DE PRUEBAS PARA INVERSIS, PRUEBAS DESDE EMULA
+      *
+      *                                                                 DMND0035176
+           DISPLAY "SIOAPL-DAT-ADIC-ENV-TRANSP-L: " 
+                                        SIOAPL-DAT-ADIC-ENV-TRANSP-L.
+      *                                                                 DMND0035176
+           IF    SIOAPL-DAT-ADIC-ENV-TRANSP-L = K4U51                   DMND0035176
+           THEN  MOVE  SIOAPL-CODPROC  TO  WK-COD-PROC                  DMND0035176
+                 MOVE  K6UREBUT        TO  SIOAPL-CODPROC               DMDN0035176
+                 DISPLAY "** PAGO RECIBOS **" 
+           ELSE  IF    SIOAPL-DAT-ADIC-ENV-TRANSP-L = K4U07             DMND0035176
+                 THEN  MOVE  SIOAPL-CODPROC  TO  WK-COD-PROC            DMND0035176
+                       MOVE K6UTRIBUT        TO  SIOAPL-CODPROC         DMND0035176
+                       DISPLAY "** PAGO TRIBUTO **"
+                 ELSE  NEXT SENTENCE                                    DMND0035176
+                 END-IF                                                 DMND0035176
+           END-IF.                                                      DMND0035176
+      *                                                                 DMND0035176
+           MOVE 8                TO   TIPO-ENTRA.
+           MOVE  CODIGOTX        TO   IBTXCODE.
+           INITIALIZE            AREA-GR-RUTSIO.
+      *
+       FIN-INICIO-TX.
+           EXIT.
+      *
+      /
+       VAL-ENTRADA.
+      *------------
+      *
+      *** move de pruebas mientras llega la clave mac en el
+      ***  mensaje de sio
+      *
+           MOVE  1              TO  SIOAPL-CLAVE-MAC.
+      *
+           IF    SIN-CLAVE-MAC
+                 OR  CLAVE-MAC-1
+                 OR  CLAVE-MAC-2
+           THEN  NEXT SENTENCE
+           ELSE  MOVE CONDB327      TO   DLCOND-NUM
+                 PERFORM CONDICION  THRU FIN-CONDICION.
+      *
+       FIN-VAL-ENTRADA.
+           EXIT.
+      *
+      /
+       PROCESO.
+      *--------
+      *
+           DISPLAY "SE INICIA LA EJECUCION DE GTOPESIO".
+           DISPLAY "=================================".
+           DISPLAY "MODIFICACION PROBAR CIERRE SIO".
+      *
+035176*    PERFORM INSERTAR-TMEP     THRU FIN-INSERTAR-TMEP.            BUG25291
+035176*    PERFORM LLAMAR-GRTRDSIO   THRU FIN-LLAMAR-GRTRDSIO.          PRJ0105375
+035176*    IF   NOT IDTM-TX-TOTALES-4B                                  PRJ0105375
+035176*    THEN PERFORM ANALIZA-OPEREMI   THRU FIN-ANALIZA-OPEREMI      PRJ0105375
+035176*    ELSE PERFORM ACCEDE-DEMI-TOT   THRU FIN-ACCEDE-DEMI-TOT      PRJ0105375
+035176*    END-IF.                                                      PRJ0105375
+035176*    PERFORM ANALIZ-TIPO-OP    THRU FIN-ANALIZ-TIPO-OP.
+035176*    PERFORM MOSTRAR-NUM-AUTOR THRU FIN-MOSTRAR-NUM-AUTOR.
+035176*
+035176*    display  'gtopesio llamando a salida'.
+035176*    PERFORM INSERTAR-TMEP     THRU FIN-INSERTAR-TMEP.            BUG25291
+      *                                                                 DMND0035176
+           MOVE SPACES               TO   WK-ACCION.                    DMND0035176
+      *                                                                 DMND0035176
+           MOVE SIOAPL-TOTAL-TELEBANCO(7:1)   TO    FLAG-TRMS.          DMND0035176
+           DISPLAY "FLAG-TRMS: " FLAG-TRMS.
+      *                                                                 DMND0035176
+           IF   NOT IDTM-TEST-SISMA                                     DMND0035176
+           AND  SI-TRMS                                                 DMND0035176
+           THEN PERFORM INSERTAR-TMEP     THRU FIN-INSERTAR-TMEP        DMND0035176
+                PERFORM LLAMAR-GRTRDSIO   THRU FIN-LLAMAR-GRTRDSIO      DMND0035176
+      *                                                                 DMND0035176
+                IF   NOT IDTM-TX-TOTALES-4B                             DMND0035176
+                THEN PERFORM ANALIZA-OPEREMI   THRU FIN-ANALIZA-OPEREMI DMND0035176
+                ELSE PERFORM ACCEDE-DEMI-TOT   THRU FIN-ACCEDE-DEMI-TOT DMND0035176
+                END-IF                                                  DMND0035176
+      *                                                                 DMND0035176
+                PERFORM ANALIZ-TIPO-OP    THRU FIN-ANALIZ-TIPO-OP       DMND0035176
+                PERFORM MOSTRAR-NUM-AUTOR THRU FIN-MOSTRAR-NUM-AUTOR    DMND0035176
+      *                                                                 DMND0035176
+                PERFORM INSERTAR-TMEP     THRU FIN-INSERTAR-TMEP        DMND0035176
+           ELSE NEXT SENTENCE                                           DMND0035176
+           END-IF.                                                      DMND0035176
+      *                                                                 DMND0035176
+           display  'gtopesio llamando a salida'.                       DMND0035176
+      *                                                                 DMND0035176
+           IF    SIOAPL-DAT-ADIC-ENV-TRANSP-L = K4U51                   DMND0035176
+           OR    SIOAPL-DAT-ADIC-ENV-TRANSP-L = K4U07                   DMND0035176
+           THEN  MOVE  WK-COD-PROC     TO  SIOAPL-CODPROC               DMND0035176
+           ELSE  NEXT SENTENCE                                          DMND0035176
+           END-IF.                                                      DMND0035176
+      *                                                                 DMND0035176
+           PERFORM SALIDA-TX         THRU FIN-SALIDA-TX.
+           PERFORM DISPLAY-SIOAPL-SAL THRU FIN-DISPLAY-SIOAPL-SAL.      DMND0035176
+           display 'gtopesio acabo la llamada a salida'.
+      *
+           DISPLAY 'FIN DE EJECUCION DE GTOPESIO'.
+           DISPLAY '============================'.
+      *
+           ACCEPT WFECHA-AAMMDD      FROM DATE.
+           ACCEPT WK-HORA            FROM TIME.
+
+           DISPLAY 'FECHA DE FIN  DE TRATAMIENTO (AAMMDD): '
+                                       WFECHA-AAMMDD.
+           DISPLAY 'HORA DE FIN DE TRATAMIENTO (HHMMSSDD):'
+                                       WK-HORA.
+      *
+       FIN-PROCESO.
+           EXIT.
+      *
+      /
+      * +------------------------------------------------------------+
+      * [                                                            ]
+      * [           ANALIZAR-TIPO-OP                                 ]
+      * [           ---------------                                  ]
+      * [                                                            ]
+      * [ SI TX-CONTABLE (IDTM 0200 A 0299)  O UNA ANULACION DE TX   ]
+      * [   CONTABLE (0400 A 0499) LLAMA A GRCONSIO, EXCEPTO SI EL P2]
+      * [   DE LA OPERACION INDICA QUE ES UN  ABONO POR TRANSFERENCIA]
+      * [   (  en este caso si las cuentas son del mismo banco envian]
+      * [    traspaso (29), si el ordenante es de distinto banco     ]
+      * [    envian un codigo de transferencia  (30))                ]
+      * [   EN ESTOS CASOS SE LLAMA A GRTRANSIO                      ]
+      * [                                                            ]
+      * [ SI TX-CONSULTA DE SALDO (IDTM 0700 A 0799) LLAMA A GRCSASIO]
+      * [                                                            ]
+      * [ SI TX-CONSULTA DE MOV (IDTM 0500 A 5099, 5200 A 5399) LLAMA]
+      * [   A GRCUMSIO, EL IDTM INDICA ADEMAS LOS MOVIMIENTOS QUE SE ]
+      * [   DEBEN ENVIAR (5 ULTIMOS, 5 PENULTIMOS, 5 ANTEPENULTIMOS) ]
+      * [                                                            ]
+      * [ SI TX-FUNCION-TRANSPARENTE (IDTM 0600 A 0699) LLAMARA A    ]
+      * [  GRFUNSIO ( ESTOS IDTM SE UTILIZAN PARA CAMBIO DE IDIOMA,  ]
+      * [  PIN, ETC)                                                 ]
+      * [                                                            ]
+      * [ SI NO ES NINGUN IDTM VALIDO PARA INVERSIS, SE ENVIARA EN EL]
+      * [ P-33 UNA CAUSA 12 (DENEGADA POR PREGUNTA INVALIDA)         ]
+      * +------------------------------------------------------------+
+      *
+       ANALIZ-TIPO-OP.
+      ***************
+      *
+           DISPLAY 'GTOPESIO: TIPO DE MENSAJE (IDTM):' SIOAPL-IDTM.
+           DISPLAY 'GTOPESIO: PAN:' SIOAPL-PAN-D.
+           ACCEPT WFECHA-AAMMDD    FROM DATE.
+           ACCEPT WK-HORA         FROM TIME.
+
+           DISPLAY 'FECHA DE INICIO DE TRATAMIENTO(AAMMDD): '
+                                       WFECHA-AAMMDD.
+           DISPLAY 'HORA DE INICIO DE TRATAMIENTO (HHMMSSDD):'
+                                       WK-HORA.
+      *
+           MOVE ZEROS                TO   DLCOND-NUM.
+           MOVE SPACES               TO   DLCOND-ESTADO.
+           MOVE SPACES               TO   RUTSIO-CAUR.
+      *
+           EVALUATE  TRUE
+              WHEN IDTM-TX-CONTABLE
+                OR IDTM-ANUL-TX-CONT
+                   EVALUATE TRUE
+                       WHEN P2-OP-CARGO-TRANSFERENCIA                   PRJ0105375
+                            IF    SIOAPL-P32-CSB = DLPEENTICTAS         PRJ0105375
+                            THEN  DISPLAY 'GTOPESIO: ES UNA OP CONTABLE'PRJ0105375
+                                  DISPLAY 'GTOPESIO: TRANSFERENCIA'     PRJ0105375
+                                  DISPLAY 'GTOPESIO: CTAS ENTIDAD'      PRJ0105375
+                                  PERFORM CALL-GRCONSIO                 PRJ0105375
+                                               THRU  FIN-CALL-GRCONSIO  PRJ0105375
+                            ELSE  DISPLAY 'GTOPESIO: TRANSF. EXTERNA'   PRJ0105375
+                                  DISPLAY 'SIOAPL-P32-CSB: '
+                                                          SIOAPL-P32-CSB
+                                  DISPLAY 'DLPEENTICTAS: ' DLPEENTICTAS
+                                  MOVE    CONDB321   TO   DLCOND-NUM    PRJ0105375
+                                  MOVE    CONDB321   TO   WK-ACCION     PRJ0105375
+                                  PERFORM CONDICION  THRU FIN-CONDICION PRJ0105375
+                       WHEN P2-OP-ABONO-TRASPASO                        BUG20438
+                            AND IDTM-COM-TRAN-CONT                      BUG20438
+                            DISPLAY 'GTOPESIO: ES UNA OP CONTABLE'      BUG20438
+                            DISPLAY 'GTOPESIO: ES UN ABONO JUEGO ONLINE'BUG20438
+                            DISPLAY 'GTOPESIO:VALOR DE COD-PRO (bit 2):'BUG20438
+                                               SIOAPL-CODPROC           BUG20438
+                            PERFORM CALL-GRCONSIO THRU FIN-CALL-GRCONSIOBUG20438
+                       WHEN P2-OP-ABONO-TRASPASO                        BUG20438
+                            AND IDTM-ANUL-TX-CONT                       BUG20438
+                            AND SIOAPL-SECTOR-JUEGO-ONLINE              BUG20438
+                            DISPLAY 'GTOPESIO: ES UNA OP CONTABLE'      BUG20438
+                        DISPLAY 'GTOPESIO: ANULACION ABONO JUEGO ONLINE'BUG20438
+                            DISPLAY 'GTOPESIO:VALOR DE COD-PRO (bit 2):'BUG20438
+                                               SIOAPL-CODPROC           BUG20438
+                            PERFORM CALL-GRCONSIO THRU FIN-CALL-GRCONSIOBUG20438
+                       WHEN P2-OP-ABONO-TRANSFERENCIA                   
+                            OR P2-OP-ABONO-TRASPASO                     
+                            DISPLAY 'GTOPESIO: ES UNA TRANSFERENCIA'
+                            PERFORM CALL-GRTRASIO THRU FIN-CALL-GRTRASIO
+                       WHEN OTHER
+                            DISPLAY 'GTOPESIO: ES UNA OP CONTABLE'
+                            DISPLAY 'GTOPESIO:VALOR DE COD-PRO (bit 2):'
+                                               SIOAPL-CODPROC
+                            PERFORM CALL-GRCONSIO THRU FIN-CALL-GRCONSIO
+                   END-EVALUATE
+              WHEN IDTM-TX-CONSULTA-SALDO
+                   DISPLAY 'GTOPESIO: ES CONSULTA SALDO'
+                   PERFORM CALL-GRCSASIO THRU FIN-CALL-GRCSASIO
+              WHEN IDTM-TX-CONSULTA-MOVIM
+                   DISPLAY 'GTOPESIO: ES CONSULTA MOVIMIENTOS'
+                   PERFORM CALL-GRCUMSIO THRU FIN-CALL-GRCUMSIO
+              WHEN IDTM-TX-FUNCION-TRANSPARENTE
+                   DISPLAY 'GTOPESIO: ES CAMBIO IDIOMA O PIN'
+                   PERFORM CALL-GRFUNSIO THRU FIN-CALL-GRFUNSIO
+              WHEN IDTM-TX-TOTALES-4B
+                   DISPLAY 'GTOPESIO: SON TOTALES DE SESION'
+                   PERFORM CALL-GRTOTSIO THRU FIN-CALL-GRTOTSIO
+              WHEN IDTM-TEST-SISMA                                      DMND0035176
+                   DISPLAY 'GTOPESIO: MENSAJE DE TEST DE SISMA'         DMND0035176
+                   MOVE  K2X99              TO   SIOAPL-CODRES          DMND0035176
+              WHEN OTHER
+                   DISPLAY 'GTOPESIO: NINGUN IDTM, BUENO'
+                   MOVE   CONDB321        TO   DLCOND-NUM
+                   MOVE   CONDB321        TO   WK-ACCION
+                   PERFORM CONDICION      THRU FIN-CONDICION
+           END-EVALUATE.
+      *
+      *
+       FIN-ANALIZ-TIPO-OP.
+           EXIT.
+      /
+      * +--------------------------------------------------------------+
+      * [                          SALIDA-TX                           ]
+      * [                          ---------                           ]
+      * [COMO AREA DE SALIDA SE UTILIZA LA MISMA QUE EN LA ENTRADA     ]
+      * [(LA COPY SIOAPL.LRD).                                         ]
+      * +--------------------------------------------------------------+
+      *
+       SALIDA-TX.
+      *----------
+      *
+           IF    DLVOID
+           THEN  DISPLAY 'EN SALIDA-TX POR DLVOID'
+                 IF    RUTSIO-ROLLBACK-OK
+                 THEN  MOVE  K1XS    TO  NAU-ROLLBACK
+                 ELSE  MOVE  K1XN    TO  NAU-ROLLBACK
+                 END-IF
+                 IF    IDTM-TX-CONSULTA-SALDO
+                       OR IDTM-TX-CONSULTA-MOVIM
+                       OR IDTM-TX-FUNCION-TRANSPARENTE
+                       OR IDTM-TX-TOTALES-4B
+                 THEN  MOVE K1XV     TO   NAU-VOID-HNOC
+                       GO  TO ENVIO-SALIDA
+                 ELSE  GO  TO ENVIO-SALIDA
+           ELSE  DISPLAY 'EN SALIDA-TX POR NO VOID'
+                 DISPLAY 'RUTSIO-CAUR: ' RUTSIO-CAUR
+                 DISPLAY 'WK-ACCION: ' WK-ACCION
+                 IF    RUTSIO-CAUR = SPACES
+                 THEN  IF    WK-ACCION  = SPACES
+                       THEN  PERFORM PREP-SAL-AUTOR
+                                    THRU FIN-PREP-SAL-AUTOR
+                       ELSE  MOVE  WK-ACCION    TO   DLCOND-NUM
+                             MOVE  K1XN         TO   NAU-ROLLBACK
+                             PERFORM CONDICION  THRU FIN-CONDICION
+                 ELSE  MOVE  RUTSIO-CAUR        TO   DLCOND-NUM
+                       MOVE  K1XN               TO   NAU-ROLLBACK
+                       PERFORM CONDICION        THRU FIN-CONDICION.
+      *
+           PERFORM CALCULAR-MAC         THRU  FIN-CALCULAR-MAC.
+      *
+           DISPLAY 'AREA-DATOS-SIOAPL(1:200)'
+                                       AREA-DATOS-SIOAPL(1:200).
+           DISPLAY 'AREA-DATOS-SIOAPL(201:200)'
+                                       AREA-DATOS-SIOAPL(201:200).
+           DISPLAY 'AREA-DATOS-SIOAPL(401:200)'
+                                       AREA-DATOS-SIOAPL(401:200).
+           DISPLAY 'AREA-DATOS-SIOAPL(601:200)'
+                                       AREA-DATOS-SIOAPL(601:200).
+           DISPLAY 'AREA-DATOS-SIOAPL(801:200)'
+                                       AREA-DATOS-SIOAPL(801:200).
+           DISPLAY 'AREA-DATOS-SIOAPL(1001:200)'
+                                       AREA-DATOS-SIOAPL(1001:200).
+           DISPLAY 'AREA-DATOS-SIOAPL(1201:200)'
+                                       AREA-DATOS-SIOAPL(1201:200).
+           DISPLAY 'AREA-DATOS-SIOAPL(1401:200)'
+                                       AREA-DATOS-SIOAPL(1401:200).
+           DISPLAY 'AREA-DATOS-SIOAPL(1601:200)'
+                                       AREA-DATOS-SIOAPL(1601:200).
+           DISPLAY 'AREA-DATOS-SIOAPL(1701:200)'
+                                       AREA-DATOS-SIOAPL(1801:200).
+           DISPLAY 'AREA-DATOS-SIOAPL(2001:200)'
+                                       AREA-DATOS-SIOAPL(2001:200).
+           DISPLAY 'AREA-DATOS-SIOAPL(2201:200)'
+                                       AREA-DATOS-SIOAPL(2201:200).
+           DISPLAY 'AREA-DATOS-SIOAPL(2401:200)'
+                                       AREA-DATOS-SIOAPL(2401:200).
+           DISPLAY 'AREA-DATOS-SIOAPL(2601:200)'
+                                       AREA-DATOS-SIOAPL(2601:200).
+           DISPLAY 'AREA-DATOS-SIOAPL(2801:200)'
+                                       AREA-DATOS-SIOAPL(2801:200).
+           DISPLAY 'AREA-DATOS-SIOAPL(3001:200)'
+                                       AREA-DATOS-SIOAPL(3001:200).
+           DISPLAY 'AREA-DATOS-SIOAPL(3201:200)'
+                                       AREA-DATOS-SIOAPL(3201:200).
+           DISPLAY 'AREA-DATOS-SIOAPL(3401:200)'
+                                       AREA-DATOS-SIOAPL(3401:200).
+           DISPLAY 'AREA-DATOS-SIOAPL(3601:200)'
+                                       AREA-DATOS-SIOAPL(3601:200).
+      *
+           MOVE AREA-DATOS-SIOAPL       TO    WK-AREA-DATOS-SIOAPL.
+      *
+           DISPLAY 'WK-AREA-DATOS-SIOAPL(1:200)'
+                                       WK-AREA-DATOS-SIOAPL(1:200).
+           DISPLAY 'WK-AREA-DATOS-SIOAPL(201:200)'
+                                       WK-AREA-DATOS-SIOAPL(201:200).
+           DISPLAY 'WK-AREA-DATOS-SIOAPL(401:200)'
+                                       WK-AREA-DATOS-SIOAPL(401:200).
+           DISPLAY 'WK-AREA-DATOS-SIOAPL(601:200)'
+                                       WK-AREA-DATOS-SIOAPL(601:200).
+           DISPLAY 'WK-AREA-DATOS-SIOAPL(801:200)'
+                                       WK-AREA-DATOS-SIOAPL(801:200).
+           DISPLAY 'WK-AREA-DATOS-SIOAPL(1001:200)'
+                                       WK-AREA-DATOS-SIOAPL(1001:200).
+           DISPLAY 'WK-AREA-DATOS-SIOAPL(1201:200)'
+                                       WK-AREA-DATOS-SIOAPL(1201:200).
+           DISPLAY 'WK-AREA-DATOS-SIOAPL(1401:200)'
+                                       WK-AREA-DATOS-SIOAPL(1401:200).
+           DISPLAY 'WK-AREA-DATOS-SIOAPL(1601:200)'
+                                       WK-AREA-DATOS-SIOAPL(1601:200).
+           DISPLAY 'WK-AREA-DATOS-SIOAPL(1701:200)'
+                                       WK-AREA-DATOS-SIOAPL(1801:200).
+           DISPLAY 'WK-AREA-DATOS-SIOAPL(2001:200)'
+                                       WK-AREA-DATOS-SIOAPL(2001:200).
+           DISPLAY 'WK-AREA-DATOS-SIOAPL(2201:200)'
+                                       WK-AREA-DATOS-SIOAPL(2201:200).
+           DISPLAY 'WK-AREA-DATOS-SIOAPL(2401:200)'
+                                       WK-AREA-DATOS-SIOAPL(2401:200).
+           DISPLAY 'WK-AREA-DATOS-SIOAPL(2601:200)'
+                                       WK-AREA-DATOS-SIOAPL(2601:200).
+           DISPLAY 'WK-AREA-DATOS-SIOAPL(2801:200)'
+                                       WK-AREA-DATOS-SIOAPL(2801:200).
+           DISPLAY 'WK-AREA-DATOS-SIOAPL(3001:200)'
+                                       WK-AREA-DATOS-SIOAPL(3001:200).
+           DISPLAY 'WK-AREA-DATOS-SIOAPL(3201:200)'
+                                       WK-AREA-DATOS-SIOAPL(3201:200).
+           DISPLAY 'WK-AREA-DATOS-SIOAPL(3401:200)'
+                                       WK-AREA-DATOS-SIOAPL(3401:200).
+           DISPLAY 'WK-AREA-DATOS-SIOAPL(3601:200)'
+                                       WK-AREA-DATOS-SIOAPL(3601:200).
+      *
+           PERFORM SALIDA-TABLA-TPOS  THRU FIN-SALIDA-TABLA-TPOS.
+      *
+       FIN-SALIDA-TX.
+           EXIT.
+      /
+      * +--------------------------------------------------------------+
+      * [                        PREP-SAL-AUTOR                        ]
+      * [                        --------------                        ]
+      * +--------------------------------------------------------------+
+      *
+       PREP-SAL-AUTOR.
+      *---------------
+      *
+           display 'salida autorizada de opersio'.
+           IF    IDTM-TEST-SISMA                                        DMND0035176
+           THEN  MOVE  K2X99        TO   SIOAPL-CODRES                  DMND0035176
+           ELSE  IF    NO-TRMS                                          DMND0035176
+                 THEN  MOVE K2X76   TO   SIOAPL-CODRES                  DMND0035176
+                 ELSE                                                   DMND0035176
+           MOVE  K2X01              TO   SIOAPL-CODRES.
+      *
+       FIN-PREP-SAL-AUTOR.
+      *-------------------
+           EXIT.
+      *
+      * +--------------------------------------------------------------+
+      * [                        PREP-SAL-DENEG                        ]
+      * [                        --------------                        ]
+      * +--------------------------------------------------------------+
+      *
+       PREP-SAL-DENEG.
+      *---------------
+      *
+           display 'salida denegada en opesio'.
+           PERFORM CONVERTIR-MOTERR THRU FIN-CONVERTIR-MOTERR.
+      *
+       FIN-PREP-SAL-DENEG.
+      *-------------------
+           EXIT.
+      *
+      * +--------------------------------------------------------------+
+      * [                       CONVERTIR-MOTERR                       ]
+      * [                       ----------------                       ]
+      * +--------------------------------------------------------------+
+      *
+       CONVERTIR-MOTERR.
+      *-----------------
+      *
+      ***l     display 'gtopesio llamando a tabconsio'.
+           PERFORM LEER-TABCONDSIO     THRU FIN-LEER-TABCONDSIO.
+      *
+           MOVE WK-ACC-RES             TO   SIOAPL-CODRES.
+      *
+      *
+       FIN-CONVERTIR-MOTERR.
+      *---------------------
+           EXIT.
+      /
+      *
+       CALCULAR-MAC.
+      **************
+      *
+          IF    SIN-CLAVE-MAC
+          THEN  MOVE K1U0              TO    SIOAPL-CLAVE-MAC
+                MOVE SPACES            TO    SIOAPL-MAC-X
+          ELSE  IF    IDTM-PET-TRAN-CONT
+                      OR  IDTM-COM-TRAN-CONT
+                      OR  IDTM-ANUL-TRAN-CONT
+                      OR  IDTM-SOL-ABN-TRANSF-TRASP
+                      OR  IDTM-PET-FUN-TRANSPARENTE
+                      OR  IDTM-COM-FUN-TRANSPARENTE
+                THEN  PERFORM MONTAR-DATOS-MAC
+                              THRU FIN-MONTAR-DATOS-MAC
+                      PERFORM CALL-GRCALMAC    THRU FIN-CALL-GRCALMAC
+                      PERFORM DECIMALIZAR-MAC  THRU FIN-DECIMALIZAR-MAC
+                      MOVE   WK-AUX-RES-MAC-R  TO   SIOAPL-MAC
+                ELSE  MOVE K1U0                TO   SIOAPL-CLAVE-MAC
+                      MOVE SPACES              TO   SIOAPL-MAC-X.
+      *
+       FIN-CALCULAR-MAC.
+           EXIT.
+      *
+       MONTAR-DATOS-MAC.
+      *****************
+      *
+           IF    IDTM-PET-TRAN-CONT
+                 OR  IDTM-COM-TRAN-CONT
+                 OR  IDTM-ANUL-TRAN-CONT
+           THEN  MOVE SIOAPL-PAN-D (1:16)        TO  MAC-200-PAN
+                 MOVE SIOAPL-IMPORTX-X           TO  MAC-200-IMP
+LKMOVE*          MOVE SIOAPL-IDTR                TO  MAC-200-IDTR
+LKMOVE           MOVE SIOAPL-IDTR(1:) TO MAC-200-IDTR(1:)
+                 MOVE SIOAPL-CMONTI              TO  MAC-200-CMON
+                 MOVE SIOAPL-CODRES              TO  MAC-200-RESP
+                 MOVE SIOAPL-NUMAUT              TO  MAC-200-NAUT
+LKMOVE*          MOVE SIOAPL-CLAVE-MAC           TO  MAC-200-CLAV
+LKMOVE           MOVE SIOAPL-CLAVE-MAC(1:) TO MAC-200-CLAV(1:)
+                 MOVE LOW-VALUES                 TO  MAC-200-FILL
+           ELSE  IF    IDTM-SOL-ABN-TRANSF-TRASP
+                 THEN  MOVE SIOAPL-IMPOROP       TO  MAC-260-IMP
+LKMOVE*                MOVE SIOAPL-IDTR          TO  MAC-260-IDTR
+LKMOVE                 MOVE SIOAPL-IDTR(1:) TO MAC-260-IDTR(1:)
+                       MOVE SIOAPL-CMONTI        TO  MAC-260-CMON
+                       MOVE SIOAPL-CODRES        TO  MAC-260-RESP
+                       MOVE SIOAPL-NUMAUT        TO  MAC-260-NAUT
+                       MOVE SIOAPL-NUMAUT        TO  MAC-260-CLAV
+                       MOVE LOW-VALUES           TO  MAC-260-FILL
+                 ELSE  MOVE SIOAPL-PAN-D (1:16)  TO  MAC-600-PAN
+LKMOVE*                MOVE SIOAPL-IDTR          TO  MAC-600-IDTR
+LKMOVE                 MOVE SIOAPL-IDTR(1:) TO MAC-600-IDTR(1:)
+                       MOVE SIOAPL-CODRES        TO  MAC-600-RESP
+                       MOVE SIOAPL-NUMAUT        TO  MAC-600-NAUT
+LKMOVE*                MOVE SIOAPL-CLAVE-MAC     TO  MAC-600-CLAV
+LKMOVE                 MOVE SIOAPL-CLAVE-MAC(1:) TO MAC-600-CLAV(1:)
+                       MOVE LOW-VALUES           TO  MAC-600-FILL.
+      *
+LKMOVE*    MOVE  SIOAPL-CLAVE-MAC          TO   IND-MAC.
+LKMOVE     MOVE SIOAPL-CLAVE-MAC(1:) TO IND-MAC(1:).
+           MOVE  DATOS-MAC                 TO   MEM-MAC.
+      *
+       FIN-MONTAR-DATOS-MAC.
+           EXIT.
+      *
+       DECIMALIZAR-MAC.
+      *****************
+      *
+           MOVE  RES-MAC                 TO   WK-AUX-MAC.
+      *
+           MOVE  K1U0                    TO   WI-IND-DAT-MAC.
+           MOVE  K1U0                    TO   WI-IND-RES-MAC.
+      *
+           PERFORM OBT-RES-MAC           THRU FIN-OBT-RES-MAC
+                   UNTIL  MAX-IND-RES-MAC
+                          OR  MAX-IND-DAT-MAC.
+      *
+           IF    MAX-IND-RES-MAC
+           THEN  NEXT SENTENCE
+           ELSE  MOVE  K1U0             TO   WI-IND-DAT-MAC
+                 PERFORM OBT-RES-MAC    THRU FIN-OBT-RES-MAC
+                         UNTIL  MAX-IND-RES-MAC.
+      *
+       FIN-DECIMALIZAR-MAC.
+           EXIT.
+      *
+       OBT-RES-MAC.
+      *************
+      *
+           ADD   K1U1                   TO   WI-IND-DAT-MAC.
+      *
+           IF    WK-AUX-ELEM-MAC (WI-IND-DAT-MAC) IS NUMERIC
+           THEN  ADD   K1U1    TO  WI-IND-RES-MAC
+                 MOVE  WK-AUX-ELEM-MAC (WI-IND-DAT-MAC)
+                               TO  WK-AUX-ELEM-RES-MAC(WI-IND-RES-MAC)
+                 MOVE  K1XAST  TO  WK-AUX-ELEM-MAC (WI-IND-DAT-MAC)
+           ELSE  PERFORM CONV-LETRA    THRU FIN-CONV-LETRA.
+      *
+       FIN-OBT-RES-MAC.
+           EXIT.
+      *
+       CONV-LETRA.
+      ************
+      *
+           IF    WK-AUX-ELEM-MAC (WI-IND-DAT-MAC) = K2X3A
+           THEN  MOVE  K1U0       TO  WK-AUX-ELEM-MAC (WI-IND-DAT-MAC)
+           ELSE  NEXT SENTENCE.
+      *
+           IF    WK-AUX-ELEM-MAC (WI-IND-DAT-MAC) = K2X3B
+           THEN  MOVE  K1U1       TO  WK-AUX-ELEM-MAC (WI-IND-DAT-MAC)
+           ELSE  NEXT SENTENCE.
+      *
+           IF    WK-AUX-ELEM-MAC (WI-IND-DAT-MAC) = K2X3C
+           THEN  MOVE  K1U2       TO  WK-AUX-ELEM-MAC (WI-IND-DAT-MAC)
+           ELSE  NEXT SENTENCE.
+      *
+           IF    WK-AUX-ELEM-MAC (WI-IND-DAT-MAC) = K2X3D
+           THEN  MOVE  K1U3       TO  WK-AUX-ELEM-MAC (WI-IND-DAT-MAC)
+           ELSE  NEXT SENTENCE.
+      *
+           IF    WK-AUX-ELEM-MAC (WI-IND-DAT-MAC) = K2X3E
+           THEN  MOVE  K1U4       TO  WK-AUX-ELEM-MAC (WI-IND-DAT-MAC)
+           ELSE  NEXT SENTENCE.
+      *
+           IF    WK-AUX-ELEM-MAC (WI-IND-DAT-MAC) = K2X3F
+           THEN  MOVE  K1U5       TO  WK-AUX-ELEM-MAC (WI-IND-DAT-MAC)
+           ELSE  NEXT SENTENCE.
+      *
+       FIN-CONV-LETRA.
+           EXIT.
+      * +--------------------------------------------------------------+
+      * [                      SALIDA-TABLA-TPOS                       ]
+      * [                      -----------------                       ]
+      * +--------------------------------------------------------------+
+      *
+       SALIDA-TABLA-TPOS.
+      *------------------
+      *
+           MOVE DLPT-LENGUA            TO   DLCODIGO-LENG.
+      *
+           PERFORM SAL-FMTZT0925       THRU FIN-SAL-FMTZT0925
+               VARYING  IND
+                  FROM  1  BY  1
+                 UNTIL  IND > 25.
+      *
+           PERFORM SAL-FMTZT0926       THRU FIN-SAL-FMTZT0926.
+      *
+       FIN-SALIDA-TABLA-TPOS.
+           EXIT.
+      *
+      /
+      * +------------------------------------------------------------+
+      * [                                                            ]
+      * [           SALIDAS DE LA TRANSACCION                        ]
+      * [           --------------------------                       ]
+      * +------------------------------------------------------------+
+      *
+       SAL-FMTZT0925.
+      *--------------
+      *
+           MOVE  FMTZT0925             TO   DLNUM-FORMATO.
+           MOVE  WK-TPO-DE-143 (IND)   TO   DLTEXTO-MSG.
+           DISPLAY "WK-TPO-DE-143(" IND "): " WK-TPO-DE-143 (IND).
+           PERFORM LLAMADA-SALIDA      THRU FIN-LLAMADA-SALIDA.
+      *
+       FIN-SAL-FMTZT0925.
+           EXIT.
+      *
+      *
+       SAL-FMTZT0926.
+      *--------------
+      *
+           MOVE  FMTZT0926           TO   DLNUM-FORMATO.
+           MOVE  WK-TPO-DE-121       TO   DLTEXTO-MSG.
+           DISPLAY "WK-TPO-DE-121: " WK-TPO-DE-121. 
+           PERFORM LLAMADA-SALIDA    THRU FIN-LLAMADA-SALIDA.
+      *
+       FIN-SAL-FMTZT0926.
+           EXIT.
+      *
+      * +--------------------------------------------------------------+
+      * [                           SALIDA-T                           ]
+      * [                           --------                           ]
+      * +--------------------------------------------------------------+
+      *
+       SALIDA-T.
+      *---------
+      *
+           MOVE FMTZT0937              TO          DLNUM-FORMATO.
+           MOVE 'T'                    TO          DLTEXTO-MSG.
+           PERFORM LLAMADA-SALIDA    THRU FIN-LLAMADA-SALIDA.
+      *
+       FIN-SALIDA-T.
+      *-------------
+           EXIT.
+      /
+      * +--------------------------------------------------------------+
+      * [                        -------------                         ]
+      * [                        ACCESOS A PDU                         ]
+      * [                        -------------                         ]
+      * +--------------------------------------------------------------+
+      *
+      * +--------------------------------------------------------------+
+      * [                       LEER-TABCONDSIO                        ]
+      * [                       ---------------                        ]
+      * +--------------------------------------------------------------+
+      *
+       LEER-TABCONDSIO.
+      *----------------
+      *
+           MOVE WK-AUX-SIOCAUR         TO    CSIO-CLAV-1.
+           MOVE SPACES                 TO    CSIO-CLAV-2.
+           MOVE SPACES                 TO    CSIO-CLAV-3.
+           MOVE CLAV-CONDSIO           TO    INFO-CLADATO.
+           display 'valor de error, condsio:' CLAV-CONDSIO.
+      *
+           MOVE NTABTABCONDSIO         TO    INFO-TABLA.
+           MOVE ZEROES                 TO    INFO-CLAINST.
+           MOVE ZERO                   TO    INFO-CONT.
+           MOVE K3U102                 TO    INFO-VLI.
+      *
+           PERFORM CALL-PDU            THRU  FIN-CALL-PDU.
+      *
+           EVALUATE TRUE
+               WHEN DLBUEN-ACCESO
+                    MOVE INFO-DATOS    TO    DATOS-TABCONDSIO
+                    MOVE CSIOCACC      TO    WK-ACC-RES
+               WHEN DLNOT-DATA
+                    MOVE WC-ER-DEFECTO TO    WK-ACC-RES
+               WHEN OTHER
+                    MOVE COND0301      TO    DLCOND-NUM
+                    MOVE 2             TO    DLDISPLA-TIPERR
+                    MOVE K1XN          TO    NAU-ROLLBACK
+                    PERFORM DISPLAYAR  THRU  FIN-DISPLAYAR
+                    PERFORM CONDICION  THRU  FIN-CONDICION
+           END-EVALUATE.
+      *
+       FIN-LEER-TABCONDSIO.
+      *--------------------
+           EXIT.
+      /
+      * +--------------------------------------------------------------+
+      * [                       MOSTRAR-NUM-AUTOR                      ]
+      * [                       -----------------                      ]
+      * +--------------------------------------------------------------+
+      *
+       MOSTRAR-NUM-AUTOR.
+      *------------------
+      *
+           MOVE SPACES            TO BDISPL-TEXTO.
+      *
+           STRING MENSAJE1,
+                  SIOAPL-NUMAUT
+                  MENSAJE2,
+                  SIOAPL-IDTR    DELIMITED BY '  '
+                                      INTO BDISPL-TEXTO.
+      *
+           MOVE K1XI             TO BDISPL-TIPOMENS.
+      *
+           PERFORM CALL-GRBDISPL  THRU FIN-CALL-GRBDISPL.
+      *
+       FIN-MOSTRAR-NUM-AUTOR.
+      *----------------------
+           EXIT.
+      *                                                                 PRJ0105375
+       ANALIZA-OPEREMI.                                                 PRJ0105375
+      *****************                                                 PRJ0105375
+      *                                                                 PRJ0105375
+           DISPLAY "ANALIZA-OPEREMI".
+           MOVE  SPACES                TO  AREA-GRTRDEMI.               PRJ0105375
+           MOVE  SIOAPL-PAN-D (1:18)   TO  WK-PAN-18.                   PRJ0105375
+           MOVE  WK-PAN-16             TO  RDEMI-NTAR.                  PRJ0105375
+           DISPLAY "RDEMI-NTAR: " RDEMI-NTAR.
+      *                                                                 PRJ0105375
+           PERFORM CALL-GRTRDEMI       THRU FIN-CALL-GRTRDEMI.          PRJ0105375
+      *                                                                 PRJ0105375
+           DISPLAY "RDEMI-SALIDA: " RDEMI-SALIDA.
+           EVALUATE TRUE                                                PRJ0105375
+               WHEN RDEMIST-OK                                          PRJ0105375
+                    MOVE  RDEMI-CTAO   TO    GRTRDEMI-CTA-EMISOR        PRJ0105375
+                    PERFORM  VALIDA-OPEREMI  THRU FIN-VALIDA-OPEREMI    PRJ0105375
+               WHEN OTHER                                               PRJ0105375
+                    MOVE CONDB321      TO    DLCOND-NUM                 PRJ0105375
+                    MOVE 2             TO    DLDISPLA-TIPERR            PRJ0105375
+                    MOVE K1XN          TO    NAU-ROLLBACK               PRJ0105375
+                    PERFORM DISPLAYAR  THRU  FIN-DISPLAYAR              PRJ0105375
+                    PERFORM CONDICION  THRU  FIN-CONDICION              PRJ0105375
+           END-EVALUATE.                                                PRJ0105375
+      *                                                                 PRJ0105375
+       FIN-ANALIZA-OPEREMI.                                             PRJ0105375
+      *********************                                             PRJ0105375
+      *                                                                 PRJ0105375
+           EXIT.                                                        PRJ0105375
+      *                                                                 PRJ0105375
+       VALIDA-OPEREMI.                                                  PRJ0105375
+      ****************                                                  PRJ0105375
+      *                                                                 PRJ0105375
+           DISPLAY "VALIDA-OPEREMI".
+           MOVE  SPACES                TO  CLAVE-TABOPEREMI.            PRJ0105375
+           MOVE  RDEMI-CEMI            TO  OPEREM-EMISOR                PRJ0105375
+                                           GRTRDEMI-EMISOR.             PRJ0105375
+           MOVE  K1XO                  TO  OPEREM-TIPO.                 PRJ0105375
+           MOVE  SIOAPL-IDTM           TO  OPEREM-IDTM.                 PRJ0105375
+           MOVE  SIOAPL-OPERACION      TO  OPEREM-OPER.                 PRJ0105375
+      *                                                                 PRJ0105375
+           MOVE CLAVE-TABOPEREMI       TO    INFO-CLADATO.              PRJ0105375
+           DISPLAY "CLAVE TABOPEREMI: " CLAVE-TABOPEREMI.               PRJ0105375
+      *                                                                 PRJ0105375
+           MOVE NTABTABOPEREMI         TO    INFO-TABLA.                PRJ0105375
+           MOVE ZEROES                 TO    INFO-CLAINST.              PRJ0105375
+           MOVE ZERO                   TO    INFO-CONT.                 PRJ0105375
+           MOVE K3U102                 TO    INFO-VLI.                  PRJ0105375
+      *                                                                 PRJ0105375
+           PERFORM CALL-PDU            THRU  FIN-CALL-PDU.              PRJ0105375
+      *                                                                 PRJ0105375
+           EVALUATE TRUE                                                PRJ0105375
+               WHEN DLBUEN-ACCESO                                       PRJ0105375
+                    MOVE INFO-DATOS    TO    DATOS-TABOPEREMI           PRJ0105375
+                    DISPLAY "DATOS-TABOPEREMI: " DATOS-TABOPEREMI       PRJ0105375
+                    IF   OPEREM-VALI = K2XOK                            PRJ0105375
+                    THEN NEXT SENTENCE                                  PRJ0105375
+                    ELSE MOVE CONDB321 TO    DLCOND-NUM                 PRJ0105375
+                         MOVE 2        TO    DLDISPLA-TIPERR            PRJ0105375
+                         MOVE K1XN     TO    NAU-ROLLBACK               PRJ0105375
+                         PERFORM DISPLAYAR  THRU  FIN-DISPLAYAR         PRJ0105375
+                         PERFORM CONDICION  THRU  FIN-CONDICION         PRJ0105375
+                    END-IF                                              PRJ0105375
+               WHEN OTHER                                               PRJ0105375
+                    MOVE CONDB321      TO    DLCOND-NUM                 PRJ0105375
+                    MOVE 2             TO    DLDISPLA-TIPERR            PRJ0105375
+                    MOVE K1XN          TO    NAU-ROLLBACK               PRJ0105375
+                    PERFORM DISPLAYAR  THRU  FIN-DISPLAYAR              PRJ0105375
+                    PERFORM CONDICION  THRU  FIN-CONDICION              PRJ0105375
+           END-EVALUATE.                                                PRJ0105375
+      *                                                                 PRJ0105375
+       FIN-VALIDA-OPEREMI.                                              PRJ0105375
+      ********************                                              PRJ0105375
+      *                                                                 PRJ0105375
+           EXIT.                                                        PRJ0105375
+      *                                                                 PRJ0105375
+       ACCEDE-DEMI-TOT.                                                 PRJ0105375
+      *----------------                                                 PRJ0105375
+      *                                                                 PRJ0105375
+           DISPLAY "GTOPESIO - SIOAPL-IDE-CD: " SIOAPL-IDE-CD.
+           MOVE SIOAPL-IDE-CD(2:1)     TO   DEMINR4B DEMINRMC DEMINRVI  PRJ0105375
+                                            DEMIPRIC.                   DMND0035176
+      *                                                                 PRJ0105375
+           EXEC SQL                                                     PRJ0105375
+                SELECT  DEMIEMIS                                        PRJ0105375
+                  INTO :DEMIEMIS                                        PRJ0105375
+                  FROM  DEMI                                            PRJ0105375
+                 WHERE  DEMINR4B = :DEMINR4B                            PRJ0105375
+                    OR  DEMINRMC = :DEMINRMC                            PRJ0105375
+                    OR  DEMINRVI = :DEMINRVI                            PRJ0105375
+                    OR  DEMIPRIC = :DEMIPRIC                            DMND0035176
+           END-EXEC.                                                    PRJ0105375
+      *                                                                 PRJ0105375
+           PERFORM CAMB-STAT-ORA       THRU FIN-CAMB-STAT-ORA.          PRJ0105375
+      *                                                                 PRJ0105375
+           IF    DLBUEN-ACCESO                                          PRJ0105375
+           THEN  MOVE  DEMIEMIS        TO  GRTRDEMI-EMISOR              PRJ0105375
+                 DISPLAY "GTOPESIO - TOTALES - DEMIEMIS: " DEMIEMIS
+           ELSE  DISPLAY "GTOPESIO->ERROR-LEER-DEMI|"                   PRJ0105375
+                 DEMINR4B "|" SQLCODE "]"                               PRJ0105375
+                 MOVE CONDB321         TO    DLCOND-NUM                 PRJ0105375
+                 MOVE 2                TO    DLDISPLA-TIPERR            PRJ0105375
+                 MOVE K1XN             TO    NAU-ROLLBACK               PRJ0105375
+                 PERFORM DISPLAYAR     THRU  FIN-DISPLAYAR              PRJ0105375
+                 PERFORM CONDICION     THRU  FIN-CONDICION              PRJ0105375
+           END-IF.                                                      PRJ0105375
+      *                                                                 PRJ0105375
+       FIN-ACCEDE-DEMI-TOT.                                             PRJ0105375
+      *--------------------                                             PRJ0105375
+      *                                                                 PRJ0105375
+           EXIT.                                                        PRJ0105375
+      *
+      * +------------------------------------------------------------+
+      * [                      ------------------                    ]
+      * [                      LLAMADAS A RUTINAS                    ]
+      * [                      ------------------                    ]
+      * +------------------------------------------------------------+
+      *
+       CALL-GRCONSIO.
+      *--------------
+      *
+035176*    PERFORM DISPLAY-SIOAPL-ENT THRU FIN-DISPLAY-SIOAPL-ENT.      BUG23454
+      *           
+           CALL  'GRCONSIO'  USING  DLMT-INFO-BLOCK
+                                    INPUT-AREA
+                                    DLMT-WORK-AREA
+                                    DLMT-OUTPUT-AREA
+                                    DLMT-SAVE-DATA
+                                    AREA-GR-RUTSIO.
+      *                             
+035176*    PERFORM DISPLAY-SIOAPL-SAL THRU FIN-DISPLAY-SIOAPL-SAL.      BUG23454
+      *
+       FIN-CALL-GRCONSIO.
+           EXIT.
+           
+      *           
+      *@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@                      
+      *@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@           
+      *@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@                 
+      *                
+           
+       DISPLAY-SIOAPL-ENT.                                              TRAZA
+      *-------------------                                              TRAZA
+           display "XPN-SIOAPL-IDE-CD                  >"               TRAZA
+           SIOAPL-IDE-CD                "]".                            TRAZA
+           display "XPN-SIOAPL-IDE-CD-ORI              >"               TRAZA
+           SIOAPL-IDE-CD-ORI            "]".                            TRAZA
+           display "XPN-SIOAPL-CAB-CTRL-IOO            >"               TRAZA
+           SIOAPL-CAB-CTRL-IOO          "]".                            TRAZA
+           display "XPN-SIOAPL-CAB-CTRL-IOD            >"               TRAZA
+           SIOAPL-CAB-CTRL-IOD          "]".                            TRAZA
+           display "XPN-SIOAPL-CAB-CTRL-IAP            >"               TRAZA
+           SIOAPL-CAB-CTRL-IAP          "]".                            TRAZA
+           display "XPN-SIOAPL-CAB-CTRL-IOP            >"               TRAZA
+           SIOAPL-CAB-CTRL-IOP          "]".                            TRAZA
+           display "XPN-SIOAPL-CAB-CTRL-NB             >"               TRAZA
+           SIOAPL-CAB-CTRL-NB           "]".                            TRAZA
+           display "XPN-SIOAPL-CAUR                    >"               TRAZA
+           SIOAPL-CAUR                  "]".                            TRAZA
+           display "XPN-SIOAPL-BIN1                    >"               TRAZA
+           SIOAPL-BIN1                  "]".                            TRAZA
+           display "XPN-SIOAPL-BIN2                    >"               TRAZA
+           SIOAPL-BIN2                  "]".                            TRAZA
+           display "XPN-SIOAPL-BIN3                    >"               TRAZA
+           SIOAPL-BIN3                  "]".                            TRAZA
+           display "XPN-SIOAPL-IDTM                    >"               TRAZA
+           SIOAPL-IDTM                  "]".                            TRAZA
+           display "XPN-SIOAPL-MBIT-P                  >"               TRAZA
+           SIOAPL-MBIT-P                "]".                            TRAZA
+           display "XPN-SIOAPL-PAN                     >"               TRAZA
+           SIOAPL-PAN                   "]".                            TRAZA
+           display "XPN-SIOAPL-CODPROC                 >"               TRAZA
+           SIOAPL-CODPROC               "]".                            TRAZA
+           display "XPN-SIOAPL-IMPORTX-X               >"               TRAZA
+           SIOAPL-IMPORTX-X             "]".                            TRAZA
+           display "XPN-SIOAPL-IDEN-USR                >"               TRAZA
+           SIOAPL-IDEN-USR              "]".                            TRAZA
+           display "XPN-SIOAPL-IMPOROP-X               >"               TRAZA
+           SIOAPL-IMPOROP-X             "]".                            TRAZA
+           display "XPN-SIOAPL-IDTR-X                  >"               TRAZA
+           SIOAPL-IDTR-X                "]".                            TRAZA
+           display "XPN-SIOAPL-FECHAL-X                >"               TRAZA
+           SIOAPL-FECHAL-X              "]".                            TRAZA
+           display "XPN-SIOAPL-CMONTI-X                >"               TRAZA
+           SIOAPL-CMONTI-X              "]".                            TRAZA
+           display "XPN-SIOAPL-HORAL-X                 >"               TRAZA
+           SIOAPL-HORAL-X               "]".                            TRAZA
+           display "XPN-SIOAPL-FECCAD-X                >"               TRAZA
+           SIOAPL-FECCAD-X              "]".                            TRAZA
+           display "XPN-SIOAPL-ACCION-TARJ             >"               TRAZA
+           SIOAPL-ACCION-TARJ           "]".                            TRAZA
+           display "XPN-SIOAPL-DAT-DEP-EFE             >"               TRAZA
+           SIOAPL-DAT-DEP-EFE           "]".                            TRAZA
+           display "XPN-SIOAPL-COMINF                  >"               TRAZA
+           SIOAPL-COMINF                "]".                            TRAZA
+           display "XPN-SIOAPL-SECTOR-X                >"               TRAZA
+           SIOAPL-SECTOR-X              "]".                            TRAZA
+           display "XPN-SIOAPL-ID-REDTERM              >"               TRAZA
+           SIOAPL-ID-REDTERM            "]".                            TRAZA
+           display "XPN-SIOAPL-CODRAZ-ANUL-X           >"               TRAZA
+           SIOAPL-CODRAZ-ANUL-X         "]".                            TRAZA
+           display "XPN-SIOAPL-NUM-MIEMB-X             >"               TRAZA
+           SIOAPL-NUM-MIEMB-X           "]".                            TRAZA
+           display "XPN-SIOAPL-ICARGOS-X               >"               TRAZA
+           SIOAPL-ICARGOS-X             "]".                            TRAZA
+           display "XPN-SIOAPL-NCARGOS-X               >"               TRAZA
+           SIOAPL-NCARGOS-X             "]".                            TRAZA
+           display "XPN-SIOAPL-IABONOS-X               >"               TRAZA
+           SIOAPL-IABONOS-X             "]".                            TRAZA
+           display "XPN-SIOAPL-NABONOS-X               >"               TRAZA
+           SIOAPL-NABONOS-X             "]".                            TRAZA
+           display "XPN-SIOAPL-I-ANUL-CAR-X            >"               TRAZA
+           SIOAPL-I-ANUL-CAR-X          "]".                            TRAZA
+           display "XPN-SIOAPL-NUM-ANUL-CAR-X          >"               TRAZA
+           SIOAPL-NUM-ANUL-CAR-X        "]".                            TRAZA
+           display "XPN-SIOAPL-I-ANUL-ABO-X            >"               TRAZA
+           SIOAPL-I-ANUL-ABO-X          "]".                            TRAZA
+           display "XPN-SIOAPL-NUM-ANUL-ABO-X          >"               TRAZA
+           SIOAPL-NUM-ANUL-ABO-X        "]".                            TRAZA
+           display "XPN-SIOAPL-DAT-ABO-COM-X           >"               TRAZA
+           SIOAPL-DAT-ABO-COM-X         "]".                            TRAZA
+           display "XPN-SIOAPL-INF-ADIC-PET-TRANSF-X   >"               TRAZA
+           SIOAPL-INF-ADIC-PET-TRANSF-X "]".                            TRAZA
+           display "XPN-SIOAPL-CODRES-X                >"               TRAZA
+           SIOAPL-CODRES-X              "]".                            TRAZA
+           display "XPN-SIOAPL-IDEN-BLOQUE-MOV-X       >"               TRAZA
+           SIOAPL-IDEN-BLOQUE-MOV-X     "]".                            TRAZA
+           display "XPN-SIOAPL-ADIC-RESP-TRANSFER-X    >"               TRAZA
+           SIOAPL-ADIC-RESP-TRANSFER-X  "]".                            TRAZA
+           display "XPN-SIOAPL-DATORI                  >"               TRAZA
+           SIOAPL-DATORI                "]".                            TRAZA
+           display "XPN-SIOAPL-NUMAUT                  >"               TRAZA
+           SIOAPL-NUMAUT                "]".                            TRAZA
+           display "XPN-SIOAPL-INF-SALDO               >"               TRAZA
+           SIOAPL-INF-SALDO             "]".                            TRAZA
+           display "XPN-SIOAPL-INF-MOV                 >"               TRAZA
+           SIOAPL-INF-MOV               "]".                            TRAZA
+           display "XPN-SIOAPL-NUM-REF-X               >"               TRAZA
+           SIOAPL-NUM-REF-X             "]".                            TRAZA
+           display "XPN-SIOAPL-REF-TPV                 >"               TRAZA
+           SIOAPL-REF-TPV               "]".                            TRAZA
+           display "XPN-SIOAPL-MON-CTBLE-X             >"               TRAZA
+           SIOAPL-MON-CTBLE-X           "]".                            TRAZA
+           display "XPN-SIOAPL-TOTAL-TELEBANCO         >"               TRAZA
+           SIOAPL-TOTAL-TELEBANCO       "]".                            TRAZA
+           display "XPN-SIOAPL-IMP-TERMINAL            >"               TRAZA
+           SIOAPL-IMP-TERMINAL          "]".                            TRAZA
+           display "XPN-SIOAPL-DAT-ADIC-ENV-TRANSP     >"               TRAZA
+           SIOAPL-DAT-ADIC-ENV-TRANSP   "]".                            TRAZA
+           display "XPN-SIOAPL-NOMEST                  >"               TRAZA
+           SIOAPL-NOMEST                "]".                            TRAZA
+           display "XPN-SIOAPL-DAT-ADIC-REC-TRANSP     >"               TRAZA
+           SIOAPL-DAT-ADIC-REC-TRANSP   "]".                            TRAZA
+           display "XPN-SIOAPL-MODAUT-TERM             >"               TRAZA
+           SIOAPL-MODAUT-TERM           "]".                            TRAZA
+           display "XPN-BIT-P-51                       >"               TRAZA
+           BIT-P-51                     "]".                            TRAZA
+           display "XPN-SIOAPL-MAC-X                   >"               TRAZA
+           SIOAPL-MAC-X                 "]".                            TRAZA
+           display "XPN-SIOAPL-CLAVE-MAC-X             >"               TRAZA
+           SIOAPL-CLAVE-MAC-X           "]".                            TRAZA
+           display "XPN-SIOAPL-TOT-TRASPASOS-X         >"               TRAZA
+           SIOAPL-TOT-TRASPASOS-X       "]".                            TRAZA
+           display "XPN-SIOAPL-NUM-TRANSPASOS-X        >"               TRAZA
+           SIOAPL-NUM-TRANSPASOS-X      "]".                            TRAZA
+           display "XPN-SIOAPL-TOT-ANUL-TRASPASOS-X    >"               TRAZA
+           SIOAPL-TOT-ANUL-TRASPASOS-X  "]".                            TRAZA
+           display "XPN-SIOAPL-NUM-ANUL-TRASPASOS-X    >"               TRAZA
+           SIOAPL-NUM-ANUL-TRASPASOS-X  "]".                            TRAZA
+           display "XPN-BIT-P-58                       >"               TRAZA
+           BIT-P-58                     "]".                            TRAZA
+           display "XPN-BIT-P-59                       >"               TRAZA
+           BIT-P-59                     "]".                            TRAZA
+           display "XPN-SIOAPL-FEC-REF-TOTALES-X       >"               TRAZA
+           SIOAPL-FEC-REF-TOTALES-X     "]".                            TRAZA
+           display "XPN-SIOAPL-IND-CUADRE-TOT-X        >"               TRAZA
+           SIOAPL-IND-CUADRE-TOT-X      "]".                            TRAZA
+           display "XPN-SIOAPL-IND-CUADRE-TOT          >"               TRAZA
+           SIOAPL-IND-CUADRE-TOT        "]".                            TRAZA
+           display "XPN-SIOAPL-STATUS-TELEBANCO        >"               TRAZA
+           SIOAPL-STATUS-TELEBANCO      "]".                            TRAZA
+           display "XPN-SIOAPL-INF-OP-OT-REDES         >"               TRAZA
+           SIOAPL-INF-OP-OT-REDES       "]".                            TRAZA
+           display "XPN-SIOAPL-PUNT-SERV-X         >"                   TRAZA
+           SIOAPL-PUNT-SERV-X       "]".                                TRAZA
+           display "XPN-GRTRDEMI-EMISOR         >"                      TRAZA
+           GRTRDEMI-EMISOR       "]".                                   TRAZA
+           display "XPN-GRTRDEMI-CTA-EMISOR         >"                  TRAZA
+           GRTRDEMI-CTA-EMISOR       "]".                               TRAZA
+           display "XPN-SIOAPL-CODFUN         >"                        TRAZA
+           SIOAPL-CODFUN       "]".                                     TRAZA
+           display "XPN-SIOAPL-CODACTINT         >"                     TRAZA
+           SIOAPL-CODACTINT       "]".                                  TRAZA
+           display "XPN-SIOAPL-FECSES         >"                        TRAZA
+           SIOAPL-FECSES       "]".                                     TRAZA
+           display "XPN-SIOAPL-REFADQ         >"                        TRAZA
+           SIOAPL-REFADQ       "]".                                     TRAZA
+           display "XPN-SIOAPL-IDEADQ         >"                        TRAZA
+           SIOAPL-IDEADQ       "]".                                     TRAZA
+           display "XPN-SIOAPL-IMPCUO         >"                        TRAZA
+           SIOAPL-IMPCUO       "]".                                     TRAZA
+           display "XPN-SIOAPL-CONFCTRL         >"                      TRAZA
+           SIOAPL-CONFCTRL       "]".                                   TRAZA
+           display "XPN-SIOAPL-IDENAUT         >"                       TRAZA
+           SIOAPL-IDENAUT       "]".                                    TRAZA
+           display "SIOAPL-INDSIOPRI           >"                       TRAZA
+           SIOAPL-INDSIOPRI                                             TRAZA
+           display "SIOAPL-IM-CUO-ABO          >"                       TRAZA
+           SIOAPL-IM-CUO-ABO                                            TRAZA
+           display "SIOAPL-IM-CUO-CAR          >"                       TRAZA
+           SIOAPL-IM-CUO-CAR                                            TRAZA
+           display "SIOAPL-CONCILI             >"                       TRAZA
+           SIOAPL-CONCILI                                               TRAZA
+           display "SIOAPL-NUMOPESIS           >"                       TRAZA
+           SIOAPL-NUMOPESIS    "]".                                     TRAZA
+           display "SIOAPL-CLASIRIES           >"                       PRJ0247167
+           SIOAPL-CLASIRIES   "]".                                      PRJ0247167
+           display "SIOAPL-MODOOPERA           >"                       PRJ0257005
+           SIOAPL-MODOOPERA   "]".                                      PRJ0257005
+           display "SIOAPL-TARJTOKEN           >"                       PRJ0257005
+           SIOAPL-TARJTOKEN   "]".                                      PRJ0257005
+           display "SIOAPL-FECATTOKE           >"                       PRJ0257005
+           SIOAPL-FECATTOKE    "]".                                     PRJ0257005
+      *                                                                 TRAZA
+       FIN-DISPLAY-SIOAPL-ENT.                                          TRAZA
+           EXIT.                                                        TRAZA
+                                                                        TRAZA
+       DISPLAY-SIOAPL-SAL.                                              TRAZA
+      *-------------------                                              TRAZA
+           display "XPN-SIOAPL-IDE-CD                  <"               TRAZA
+           SIOAPL-IDE-CD                "]".                            TRAZA
+           display "XPN-SIOAPL-IDE-CD-ORI              <"               TRAZA
+           SIOAPL-IDE-CD-ORI            "]".                            TRAZA
+           display "XPN-SIOAPL-CAB-CTRL-IOO            <"               TRAZA
+           SIOAPL-CAB-CTRL-IOO          "]".                            TRAZA
+           display "XPN-SIOAPL-CAB-CTRL-IOD            <"               TRAZA
+           SIOAPL-CAB-CTRL-IOD          "]".                            TRAZA
+           display "XPN-SIOAPL-CAB-CTRL-IAP            <"               TRAZA
+           SIOAPL-CAB-CTRL-IAP          "]".                            TRAZA
+           display "XPN-SIOAPL-CAB-CTRL-IOP            <"               TRAZA
+           SIOAPL-CAB-CTRL-IOP          "]".                            TRAZA
+           display "XPN-SIOAPL-CAB-CTRL-NB             <"               TRAZA
+           SIOAPL-CAB-CTRL-NB           "]".                            TRAZA
+           display "XPN-SIOAPL-CAUR                    <"               TRAZA
+           SIOAPL-CAUR                  "]".                            TRAZA
+           display "XPN-SIOAPL-BIN1                    <"               TRAZA
+           SIOAPL-BIN1                  "]".                            TRAZA
+           display "XPN-SIOAPL-BIN2                    <"               TRAZA
+           SIOAPL-BIN2                  "]".                            TRAZA
+           display "XPN-SIOAPL-BIN3                    <"               TRAZA
+           SIOAPL-BIN3                  "]".                            TRAZA
+           display "XPN-SIOAPL-IDTM                    <"               TRAZA
+           SIOAPL-IDTM                  "]".                            TRAZA
+           display "XPN-SIOAPL-MBIT-P                  <"               TRAZA
+           SIOAPL-MBIT-P                "]".                            TRAZA
+           display "XPN-SIOAPL-PAN                     <"               TRAZA
+           SIOAPL-PAN                   "]".                            TRAZA
+           display "XPN-SIOAPL-CODPROC                 <"               TRAZA
+           SIOAPL-CODPROC               "]".                            TRAZA
+           display "XPN-SIOAPL-IMPORTX-X               <"               TRAZA
+           SIOAPL-IMPORTX-X             "]".                            TRAZA
+           display "XPN-SIOAPL-IDEN-USR                <"               TRAZA
+           SIOAPL-IDEN-USR              "]".                            TRAZA
+           display "XPN-SIOAPL-IMPOROP-X               <"               TRAZA
+           SIOAPL-IMPOROP-X             "]".                            TRAZA
+           display "XPN-SIOAPL-IDTR-X                  <"               TRAZA
+           SIOAPL-IDTR-X                "]".                            TRAZA
+           display "XPN-SIOAPL-FECHAL-X                <"               TRAZA
+           SIOAPL-FECHAL-X              "]".                            TRAZA
+           display "XPN-SIOAPL-CMONTI-X                <"               TRAZA
+           SIOAPL-CMONTI-X              "]".                            TRAZA
+           display "XPN-SIOAPL-HORAL-X                 <"               TRAZA
+           SIOAPL-HORAL-X               "]".                            TRAZA
+           display "XPN-SIOAPL-FECCAD-X                <"               TRAZA
+           SIOAPL-FECCAD-X              "]".                            TRAZA
+           display "XPN-SIOAPL-ACCION-TARJ             <"               TRAZA
+           SIOAPL-ACCION-TARJ           "]".                            TRAZA
+           display "XPN-SIOAPL-DAT-DEP-EFE             <"               TRAZA
+           SIOAPL-DAT-DEP-EFE           "]".                            TRAZA
+           display "XPN-SIOAPL-COMINF                  <"               TRAZA
+           SIOAPL-COMINF                "]".                            TRAZA
+           display "XPN-SIOAPL-SECTOR-X                <"               TRAZA
+           SIOAPL-SECTOR-X              "]".                            TRAZA
+           display "XPN-SIOAPL-ID-REDTERM              <"               TRAZA
+           SIOAPL-ID-REDTERM            "]".                            TRAZA
+           display "XPN-SIOAPL-CODRAZ-ANUL-X           <"               TRAZA
+           SIOAPL-CODRAZ-ANUL-X         "]".                            TRAZA
+           display "XPN-SIOAPL-NUM-MIEMB-X             <"               TRAZA
+           SIOAPL-NUM-MIEMB-X           "]".                            TRAZA
+           display "XPN-SIOAPL-ICARGOS-X               <"               TRAZA
+           SIOAPL-ICARGOS-X             "]".                            TRAZA
+           display "XPN-SIOAPL-NCARGOS-X               <"               TRAZA
+           SIOAPL-NCARGOS-X             "]".                            TRAZA
+           display "XPN-SIOAPL-IABONOS-X               <"               TRAZA
+           SIOAPL-IABONOS-X             "]".                            TRAZA
+           display "XPN-SIOAPL-NABONOS-X               <"               TRAZA
+           SIOAPL-NABONOS-X             "]".                            TRAZA
+           display "XPN-SIOAPL-I-ANUL-CAR-X            <"               TRAZA
+           SIOAPL-I-ANUL-CAR-X          "]".                            TRAZA
+           display "XPN-SIOAPL-NUM-ANUL-CAR-X          <"               TRAZA
+           SIOAPL-NUM-ANUL-CAR-X        "]".                            TRAZA
+           display "XPN-SIOAPL-I-ANUL-ABO-X            <"               TRAZA
+           SIOAPL-I-ANUL-ABO-X          "]".                            TRAZA
+           display "XPN-SIOAPL-NUM-ANUL-ABO-X          <"               TRAZA
+           SIOAPL-NUM-ANUL-ABO-X        "]".                            TRAZA
+           display "XPN-SIOAPL-DAT-ABO-COM-X           <"               TRAZA
+           SIOAPL-DAT-ABO-COM-X         "]".                            TRAZA
+           display "XPN-SIOAPL-INF-ADIC-PET-TRANSF-X   <"               TRAZA
+           SIOAPL-INF-ADIC-PET-TRANSF-X "]".                            TRAZA
+           display "XPN-SIOAPL-CODRES-X                <"               TRAZA
+           SIOAPL-CODRES-X              "]".                            TRAZA
+           display "XPN-SIOAPL-IDEN-BLOQUE-MOV-X       <"               TRAZA
+           SIOAPL-IDEN-BLOQUE-MOV-X     "]".                            TRAZA
+           display "XPN-SIOAPL-ADIC-RESP-TRANSFER-X    <"               TRAZA
+           SIOAPL-ADIC-RESP-TRANSFER-X  "]".                            TRAZA
+           display "XPN-SIOAPL-DATORI                  <"               TRAZA
+           SIOAPL-DATORI                "]".                            TRAZA
+           display "XPN-SIOAPL-NUMAUT                  <"               TRAZA
+           SIOAPL-NUMAUT                "]".                            TRAZA
+           display "XPN-SIOAPL-INF-SALDO               <"               TRAZA
+           SIOAPL-INF-SALDO             "]".                            TRAZA
+           display "XPN-SIOAPL-INF-MOV                 <"               TRAZA
+           SIOAPL-INF-MOV               "]".                            TRAZA
+           display "XPN-SIOAPL-NUM-REF-X               <"               TRAZA
+           SIOAPL-NUM-REF-X             "]".                            TRAZA
+           display "XPN-SIOAPL-REF-TPV                 <"               TRAZA
+           SIOAPL-REF-TPV               "]".                            TRAZA
+           display "XPN-SIOAPL-MON-CTBLE-X             <"               TRAZA
+           SIOAPL-MON-CTBLE-X           "]".                            TRAZA
+           display "XPN-SIOAPL-TOTAL-TELEBANCO         <"               TRAZA
+           SIOAPL-TOTAL-TELEBANCO       "]".                            TRAZA
+           display "XPN-SIOAPL-IMP-TERMINAL            <"               TRAZA
+           SIOAPL-IMP-TERMINAL          "]".                            TRAZA
+           display "XPN-SIOAPL-DAT-ADIC-ENV-TRANSP     <"               TRAZA
+           SIOAPL-DAT-ADIC-ENV-TRANSP   "]".                            TRAZA
+           display "XPN-SIOAPL-NOMEST                  <"               TRAZA
+           SIOAPL-NOMEST                "]".                            TRAZA
+           display "XPN-SIOAPL-DAT-ADIC-REC-TRANSP     <"               TRAZA
+           SIOAPL-DAT-ADIC-REC-TRANSP   "]".                            TRAZA
+           display "XPN-SIOAPL-MODAUT-TERM             <"               TRAZA
+           SIOAPL-MODAUT-TERM           "]".                            TRAZA
+           display "XPN-BIT-P-51                       <"               TRAZA
+           BIT-P-51                     "]".                            TRAZA
+           display "XPN-SIOAPL-MAC-X                   <"               TRAZA
+           SIOAPL-MAC-X                 "]".                            TRAZA
+           display "XPN-SIOAPL-CLAVE-MAC-X             <"               TRAZA
+           SIOAPL-CLAVE-MAC-X           "]".                            TRAZA
+           display "XPN-SIOAPL-TOT-TRASPASOS-X         <"               TRAZA
+           SIOAPL-TOT-TRASPASOS-X       "]".                            TRAZA
+           display "XPN-SIOAPL-NUM-TRANSPASOS-X        <"               TRAZA
+           SIOAPL-NUM-TRANSPASOS-X      "]".                            TRAZA
+           display "XPN-SIOAPL-TOT-ANUL-TRASPASOS-X    <"               TRAZA
+           SIOAPL-TOT-ANUL-TRASPASOS-X  "]".                            TRAZA
+           display "XPN-SIOAPL-NUM-ANUL-TRASPASOS-X    <"               TRAZA
+           SIOAPL-NUM-ANUL-TRASPASOS-X  "]".                            TRAZA
+           display "XPN-BIT-P-58                       <"               TRAZA
+           BIT-P-58                     "]".                            TRAZA
+           display "XPN-BIT-P-59                       <"               TRAZA
+           BIT-P-59                     "]".                            TRAZA
+           display "XPN-SIOAPL-FEC-REF-TOTALES-X       <"               TRAZA
+           SIOAPL-FEC-REF-TOTALES-X     "]".                            TRAZA
+           display "XPN-SIOAPL-IND-CUADRE-TOT-X        <"               TRAZA
+           SIOAPL-IND-CUADRE-TOT-X      "]".                            TRAZA
+           display "XPN-SIOAPL-IND-CUADRE-TOT          <"               TRAZA
+           SIOAPL-IND-CUADRE-TOT        "]".                            TRAZA
+           display "XPN-SIOAPL-STATUS-TELEBANCO        <"               TRAZA
+           SIOAPL-STATUS-TELEBANCO      "]".                            TRAZA
+           display "XPN-SIOAPL-INF-OP-OT-REDES         <"               TRAZA
+           SIOAPL-INF-OP-OT-REDES       "]".                            TRAZA
+           display "XPN-SIOAPL-PUNT-SERV-X             <"               TRAZA
+           SIOAPL-PUNT-SERV-X       "]".                                TRAZA
+           display "XPN-GRTRDEMI-EMISOR         <"                      TRAZA
+           GRTRDEMI-EMISOR       "]".                                   TRAZA
+           display "XPN-GRTRDEMI-CTA-EMISOR         <"                  TRAZA
+           GRTRDEMI-CTA-EMISOR       "]".                               TRAZA
+           display "XPN-SIOAPL-CODFUN         <"                        TRAZA
+           SIOAPL-CODFUN       "]".                                     TRAZA
+           display "XPN-SIOAPL-CODACTINT         <"                     TRAZA
+           SIOAPL-CODACTINT       "]".                                  TRAZA
+           display "XPN-SIOAPL-FECSES         <"                        TRAZA
+           SIOAPL-FECSES       "]".                                     TRAZA
+           display "XPN-SIOAPL-REFADQ         <"                        TRAZA
+           SIOAPL-REFADQ       "]".                                     TRAZA
+           display "XPN-SIOAPL-IDEADQ         <"                        TRAZA
+           SIOAPL-IDEADQ       "]".                                     TRAZA
+           display "XPN-SIOAPL-IMPCUO         <"                        TRAZA
+           SIOAPL-IMPCUO       "]".                                     TRAZA
+           display "XPN-SIOAPL-CONFCTRL         <"                      TRAZA
+           SIOAPL-CONFCTRL       "]".                                   TRAZA
+           display "XPN-SIOAPL-IDENAUT         <"                       TRAZA
+           SIOAPL-IDENAUT       "]".                                    TRAZA
+           display "SIOAPL-INDSIOPRI           <"                       TRAZA
+           SIOAPL-INDSIOPRI                                             TRAZA
+           display "SIOAPL-IM-CUO-ABO          <"                       TRAZA
+           SIOAPL-IM-CUO-ABO                                            TRAZA
+           display "SIOAPL-IM-CUO-CAR          <"                       TRAZA
+           SIOAPL-IM-CUO-CAR                                            TRAZA
+           display "SIOAPL-CONCILI             <"                       TRAZA
+           SIOAPL-CONCILI                                               TRAZA
+           display "SIOAPL-NUMOPESIS           >"                       TRAZA
+           SIOAPL-NUMOPESIS    "]".                                     TRAZA
+           display "SIOAPL-CLASIRIES           >"                       PRJ0247167
+           SIOAPL-CLASIRIES   "]".                                      PRJ0247167
+           display "SIOAPL-MODOOPERA           >"                       PRJ0257005
+           SIOAPL-MODOOPERA   "]".                                      PRJ0257005
+           display "SIOAPL-TARJTOKEN           >"                       PRJ0257005
+           SIOAPL-TARJTOKEN   "]".                                      PRJ0257005
+           display "SIOAPL-FECATTOKE           >"                       PRJ0257005
+           SIOAPL-FECATTOKE    "]".                                     PRJ0257005
+      *                                                                 TRAZA
+       FIN-DISPLAY-SIOAPL-SAL.                                          TRAZA
+           EXIT.                                                        TRAZA
+      *           
+      *@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@                      
+      *@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@           
+      *@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@                 
+      *     
+      
+      *
+       CALL-GRTRASIO.
+      *--------------
+      *
+           CALL  'GRTRASIO'  USING  DLMT-INFO-BLOCK
+                                    INPUT-AREA
+                                    DLMT-WORK-AREA
+                                    DLMT-OUTPUT-AREA
+                                    DLMT-SAVE-DATA
+                                    AREA-GR-RUTSIO.
+      *
+       FIN-CALL-GRTRASIO.
+           EXIT.
+      *
+       CALL-GRCUMSIO.
+      *--------------
+      *
+           CALL  'GRCUMSIO'  USING  DLMT-INFO-BLOCK
+                                    INPUT-AREA
+                                    DLMT-WORK-AREA
+                                    DLMT-OUTPUT-AREA
+                                    DLMT-SAVE-DATA
+                                    AREA-GR-RUTSIO.
+      *
+       FIN-CALL-GRCUMSIO.
+           EXIT.
+
+       CALL-GRCSASIO.
+      *--------------
+      *
+           CALL  'GRCSASIO'  USING  DLMT-INFO-BLOCK
+                                    INPUT-AREA
+                                    DLMT-WORK-AREA
+                                    DLMT-OUTPUT-AREA
+                                    DLMT-SAVE-DATA
+                                    AREA-GR-RUTSIO.
+      *
+       FIN-CALL-GRCSASIO.
+           EXIT.
+      *
+       CALL-GRFUNSIO.
+      *--------------
+      *
+           CALL  'GRFUNSIO'  USING  DLMT-INFO-BLOCK
+                                    INPUT-AREA
+                                    DLMT-WORK-AREA
+                                    DLMT-OUTPUT-AREA
+                                    DLMT-SAVE-DATA
+                                    AREA-GR-RUTSIO.
+      *
+       FIN-CALL-GRFUNSIO.
+           EXIT.
+      *
+       CALL-GRTOTSIO.
+      *--------------
+      *
+            CALL  'GRTOTSIO'  USING  DLMT-INFO-BLOCK
+                                     INPUT-AREA
+                                     DLMT-WORK-AREA
+                                    DLMT-OUTPUT-AREA
+                                     DLMT-SAVE-DATA
+                                     AREA-GR-RUTSIO.
+      *
+       FIN-CALL-GRTOTSIO.
+           EXIT.
+      *
+       CALL-GRCALMAC.
+      *--------------
+      *
+LKMOVE*    MOVE  DLPEENTICTAS          TO ENT-MAC.                      BUG21277
+LKMOVE     MOVE DLPEENTICTAS(1:) TO ENT-MAC(1:).
+           CALL  'GRCALMAC'  USING  DLMT-INFO-BLOCK
+                                     AREA-GRCALMAC.
+      *
+       FIN-CALL-GRCALMAC.
+           EXIT.
+      *
+       CALL-GRBDISPL.
+      *--------------
+      *
+           MOVE NOMBREPG          TO    BDISPL-NOMBREPG.
+      *
+           CALL 'GRBDISPL'        USING AREA-GRBDISPL.
+      *
+       FIN-CALL-GRBDISPL.
+           EXIT.
+      *                                                                 PRJ0105375
+       CALL-GRTRDEMI.                                                   PRJ0105375
+      *--------------                                                   PRJ0105375
+      *                                                                 PRJ0105375
+            CALL  'GRTRDEMI'  USING  AREA-GRTRDEMI.                     PRJ0105375
+      *                                                                 PRJ0105375
+       FIN-CALL-GRTRDEMI.                                               PRJ0105375
+           EXIT.                                                        PRJ0105375
+      *
+      *    ESTE PARRAFO ES OBLIGATORIO TENGA O NO CONTENIDO.
+      *    ES LLAMADO DESDE EL PARRAFO 'SALIDA' DEL ESQUEMA.
+      *
+       CERRAR-CURSOR.
+      *--------------
+       FIN-CERRAR-CURSOR.
+           EXIT.
+      *
+      *    ESTE PARRAFO ES OBLIGATORIO TENGA O NO CONTENIDO.
+      *    ES LLAMADO DESDE EL PARRAFO 'SALIDA' DEL ESQUEMA
+      *    DE MEDIOS DE PAGO.
+      *
+       ACTUALI.
+      *--------
+       FIN-ACTUALI.
+           EXIT.
+
+       LEER-TMEP.                                                       BUG25291
+      *----------                                                       BUG25291
+           MOVE SIOAPL-IDTR(1:)        TO WK-RTS-IDTR(1:).              BUG25291
+           MOVE SIOAPL-FECHAL(1:)      TO WK-RTS-FECHAL(1:).            BUG25291
+           MOVE SIOAPL-HORAL(1:)       TO WK-RTS-HORAL(1:).             BUG25291
+           MOVE SIOAPL-ID-REDTERM      TO WK-RTS-IDTERM.                BUG25291
+           MOVE WK-RTS                 TO TMEPCLAV.                     BUG25291
+           DISPLAY 'GTOPESIO-> LEER-TMEP:' TMEPCLAV.
+      *                                                                 BUG25291       
+           EXEC SQL                                                     BUG25291
+                SELECT NVL(MAX(TMEPSECU),0)                             BUG25291
+                 INTO :TMEPSECU                                         BUG25291
+                 FROM TMEP                                              BUG25291
+                WHERE TMEPCLAV = :TMEPCLAV                              BUG25291
+           END-EXEC.                                                    BUG25291
+      *                                                                 BUG25291
+           PERFORM CAMB-STAT-ORA    THRU FIN-CAMB-STAT-ORA.             BUG25291
+      *                                                                 BUG25291
+           IF    DLBUEN-ACCESO                                          BUG25291
+           THEN  ADD K1U1 TO TMEPSECU                                   BUG25291
+           ELSE  DISPLAY "GTOPESIO->ERROR-LEER-TMEP|"                   BUG25291
+                 TMEPCLAV "|" SQLCODE "]"                               BUG25291
+           END-IF.                                                      BUG25291
+                                                                        BUG25291
+       FIN-LEER-TMEP.                                                   BUG25291
+           EXIT.                                                        BUG25291
+                                                                        BUG25291
+                                                                        BUG25291
+       INSERTAR-TMEP.                                                   BUG25291                     
+      *--------------                                                   BUG25291
+           PERFORM LEER-TMEP           THRU FIN-LEER-TMEP.              BUG25291
+      *                                                                 BUG25291
+           MOVE SPACES                 TO   TMEPMENS.                   BUG25291
+           MOVE AREA-DATOS-SIOAPL      TO   TMEPMENS.                   BUG25291
+           DISPLAY 'GTOPESIO-> INSERTAR-TMEP:' TMEPMENS.
+           MOVE DLFECHAEQ              TO   TMEPFEEQ.                   BUG25291
+      *                                                                 BUG25291
+           EXEC SQL                                                     BUG25291
+            INSERT INTO TMEP VALUES (                                   BUG25291
+                    :TMEPCLAV, :TMEPSECU, :TMEPMENS, :TMEPFEEQ          BUG25291
+            )                                                           BUG25291
+           END-EXEC.                                                    BUG25291
+      *                                                                 BUG25291
+           PERFORM CAMB-STAT-ORA    THRU FIN-CAMB-STAT-ORA.             BUG25291
+      *                                                                 BUG25291
+           IF    DLBUEN-ACCESO                                          BUG25291
+           THEN  NEXT  SENTENCE                                         BUG25291
+           ELSE  DISPLAY 'GTOPESIO-> TMEPFEEQ ' TMEPFEEQ
+                 DISPLAY "GTOPESIO->ERROR-INSERT-TMEP|"                 BUG25291
+                 TMEPCLAV "|" SQLCODE "]"                               BUG25291
+           END-IF.                                                      BUG25291
+      *                                                                 BUG25291
+       FIN-INSERTAR-TMEP.                                               BUG25291  
+           EXIT.                                                        BUG25291
+                                                                        BUG25291
+      *
+      *
+      *****************                                                 PRJ0105375
+       LLAMAR-GRTRDSIO.                                                 PRJ0105375
+      *****************                                                 PRJ0105375
+      *                                                                 PRJ0105375
+      *                                                                 PRJ0105375
+           MOVE    SPACES                       TO    AREA-GRTRDSIO.    PRJ0105375
+           MOVE    K1XI                         TO    TRDSIO-OPCION.    PRJ0105375
+           MOVE    SIOAPL-IDE-CD-ORI            TO    TRDSIO-IDOR       PRJ0105375
+           MOVE    SIOAPL-IDE-CD                TO    TRDSIO-IDCD       PRJ0105375
+           MOVE    SIOAPL-CAB-CTRL-IOO          TO    TRDSIO-CIOO       PRJ0105375
+           MOVE    SIOAPL-CAB-CTRL-IOD          TO    TRDSIO-CIOD       PRJ0105375
+           MOVE    SIOAPL-CAB-CTRL-IAP          TO    TRDSIO-CIAP       PRJ0105375
+           MOVE    SIOAPL-CAB-CTRL-ITL          TO    TRDSIO-CITL       PRJ0105375
+           MOVE    SIOAPL-CAB-CTRL-NSM          TO    TRDSIO-CMNS       PRJ0105375
+           MOVE    SIOAPL-CAB-CTRL-NB           TO    TRDSIO-CCNB       PRJ0105375
+           MOVE    SIOAPL-CAUR                  TO    TRDSIO-CAUR       PRJ0105375
+           MOVE    SIOAPL-BIN1                  TO    TRDSIO-BIN1       PRJ0105375
+           MOVE    SIOAPL-BIN2                  TO    TRDSIO-BIN2       PRJ0105375
+           MOVE    SIOAPL-BIN3                  TO    TRDSIO-BIN3       PRJ0105375
+           MOVE    SIOAPL-IDTM                  TO    TRDSIO-IDTM       PRJ0105375
+           MOVE    SIOAPL-MBIT-P                TO    TRDSIO-MBIT       PRJ0105375
+           MOVE    SIOAPL-PAN-L                 TO    TRDSIO-LPAN       PRJ0105375
+           MOVE    SIOAPL-PAN-D                 TO    TRDSIO-NPAN       PRJ0105375
+           MOVE    SIOAPL-CODPROC               TO    TRDSIO-CPRO       PRJ0105375
+           MOVE    SIOAPL-IMPORTX-2DEC          TO    TRDSIO-IMPT       PRJ0105375
+           MOVE    SIOAPL-IDEN-USR-L            TO    TRDSIO-LIDE.      PRJ0105375
+           MOVE    SIOAPL-IDEN-USR-TIPO         TO    TRDSIO-TIDE.      PRJ0105375
+           MOVE    SIOAPL-IDEN-USR-DATO         TO    TRDSIO-IDEN.      PRJ0105375
+           MOVE    SIOAPL-IMPOROP-2DEC          TO    TRDSIO-IMPO.      PRJ0105375
+           MOVE    SIOAPL-IDTR                  TO    TRDSIO-IDTR.      PRJ0105375
+           MOVE    SIOAPL-FECHAL                TO    TRDSIO-FECH.      PRJ0105375
+           MOVE    SIOAPL-CMONTI                TO    TRDSIO-CMOF.      PRJ0105375
+           MOVE    SIOAPL-HORAL                 TO    TRDSIO-HORA.      PRJ0105375
+           MOVE    SIOAPL-FECCAD                TO    TRDSIO-FCAD.      PRJ0105375
+           MOVE    SIOAPL-ACCION-TARJ           TO    TRDSIO-CEST.      PRJ0105375
+           MOVE    SIOAPL-DAT-DEP-EFE           TO    TRDSIO-DDEF.      PRJ0105375
+           MOVE    SIOAPL-COMINF-TIPO           TO    TRDSIO-TCOM.      PRJ0105375
+           MOVE    SIOAPL-COMINF-IMPO           TO    TRDSIO-COMI.      PRJ0105375
+           MOVE    SIOAPL-SECTOR                TO    TRDSIO-SECT.      PRJ0105375
+           MOVE    SIOAPL-ID-REDTERM            TO    TRDSIO-IRTO.      PRJ0105375
+           MOVE    SIOAPL-CODRAZ-ANUL-X         TO    TRDSIO-CANU.      PRJ0105375
+           MOVE    SIOAPL-NUM-MIEMB             TO    TRDSIO-NMIF.      PRJ0105375
+           MOVE    SIOAPL-ICARGOS-2D            TO    TRDSIO-ITOC.      PRJ0105375
+           MOVE    SIOAPL-NCARGOS               TO    TRDSIO-NTOC.      PRJ0105375
+           MOVE    SIOAPL-IABONOS-2D            TO    TRDSIO-ITOA.      PRJ0105375
+           MOVE    SIOAPL-NABONOS               TO    TRDSIO-NTOA.      PRJ0105375
+           MOVE    SIOAPL-I-ANUL-CAR-2D         TO    TRDSIO-ITAC.      PRJ0105375
+           MOVE    SIOAPL-NUM-ANUL-CAR          TO    TRDSIO-NTAC.      PRJ0105375
+           MOVE    SIOAPL-I-ANUL-ABO-2D         TO    TRDSIO-ITAA.      PRJ0105375
+           MOVE    SIOAPL-NUM-ANUL-ABO          TO    TRDSIO-NTAA.      PRJ0105375
+           MOVE    SIOAPL-DAT-ABO-COM-X         TO    TRDSIO-DACO.      PRJ0105375
+           MOVE    SIOAPL-INF-ADIC-PET-TRANSF-X TO    TRDSIO-IAPT.      PRJ0105375
+           MOVE    SIOAPL-CODRES                TO    TRDSIO-CRES.      PRJ0105375
+           MOVE    SIOAPL-IDEN-BLOQUE-MOV-X     TO    TRDSIO-IBMO.      PRJ0105375
+           MOVE    SIOAPL-ADIC-RESP-TRANSFER-X  TO    TRDSIO-IART.      PRJ0105375
+           MOVE    SIOAPL-DATORI                TO    TRDSIO-CMEO.      PRJ0105375
+           MOVE    SIOAPL-NUMAUT                TO    TRDSIO-NAUT.      PRJ0105375
+           MOVE    SIOAPL-INF-SALDO             TO    TRDSIO-DSAL.      PRJ0105375
+           MOVE    SIOAPL-INF-MOV               TO    TRDSIO-ISA5.      PRJ0105375
+           MOVE    SIOAPL-NUM-REF               TO    TRDSIO-NREF.      PRJ0105375
+           MOVE    SIOAPL-REF-TPV               TO    TRDSIO-RTPV.      PRJ0105375
+           MOVE    SIOAPL-MON-CTBLE             TO    TRDSIO-CMOC.      PRJ0105375
+           MOVE    SIOAPL-TOTAL-TELEBANCO       TO    TRDSIO-DTOB.      PRJ0105375
+           MOVE    SIOAPL-IMP-TERMINAL          TO    TRDSIO-IBST.      PRJ0105375
+           MOVE    SIOAPL-DAT-ADIC-ENV-TRANSP   TO    TRDSIO-DA47.      PRJ0105375
+           MOVE    SIOAPL-NOMEST                TO    TRDSIO-DEST.      PRJ0105375
+           MOVE    SIOAPL-DAT-ADIC-REC-TRANSP   TO    TRDSIO-DA49.      PRJ0105375
+           MOVE    SIOAPL-MODAUT-TERM           TO    TRDSIO-MAUT.      PRJ0105375
+           MOVE    SIOAPL-MAC                   TO    TRDSIO-CMAC.      PRJ0105375
+           MOVE    SIOAPL-CLAVE-MAC-X           TO    TRDSIO-IMAC.      PRJ0105375
+           MOVE    SIOAPL-TOT-TRASPASOS-2D      TO    TRDSIO-TOTR.      PRJ0105375
+           MOVE    SIOAPL-NUM-TRASPASOS         TO    TRDSIO-NUTR.      PRJ0105375
+           MOVE    SIOAPL-TOT-ANUL-TRASPASO-2D  TO    TRDSIO-TATR.      PRJ0105375
+           MOVE    SIOAPL-NUM-ANUL-TRASPASOS    TO    TRDSIO-NATR.      PRJ0105375
+           MOVE    SIOAPL-FEC-REF-TOTALES       TO    TRDSIO-FRTO.      PRJ0105375
+           MOVE    SIOAPL-IND-CUADRE-TOT-X      TO    TRDSIO-ICUT.      PRJ0105375
+           MOVE    SIOAPL-STATUS-TELEBANCO      TO    TRDSIO-STTB.      PRJ0105375
+           MOVE    SIOAPL-INF-OP-OT-REDES       TO    TRDSIO-DAOR.      PRJ0105375
+           MOVE    SIOAPL-PUNT-SERV-X           TO    TRDSIO-PSER.      PRJ0105375
+           MOVE    SPACES                       TO    TRDSIO-CEXT.      PRJ0105375
+           MOVE    DLNOPE                       TO    TRDSIO-NOPE.      PRJ0105375
+           MOVE    SIOAPL-CODFUN	              TO    TRDSIO-CFUN.      DMND0035176
+           MOVE    SIOAPL-CODACTINT             TO    TRDSIO-CAIN.      DMND0035176
+           MOVE    SIOAPL-FECSES                TO    TRDSIO-FECS.      DMND0035176
+           MOVE    SIOAPL-REFADQ                TO    TRDSIO-REFA.      DMND0035176
+           MOVE    SIOAPL-IDEADQ                TO    TRDSIO-IDEA.      DMND0035176
+           MOVE    SIOAPL-IMPCUO                TO    TRDSIO-IMPC.      DMND0035176
+           MOVE    SIOAPL-CONFCTRL              TO    TRDSIO-CCTR.      DMND0035176
+           MOVE    SIOAPL-IDENAUT               TO    TRDSIO-IDAU.      DMND0035176
+           MOVE    SIOAPL-INDSIOPRI             TO    TRDSIO-INSP.      DMND0035176
+           MOVE    SIOAPL-IM-CUO-ABO            TO    TRDSIO-ICAB.      DMND0035176
+           MOVE    SIOAPL-IM-CUO-CAR            TO    TRDSIO-ICCA.      DMND0035176
+           MOVE    SIOAPL-CONCILI               TO    TRDSIO-COIL.      DMND0035176
+      *                                                                 PRJ0105375
+      *                                                                 PRJ0105375
+           CALL   'GRTRDSIO'     USING     AREA-GRTRDSIO.               PRJ0105375
+      *                                                                 PRJ0105375
+           IF    TRDSIO-OK                                              PRJ0105375
+           THEN  NEXT SENTENCE                                          PRJ0105375
+           ELSE  DISPLAY "GTOPESIO->ERROR-INSERT-DSIO|"                 PRJ0105375
+                 TRDSIO-IDOR "|" SQLCODE "]"                            PRJ0105375
+           END-IF.                                                      PRJ0105375
+      *                                                                 PRJ0105375
+      *                                                                 PRJ0105375
+      *********************                                             PRJ0105375
+       FIN-LLAMAR-GRTRDSIO.                                             PRJ0105375
+      *********************                                             PRJ0105375
+           EXIT.                                                        PRJ0105375
+      *
+      *
+      *
+       COPY "STATORA.LEP".                                              BUG25291
+      *
+      **********************  FIN FUENTE  **********************
+
+      
+

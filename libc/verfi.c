@@ -1,0 +1,408 @@
+//PRJ0257005 - Revisado tokenizacion
+//PRJ0247167 - Revisado ampliación P48
+/*************************************************************************
+   FUNCION  FVERFI
+
+   DESCRIPCION: Se usa para presentar por la salida de errores del proceso
+                el contenido de un campo tipo formato interno
+ 
+
+   AREA DE PASO :
+- tipo formato_interno
+*************************************************************************/
+#include <stdio.h>
+#include <stdlib.h>
+#include <sys/types.h>
+#include <signal.h>
+#include <errno.h> 
+#include "cforitno.h"
+#include "datagen.h"
+#include "nptlogo.h"
+extern int errno;
+
+int     fverfi(formato_interno fi)
+{
+  int mm;
+  //cambiar SYSTEMTIME tt;
+
+  char errLevel[10]="\t[INFO]\t";
+  char fileName[300]="";
+  char pathFile[300]="";
+  char msg[1000]="";
+
+      // Recuperamos la fecha del sistema
+
+        fprintf(stdout,"------------ ----------FORMATO INTERNO------------ verfi.c ----------\n");
+        fflush(stdout);
+
+
+        fprintf(stdout,"numope: %.*s / ",6,fi.fidatpro.finumope);
+        fprintf(stdout,"iso000: %.*s / ",4,fi.fiisocom.fiiso000);
+        fprintf(stdout,"fecha0: %.4s:%.2s:%.2s / ",fi.fidatpro.fifecha0, 
+                                         fi.fidatpro.fifecha0+4,
+                                         fi.fidatpro.fifecha0+6);
+        fprintf(stdout,"hora00: %.2s:%.2s:%.2s:%.2s\n",fi.fidatpro.fihora00,
+                                       fi.fidatpro.fihora00+2, 
+                                       fi.fidatpro.fihora00+4,
+                                       fi.fidatpro.fihora00+6);
+
+        fprintf(stdout,"iso000: %.*s / ",4,fi.fiisocom.fiiso000);
+        fprintf(stdout,"iso011: %.*s / ",6,fi.fiisocom.fiidtran);
+        fprintf(stdout,"iso012: %.2s%.2s%.2s%.2s%.2s%.2s / ",fi.fiisocom.fifechor.aa,
+                                        fi.fiisocom.fifechor.mm,
+                                        fi.fiisocom.fifechor.dd,
+                                        fi.fiisocom.fifechor.hh,
+                                        fi.fiisocom.fifechor.mi,
+                                        fi.fiisocom.fifechor.ss);
+        fprintf(stdout,"iso024: %.*s / ",3,fi.fiisocom.fiiso024);
+
+        fprintf(stdout,"RESPUSAL: %.*s\n",3,fi.fiisocom.respusal);
+		
+        fprintf(stdout,"origen: %.2s%.2s ", fi.fidatpro.fiorigen, fi.fidatpro.fisubori);
+        fprintf(stdout,"resfin: %.2s / ",fi.fidatpro.firesfin);
+        fprintf(stdout,"respri: %.2s%.2s ", fi.fidatpro.firespri, fi.fidatpro.fisubres);
+        fprintf(stdout,"netpri: %.4s / ",fi.fidatpro.finetpri);
+        fprintf(stdout,"codfin: %.3s\n",fi.fidatpro.ficodfin);
+        fprintf(stdout,"clatab: %.12s\n",fi.fidatpro.ficlatab);
+				fprintf(stdout,"ori_inicial: %.2s ", fi.fidatpro.fioriini);
+				fprintf(stdout,"cdresp_reso: %.2s ", fi.fidatpro.firesprs);	 
+				fprintf(stdout,"pidori: %.*s / ",5,fi.fidatpro.fipidori);
+        fprintf(stdout,"032094: %.2s-%.11s\n",fi.fiisocom.fi032094.longitud
+                               ,fi.fiisocom.fi032094.datos);
+	   		fprintf(stdout,"  fidatpro.ficomisi 48.31 >%.8s< \n",fi.fidatpro.ficomisi);
+        //fprintf(stdout,"------------------------------------------------------------------\n");
+        fflush(stdout);
+
+//DMND0036176 se añaden todos los mensajes de las preautorizaciones
+        switch(atoi(fi.fiisocom.fiiso000)) 
+        {
+          case 100:
+          case 101:
+          case 110:
+          case 120:
+          case 121:
+          case 130:
+          case 200:
+          case 201:
+          case 210:
+          case 220:
+          case 221:
+          case 230:
+          case 260:
+          case 270:
+          case 420:
+          case 421:
+          case 430:
+          case 440:
+          case 441:
+          case 450:
+          case 600:
+          case 610:
+          case 620:
+          case 630:
+          case 700:
+          case 710:
+          case 720:
+          case 9220:
+          case 9230:
+          case 9420:
+          case 9430:
+		  case 1100:
+          case 1110:
+          case 1120:
+          case 1121:
+          case 1130:
+          case 1200:
+          case 1210:
+          case 1220:
+          case 1221:
+          case 1230:
+          case 1240:
+          case 1241:
+          case 1250:
+          case 1420:
+          case 1421:
+          case 1430:
+          case 1440:
+          case 1441:
+          case 1450:
+          case 1442:
+          case 5000:
+          case 5010:
+
+   // PRJ0202598 cambio bin de 6 posiciones 8 no afecta a la longitud total de finumPAN
+   // pasamos la mascara a 8 posiciones
+
+		        fprintf(stdout,"PAN: %.2s-%.8s******%.4s / ",fi.fidatiso.fiisoaut.finumPAN.longitud
+		                                 ,fi.fidatiso.fiisoaut.finumPAN.datos
+		          				       ,fi.fidatiso.fiisoaut.finumPAN.datos+12);
+		         
+		        fprintf(stdout,"aut003: %.2s%.2s%.2s / ",fi.fidatiso.fiisoaut.fiaut003.dig12,
+		                                    fi.fidatiso.fiisoaut.fiaut003.dig34,
+		                                    fi.fidatiso.fiisoaut.fiaut003.dig56);
+		        fprintf(stdout,"aut004: %.12s / ",fi.fidatiso.fiisoaut.fiaut004);
+		        fprintf(stdout,"aut005: %.12s / ",fi.fidatiso.fiisoaut.fiaut005);
+		        fprintf(stdout,"aut006: %.12s \n",fi.fidatiso.fiisoaut.fiaut006);
+
+		        fprintf(stdout,"aut018: %.4s / ",fi.fidatiso.fiisoaut.fiaut018);
+		        fprintf(stdout,"aut025: %.4s / ",fi.fidatiso.fiisoaut.fiaut025);
+		        
+		        fprintf(stdout,"aut028: %.2s%.2s%.2s / ",fi.fidatiso.fiisoaut.fiaut028.aa,
+		                                    fi.fidatiso.fiisoaut.fiaut028.mm,
+		                                    fi.fidatiso.fiisoaut.fiaut028.dd);
+		        fprintf(stdout,"aut029: %.3s / ",fi.fidatiso.fiisoaut.fiaut029);
+		        fprintf(stdout,"aut037: %.12s / ",fi.fidatiso.fiisoaut.fiaut037);
+		        fprintf(stdout,"aut038: %.6s / ",fi.fidatiso.fiisoaut.fiaut038);
+		        fprintf(stdout,"aut042: %.16s\n",fi.fidatiso.fiisoaut.fiaut042);
+
+		        fprintf(stdout,"aut043: %.40s / ",fi.fidatiso.fiisoaut.fiaut043);
+		        fprintf(stdout,"aut014: %.2s%.2s\n",fi.fidatiso.fiisoaut.fifeccad.aa,
+		                                 fi.fidatiso.fiisoaut.fifeccad.mm);
+
+		        fprintf(stdout,"aut049: %.4s / ",fi.fidatiso.fiisoaut.fiaut049);
+		        fprintf(stdout,"aut050: %.4s / ",fi.fidatiso.fiisoaut.fiaut050);
+	         	fprintf(stdout,"aut051: %.3s / ",fi.fidatiso.fiisoaut.fiaut051);
+	         	fprintf(stdout,"aut053: %.16s\n",fi.fidatiso.fiisoaut.fiaut053);
+
+	       		fprintf(stdout,"aut056: %.2s-%.35s / ",fi.fidatiso.fiisoaut.fiaut056.longitud,
+	                                    fi.fidatiso.fiisoaut.fiaut056.datos);
+
+	          fprintf(stdout,"aut041: %.12s / ",fi.fidatiso.fiisoaut.fiaut041);
+	          fprintf(stdout,"aut029: %.3s\n",fi.fidatiso.fiisoaut.fiaut029);
+			   		//PRJ0257005 - Revisado tokenizacion
+			   		fprintf(stdout,"fiiso4820: %.16s / ",fi.fidatiso.fiisoaut.fiaut048.comun01.fiiso4820);
+			   		fprintf(stdout,"fiiso4894: %.6s / ",fi.fidatiso.fiisoaut.fiaut048.comun01.fiiso4894);
+			   		fprintf(stdout,"bit62_16: %.30s \n",fi.fidatiso.fiisoaut.fiaut062.bit62_16);
+	          break;
+         case  304:
+         case  314:
+         case 1304:
+         case 1314:
+         case 1324:
+         case 1325:
+         case 1334:    
+
+//PCI-DSS
+           fprintf(stdout,"fic002: %.2s-%.19s / ",fi.fidatiso.fiisofic.fific002.longitud,
+                                    "****************");
+           fprintf(stdout,"fic053: %.16s\n",fi.fidatiso.fiisofic.fific053);
+
+           fprintf(stdout,"fic072: %.3s-%.500s\n",fi.fidatiso.fiisofic.fific072.longitud,
+                                     fi.fidatiso.fiisofic.fific072.datos);
+
+           fprintf(stdout,"fic093: %.2s-%.11s / ",fi.fidatiso.fiisofic.fific093.longitud,
+                                     fi.fidatiso.fiisofic.fific093.datos);
+
+           fprintf(stdout,"fic101: %.2s-%.17s\n",fi.fidatiso.fiisofic.fific101.longitud,
+                                    fi.fidatiso.fiisofic.fific101.datos);
+
+           break;
+         case 1644:
+           break;
+         case 1804:
+  			 case 1805: //PRJ0258542
+         case 1814:
+         case 1824:
+  			 case 1825: //PRJ0258542
+         case 1834:
+         	 if (strncmp(fi.fiisocom.fiiso024, "811", 3) == 0 || strncmp(fi.fiisocom.fiiso024, "815", 3) == 0 || strncmp(fi.fiisocom.fiiso024, "816", 3) == 0) //PRJ0258542
+         	 {
+	           fprintf(stdout,"ctr093: %.2s-%.*s\n",fi.fidatiso.fiisocla.ficla093.longitud,11,fi.fidatiso.fiisocla.ficla093.datos);
+	           fprintf(stdout,"ctr094: %.2s-%.*s\n",fi.fidatiso.fiisocla.ficla094.longitud,11,fi.fidatiso.fiisocla.ficla094.datos); //PRJ0258542
+         	 }
+         	 else
+         	 {
+	           fprintf(stdout,"ctr093: %.2s-%.*s\n",fi.fidatiso.fiisoctr.fictr093.longitud,11,fi.fidatiso.fiisoctr.fictr093.datos);
+	           fprintf(stdout,"ctr094: %.2s-%.*s\n",fi.fidatiso.fiisoctr.fictr094.longitud,11,fi.fidatiso.fiisoctr.fictr094.datos); //PRJ0258542
+	           //fprintf(stdout,"ctr028: %.2s%.2s%.2s / ",fi.fidatiso.fiisoctr.fictr028.aa,fi.fidatiso.fiisoctr.fictr028.mm,fi.fidatiso.fiisoctr.fictr028.dd); //PRJ0258542
+	           //fprintf(stdout,"ctr029: %.3s \n",fi.fidatiso.fiisoctr.fictr029); //PRJ0258542
+	           fprintf(stdout,"ctr04807: %.8s \n",fi.fidatiso.fiisoctr.fictr048.contr.cardia); 
+	         }
+           break;
+
+         case 1801:
+         case 1802:
+         case 1803:
+         // case 1805: //PRJ0258542
+         case 1806:
+         case 1807:
+         case 1811:
+         case 1812:
+         case 1813:
+         case 1815:
+         case 1816:
+         case 1817:
+
+           //PRJ0258542 - Quitado, ya no se usa
+           fprintf(stdout,"Quitar o no quitar, se usa o no se usa \n");
+           fprintf(stdout,"codmcd: %.2s / ",fi.fidatiso.fiisoctr.codmcd);
+           fprintf(stdout,"codopcion: %.1s / ",fi.fidatiso.fiisoctr.codopcion);
+           break;
+
+         case 500:
+         case 510:
+         case 1500:
+         case 1510:
+         case 1504:
+         case 1514:
+         case 1520:
+         case 1530:
+         case 1580:
+         case 1590:
+         case 1524:
+         case 1525:
+         case 1534:
+         case 1604:
+         case 1614:
+           fprintf(stdout,"iso028: %.2s%.2s%.2s / ",fi.fidatiso.fiisotot.fitot028.aa,
+                                      fi.fidatiso.fiisotot.fitot028.mm,
+                                      fi.fidatiso.fiisotot.fitot028.dd);
+           fprintf(stdout,"iso029: %.3s / ",fi.fidatiso.fiisotot.fitot029);
+
+           fprintf(stdout,"iso061: %.2s\t",fi.fidatiso.fiisotot.fitot061);
+
+
+           if(strncmp(fi.fiisocom.fiiso000, "0500", 4) && strncmp(fi.fiisocom.fiiso000, "0510", 4))
+           {
+            fprintf(stdout,"\niso074: %.10s\t",fi.fidatiso.fiisotot.fitot074);
+            fprintf(stdout,"iso075: %.10s\n",fi.fidatiso.fiisotot.fitot075);
+            fprintf(stdout,"iso076: %.10s\t",fi.fidatiso.fiisotot.fitot076);
+            fprintf(stdout,"iso077: %.10s\n",fi.fidatiso.fiisotot.fitot077);
+            fprintf(stdout,"iso086: %.16s\t",fi.fidatiso.fiisotot.fitot086);
+            fprintf(stdout,"iso087: %.16s\n",fi.fidatiso.fiisotot.fitot087);
+            fprintf(stdout,"iso088: %.16s\t",fi.fidatiso.fiisotot.fitot088);
+            fprintf(stdout,"iso089: %.16s\n",fi.fidatiso.fiisotot.fitot089);
+
+            fprintf(stdout,"iso097: %.17s\n",fi.fidatiso.fiisotot.fitot097);
+           }
+           else
+           {
+            fprintf(stdout,"numero  abonos : %.10s\t",fi.fidatiso.fiisotot.fitot074);
+            fprintf(stdout,"importe abonos : %.16s\n",fi.fidatiso.fiisotot.fitot086);
+            fprintf(stdout,"numero  cargos : %.10s\t",fi.fidatiso.fiisotot.fitot076);
+            fprintf(stdout,"importe cargos : %.16s\n",fi.fidatiso.fiisotot.fitot088);
+
+            fprintf(stdout,"numero de anulaciones de abonos : %.10s\t",fi.fidatiso.fiisotot.fitot075);
+            fprintf(stdout,"importe anulacion abonos        : %.16s\n",fi.fidatiso.fiisotot.fitot087);
+            fprintf(stdout,"numero anulaciones cargos       : %.10s\t",fi.fidatiso.fiisotot.fitot077);
+            fprintf(stdout,"importe anulaciones cargos      : %.16s\n",fi.fidatiso.fiisotot.fitot089);
+
+
+            fprintf(stdout,"importe abonos cuotas : %.16s\t",fi.fidatiso.fiisotot.fitot109);
+            fprintf(stdout,"importe cargos cuotas : %.16s\n",fi.fidatiso.fiisotot.fitot110);
+           }
+           break;
+         case 5100:
+         case 5110:
+         case 5120:
+         case 5130:
+             fprintf(stdout,"aut003: %.2s%.2s%.2s / ",fi.fidatiso.fiisoaut.fiaut003.dig12,
+                                      fi.fidatiso.fiisoaut.fiaut003.dig34,
+                                      fi.fidatiso.fiisoaut.fiaut003.dig56);
+
+
+           fprintf(stdout,"aut028: %.2s%.2s%.2s / ",fi.fidatiso.fiisoaut.fiaut028.aa,
+                                      fi.fidatiso.fiisoaut.fiaut028.mm,
+                                      fi.fidatiso.fiisoaut.fiaut028.dd);
+           fprintf(stdout,"aut029: %.3s / ",fi.fidatiso.fiisoaut.fiaut029);
+
+           fprintf(stdout, "aut041: %.12s\n", fi.fidatiso.fiisoaut.fiaut041);
+           fprintf(stdout, "aut037: %.12s\n", fi.fidatiso.fiisoaut.fiaut037);
+           
+           break;
+         case 9304:
+         case 9314:
+           fprintf(stdout,"ficodproc: %.2s", fi.fidatiso.fiisoaut.fiaut003.dig12);
+           fprintf(stdout, "%.2s", fi.fidatiso.fiisoaut.fiaut003.dig34);
+           fprintf(stdout, "%.2s\n", fi.fidatiso.fiisoaut.fiaut003.dig56);
+
+           fprintf(stdout, "aut072:  %.2s-%.500s\n", fi.fidatiso.fiisoadm.fiadm072.longitud,
+                                       fi.fidatiso.fiisofic.fific072.datos);
+           break;
+         }
+
+
+         fprintf(stdout,"\n--------------------FIN FORMATO INTERNO--------------------\n\n");
+         fflush(stdout);
+  return(0);
+}
+int Pkill(int Ppid,int Psenal)
+{
+int err;
+int errnox;
+
+// incluido para recuperar la variable de entorno y crear las trazas en su entorno correspondiente
+// segun el usuario que arranque
+
+  char* HOME;
+  HOME = getenv ("SF_HOME");
+  
+#if defined (TRAZA) && (TRAZA > 1)
+FILE *pf;
+char fic[100];
+
+sprintf(fic,"%s%s%s",HOME,DIRTRAZA,"/Pkill.sal");
+pf=fopen(fic,"a+");
+#endif
+err=0;
+errnox=0;
+errno=0;
+if (Ppid < 0)
+  {
+#if defined (TRAZA) && (TRAZA > 50)
+   flog(pf,"%d quiso enviar %d a %d",
+                   getpid(),Psenal,Ppid);
+#endif
+  }
+else
+  {
+   err=kill(Ppid,Psenal);
+   errnox=errno;
+#if defined (TRAZA) && (TRAZA > 50)
+   flog(pf,"el %d envia %d a %d y retorna %d\n",
+                   getpid(),Psenal,Ppid,err);
+#endif
+  }
+#if defined (TRAZA) && (TRAZA > 1)
+fflush(pf);
+fclose(pf);
+#endif
+errno=errnox;
+return(err);
+}
+
+int fver_op(FILE * fic, formato_interno * fi, char * prog)
+{
+  char linea[200];
+  int offset = 0;
+
+ if(prog)
+ {
+  sprintf(linea, "[%s]", prog);
+  offset += (2 + strlen(prog));
+ }
+
+ sprintf(linea + offset, " %.*s", 4, fi->fiisocom.fiiso000);
+ offset += 1 + 4;
+ sprintf(linea + offset, "-%.*s", 2,
+                fi->fidatiso.fiisoaut.fiaut003.dig12);
+ offset += 1 + 2;
+ sprintf(linea + offset, " %.*s", 6, fi->fiisocom.fiidtran);
+ offset += 1 + 6;
+ sprintf(linea + offset, " %.*s%.*s%.*s%.*s%.*s%.*s",
+   2, fi->fiisocom.fifechor.aa,
+   2, fi->fiisocom.fifechor.mm,
+   2, fi->fiisocom.fifechor.dd,
+   2, fi->fiisocom.fifechor.hh,
+   2, fi->fiisocom.fifechor.mi,
+   2, fi->fiisocom.fifechor.ss);
+ offset += 1 + 12;
+ sprintf(linea + offset, " %.*s", 3, fi->fidatpro.ficodfin);
+ offset += 1 + 3;
+ sprintf(linea + offset, " %.*s", 3, fi->fiisocom.respusal);
+
+ fprintf(fic, "%s", linea); 
+ return(0);
+}
+
+

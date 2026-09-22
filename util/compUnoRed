@@ -1,0 +1,24 @@
+cd /sf/sisma/src
+
+##cc -m64 -c -g -xmemalign=1i -I/sf/sisma/includes $1.c
+##
+####cc -c -g -xmemalign=1i -m64 -I/sf/sisma/includes $1.c
+##mv $1.o /sf/sisma/obj/$1.o 
+##
+##chmod 777 /sf/sisma/obj/$1.o 
+##
+##cc -m64 -o $1 /sf/sisma/obj/$1.o /sf/sisma/obj/filefun.o /sf/sisma/obj/conexhsm.o -L/sf/sisma/obj -lsisma -L$ORACLE_HOME/lib -lsocket -lnsl -lclntsh
+##
+##mv $1 /sf/sisma/exec/$1
+##
+##chmod 777 /sf/sisma/exec/$1 
+
+#### para simulaRed  
+  /sf/sisma/exec/simulaRed: /sf/sisma/obj/simulaRed.o  /sf/sisma/obj/libsisma.a
+  	cc -m64 -o /sf/sisma/exec/simulaRed /sf/sisma/obj/simulaRed.o /sf/sisma/obj/libsisma.a -L/opt/oracle/product/12.1.0/client_1/lib -lnsl -I/opt/tuxedo/tuxedo12.2.2.0.0/include -L/opt/tuxedo/tuxedo12.2.2.0.0/bin/buildclient -lssl -lcrypto 
+  	chmod 777  /sf/sisma/exec/simulaRed
+  
+  /sf/sisma/obj/simulaRed.o: /sf/sisma/src/simulaRed.c
+  	cc -m64 -c -O -I/sf/sisma/includes /sf/sisma/src/simulaRed.c -lsisma -L/opt/oracle/product/12.1.0/client_1/lib -lnsl -I/opt/tuxedo/tuxedo12.2.2.0.0/include -L/opt/tuxedo/tuxedo12.2.2.0.0/bin/buildclient -lssl -lcrypto
+  	mv simulaRed.o /sf/sisma/obj
+	chmod 777  /sf/sisma/obj/simulaRed.o

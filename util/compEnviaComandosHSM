@@ -1,0 +1,15 @@
+####################################
+# Compilador EnviaComandosHSM diciembre 2024
+####################################
+
+	cd /sf/sisma/src
+	
+	cp /sf/mepa/rut/obj/conexhsm.o /sf/sisma/obj
+	cp /sf/mepa/rut/obj/filefun.o /sf/sisma/obj
+  	cc -m64 -c -O -I/sf/sisma/includes /sf/sisma/src/EnviaComandosHSM.c -L/opt/oracle/product/12.1.0/client_1/precomp/lib 
+	mv EnviaComandosHSM.o /sf/sisma/obj
+	chmod 777  /sf/sisma/obj/EnviaComandosHSM.o
+
+    cc -m64  -o /sf/sisma/exec/EnviaComandosHSM /sf/sisma/obj/EnviaComandosHSM.o /sf/sisma/obj/libsisma.a -L$ORACLE_HOME/lib -lclntsh -lpthread
+  	chmod 777  /sf/sisma/exec/EnviaComandosHSM
+

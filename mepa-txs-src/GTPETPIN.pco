@@ -1,0 +1,614 @@
+      *GTPETPIN  COBOL4
+       IDENTIFICATION DIVISION.
+       PROGRAM-ID. GTPETPIN.
+      **********************
+      *
+      *    DESCRIPCION GENERAL.
+      *       PETICION DE PIN DE UNA TARJETA
+      *                                                              
+      *       CODIGO TRANSACCION: 710050                             
+      *                                                              
+      *       PANTALLA ENTRADA:   TPETPI                             
+      *                                                              
+      *       AUTOR:      JOSEP FLORES                               
+      *                                                              
+      *       FECHA:      20-ENE-2019                                
+      *                                                              
+      ******************************************************************
+      *
+       ENVIRONMENT DIVISION.
+       CONFIGURATION SECTION.
+      *
+       SPECIAL-NAMES.
+            DECIMAL-POINT IS COMMA.
+      *
+      *
+      ***************
+       DATA DIVISION.
+      ***************
+      *
+       WORKING-STORAGE SECTION.
+      *
+           COPY 'STATORA.LED'.
+           COPY 'INFOBLOC.LED'.
+      *
+      *
+       01  DLDISPLA-SQLDUMP       PIC 9(009)     COMP-5 VALUE 500.
+      *
+            EXEC SQL INCLUDE SQLCA  END-EXEC.
+            EXEC SQL BEGIN DECLARE SECTION END-EXEC.
+            EXEC SQL END   DECLARE SECTION END-EXEC.
+      *
+      * +--------------------------------------------------------------+
+      * [  AREA DE COMUNICACION CON LA GRDISPLA.                       ]
+      * +--------------------------------------------------------------+
+      *
+           COPY 'ISPLA.LRD'.
+      *
+       01  INTERFACE-RUTINAS.
+      ***********************
+      *
+           COPY 'NBSDE.LRD'.
+      *
+           COPY 'TRAT2.LRD'.
+      *
+           COPY 'TABMV.LFD'.
+      *
+           COPY 'PMPXCIFR.LRD'.
+      *
+      *
+       01  VAR-ALFANUMERICAS.
+      ***********************
+      *
+           05  MASC-DISPLA.
+               10  MASC-DISPLA-T       PIC X(70).
+               10  MASC-DISPLA-D-X     PIC X(18).
+               10  MASC-DISPLA-D-N     REDEFINES 
+                   MASC-DISPLA-D-X     PIC 9(18).
+      *
+           05  WK-INPUT-AREA-GRNBSDES  PIC X(280)    VALUE SPACES.
+      *
+           05  WV-PINISO.
+               10  WV-PIN-C            PIC X(02).
+               10  WV-PIN-4            PIC X(4).
+               10  WV-PIN-RESTO        PIC X(10).
+           05  WV-CIFRADO.
+               10  WV-PIN-CIFRADO      PIC X(16).
+      *
+           05  WK-JFL PIC X.
+      *
+      *
+       01  VAR-NUMERICAS.
+      *******************
+      *
+           05  WK-NTAR                 PIC 9(18).
+      *
+           05  WK-HNOC.
+               10  WK-HNOC-OFFI        PIC 9(4).
+               10  WK-HNOC-OFFP        PIC 9(4).
+      *      
+      *
+      *
+       01  FORMATOS-DE-SALIDA.
+      ************************
+      *
+           COPY 'TDOCU.LFD'.
+      *
+           05  TPO-ST0102              PIC X(4).
+      *
+      *
+           05  TPO-CM3901.
+               10  TPO-CM3901-FECQ          PIC 9(8).
+               10  TPO-CM3901-HHMM          PIC 9(4).
+               10  TPO-CM3901-MSG           PIC X(4).
+      *
+           05  TPO-CM3902.
+               10  TPO-CM3902-PIN           PIC X(16).
+               10  TPO-CM3902-NOMB          PIC X(63).
+      *
+      *
+       01  CONDICIONES.
+      *****************
+      *
+           05  CONDVJ78           PIC X(4)       VALUE 'VJ78'.
+           05  CONDVJ79           PIC X(4)       VALUE 'VJ79'.
+           05  CONDVJ80           PIC X(4)       VALUE 'VJ80'.
+           05  CONDVJ81           PIC X(4)       VALUE 'VJ81'.
+           05  CONDVJ82           PIC X(4)       VALUE 'VJ82'.
+      *
+      *
+       01  MENSAJES.
+      **************
+      *
+           05  MSGIDOC            PIC X(004)     VALUE 'IDOC'.
+           05  MSGSL01            PIC X(004)     VALUE 'SL01'.
+           05  MSGSL02            PIC X(004)     VALUE 'SL02'.
+           05  MSG077T            PIC X(004)     VALUE '077T'.
+           05  MSG078T            PIC X(004)     VALUE '078T'.
+           05  MSG079T            PIC X(004)     VALUE '079T'.
+           05  MSG080T            PIC X(004)     VALUE '080T'.
+           05  MSG081T            PIC X(004)     VALUE '081T'.
+           05  MSG083T            PIC X(004)     VALUE '083T'.
+           05  MSG090T            PIC X(004)     VALUE '090T'.
+           05  MSG605T            PIC X(004)     VALUE '605T'.
+           05  MSGYD23            PIC X(004)     VALUE 'YD23'.
+      *
+      *
+       01  FORMATOS.
+      **************
+           05  FMTZT0001          PIC X(006)     VALUE 'ZT0001'.
+           05  FMTZT0010          PIC X(006)     VALUE 'ZT0010'.
+           05  FMTZT0011          PIC X(006)     VALUE 'ZT0011'.
+           05  FMTZT0012          PIC X(006)     VALUE 'ZT0012'.
+           05  FMTZT0013          PIC X(006)     VALUE 'ZT0013'.
+           05  FMTZT0014          PIC X(006)     VALUE 'ZT0014'.
+           05  FMTZT0015          PIC X(006)     VALUE 'ZT0015'.
+      *
+           05  FMTCM3901          PIC X(6)       VALUE 'CM3901'.
+           05  FMTCM3902          PIC X(6)       VALUE 'CM3902'.
+      *
+      *
+       01  CODIGOS-GENERALIZADOS.
+      ***************************
+      *
+           05  CGO80675           PIC 9(005)     VALUE 80675.
+      *
+      *
+       01  TABLAS-PDU.
+      ****************
+      *
+           05  NTABTABMOVMP       PIC X(10)     VALUE 'TABMOVMP  '.
+      *
+      *
+       01  VARIOS.
+      ************
+      *
+           05  CODIGOTX           PIC X(006)     VALUE '710050'.
+           05  AREAGOLF           PIC X(001)     VALUE 'T'.
+           05  NOMBREPG           PIC X(008)     VALUE 'GTPETPIN'.
+      *
+      *
+       01  CONSTANTES.
+      ****************
+      *
+           05  K1U0               PIC 9(1)       VALUE 0.
+           05  K3U102             PIC 9(3)       VALUE 102.
+      *
+           05  K1X2               PIC X          VALUE '2'.
+           05  K1X3               PIC X          VALUE '3'.
+           05  K1XL               PIC X          VALUE 'L'.
+           05  K2X01              PIC X(2)       VALUE '01'.
+           05  K2XOK              PIC X(2)       VALUE 'OK'.
+           05  K4X8801            PIC X(4)       VALUE '8801'.
+           05  K4X0001            PIC X(4)       VALUE '0001'.
+           05  K4XAMPA            PIC X(4)       VALUE 'AMPA'.
+           05  K8XLOCALOFI        PIC X(8)       VALUE 'LOCALOFI'.
+           05  K8XOFICINAS        PIC X(8)       VALUE 'OFICINAS'.
+           05  K8XSMPXCIFR        PIC X(8)       VALUE 'SMPXCIFR'.
+           05  MASC1              PIC X(70)      VALUE 'NO EXISTE CLAVE E
+      -        'N LA TABLA TABMOVMP .   REVISAR LOS DATOS EN CLAVE = '.
+           05  MASC2              PIC X(70)      VALUE 
+              'ERROR EN LLAMADA XXXXXXXX'.
+      *
+      *
+      *
+       LINKAGE SECTION.
+      *****************
+      *
+       01  INPUT-AREA.
+           COPY 'INPUTVLI.LED'.
+           05  TPI-FORMATO             PIC X(6).
+           05  TPI-ORIGEN-MOV.
+               10  TIPO-ENTRA          PIC X.
+               10  COD-CAJERO          PIC X.
+               10  TIPO-TRADUC         PIC X.
+               10  CONVE-INSTL         PIC X.
+               10  TIPO-TX             PIC X.
+               10  MODO-ENTRA          PIC X.
+           05  TPI-DATOS.
+               10  TPI-NTAR            PIC X(16).
+               10  TPI-NTAR-R          REDEFINES
+                   TPI-NTAR            PIC 9(16).
+      *
+      *
+           COPY 'INFOAREA.LED'.
+           COPY 'OUTPDATA.LED'.
+           COPY 'SAVEDATA.LED'.
+           COPY 'WORKAREA.LED'.
+           COPY 'WORKCOMU.LED'.
+      *
+
+      * +--------------------------------------------------------------+
+      * [                      PROCEDURE DIVISION                      ]
+      * [                      ------------------                      ]
+      * +--------------------------------------------------------------+
+      *
+       PROCEDURE DIVISION  USING  DLTE-INFO-AREA
+                                  INPUT-AREA
+                                  DLMT-WORK-AREA
+                                  DLMT-OUTPUT-AREA
+                                  DLMT-SAVE-DATA.
+      *
+           COPY 'ESQUEMA.LEP'.
+      *
+      *
+      ***********
+       INICIO-TX.
+      ***********
+      *
+      *
+      *    DISPLAY ' ** GTPETPIN v0.0 - 20/05/19 ** '.
+           DISPLAY ' ** GTPETPIN v0.0 - 05/03/20 ** '.
+       
+           DISPLAY ' ** GTPETPIN FECHA EJECUCCION: ' 
+           DLFECHAEQ(1:8) ' - '  DLHHMM(1:4).
+           PERFORM   DISPLAY-TPI   THRU   FIN-DISPLAY-TPI.
+      *
+           MOVE  SPACES                TO          VAR-ALFANUMERICAS.
+           MOVE  ZEROES                TO          VAR-NUMERICAS.
+           MOVE  SPACES                TO          WV-PINISO.
+           MOVE  CODIGOTX              TO          IBTXCODE.
+      *
+      *
+      ***************
+       FIN-INICIO-TX.
+      ***************
+           EXIT.
+      *
+      *
+      *************
+       VAL-ENTRADA.
+      *************
+      *
+      *
+           DISPLAY 'GTPETPIN. VAL-ENTRADA'.                             JFL
+           MOVE     SPACES              TO          AREA-GRTRATAR.
+           MOVE     TPI-NTAR-R          TO          AMPA-CLAV.
+           MOVE     K1XL                TO          COMANDO-AMPA.
+      *
+           PERFORM  CALL-GRVALTAR       THRU        FIN-CALL-GRVALTAR.
+      *
+           DISPLAY 'GTPETPIN. VAL-ENTRADA. AMPACLAV: ' AMPA-CLAV.       JFL
+           DISPLAY 'GTPETPIN. VAL-ENTRADA. AMPAINPR: ' AMPA-INPR.       JFL
+           DISPLAY 'GTPETPIN. VAL-ENTRADA. AMPATICL: ' AMPA-TICL.       JFL
+      *
+           IF    AMPAINPR-PPAL   AND
+                 AMPATICL-EMPR
+           THEN  MOVE      CONDVJ78     TO          DLCOND-NUM
+                 PERFORM   CONDICION    THRU        FIN-CONDICION
+           ELSE  NEXT SENTENCE.
+      *
+      *
+      *****************
+       FIN-VAL-ENTRADA.
+      *****************
+           EXIT.
+      *
+      *
+      *********
+       PROCESO.
+      *********
+      *
+      *
+           PERFORM  GENERA-PIN              THRU   FIN-GENERA-PIN.
+      *
+           PERFORM  ENCRIPTA-PIN            THRU   FIN-ENCRIPTA-PIN.
+           ACCEPT WK-JFL.   
+      *
+           PERFORM  GRABAR-HNOC             THRU   FIN-GRABAR-HNOC.
+      *
+           PERFORM  LEER-TABMOVMP           THRU   FIN-LEER-TABMOVMP.
+      *
+           DISPLAY 'GTPETPIN. PROCESO. MOVMP-INDIMP: ' MOVMP-INDIMP.    JFL
+           IF    MOVMP-INDIMP-NO
+           THEN  PERFORM  PREP-SALIDAS      THRU   FIN-PREP-SALIDAS
+           ELSE  PERFORM  PREP-SALIDA-CERT  THRU   FIN-PREP-SALIDA-CERT
+           END-IF.
+      *
+      *
+      *************
+       FIN-PROCESO.
+      *************
+           EXIT.
+      *
+      *
+      ************
+       GENERA-PIN.
+      ************
+      *
+      *
+           MOVE     SPACES             TO        AREA-GRNBSDES.
+           MOVE     AMPA-CLAV          TO        RUTDES-PAN.
+           MOVE     AMPA-OFFP          TO        RUTDES-OFFSET.
+      *    DISPLAY "GTPETPIN - RUTDES-PAN   : " RUTDES-PAN.
+      *    DISPLAY "GTPETPIN - RUTDES-OFFSET: " RUTDES-OFFSET.
+           MOVE     K4X8801            TO        RUTDES-FUNCION.
+      *    DISPLAY "GTPETPIN - AREA-GRNBSDES: " AREA-GRNBSDES.
+      *
+           PERFORM  CALL-GRNBSDES      THRU      FIN-CALL-GRNBSDES.
+      *
+           IF    RUTDES-RESULT = K2XOK
+           THEN  MOVE      RUTDES-PIN    TO      WV-PIN-4
+      *          DISPLAY "GTPETPIN - RUTDES-PIN: " RUTDES-PIN
+           ELSE  MOVE      CONDVJ81      TO      DLCOND-NUM
+                 DISPLAY 'GTPETPIN. ERROR GENERA-PIN. RUTDES-RESULT: ' 
+                                                      RUTDES-RESULT
+                 PERFORM   CONDICION     THRU    FIN-CONDICION.
+      *
+      *
+      ****************
+       FIN-GENERA-PIN.
+      ****************
+           EXIT.
+      *
+      *
+      ***************
+       CALL-GRNBSDES.
+      ***************
+      * 
+           INITIALIZE WK-INPUT-AREA-GRNBSDES.
+           MOVE    INPUT-AREA      TO       WK-INPUT-AREA-GRNBSDES.
+      *
+           CALL   'GRNBSDES'       USING    DLMT-INFO-BLOCK
+                                            WK-INPUT-AREA-GRNBSDES
+                                            DLMT-WORK-AREA
+                                            DLMT-OUTPUT-AREA
+                                            DLMT-SAVE-DATA
+                                            AREA-GRNBSDES.
+      *
+           MOVE    WK-INPUT-AREA-GRNBSDES   TO  INPUT-AREA.
+      *
+      *
+      *******************
+       FIN-CALL-GRNBSDES.
+      *******************
+           EXIT.
+      *
+      *
+      **************
+       ENCRIPTA-PIN.
+      **************
+      *
+      *
+           INITIALIZE PMPXCIFR.
+           MOVE    K8XSMPXCIFR         TO      MPXCIFR.
+           MOVE    K2X01               TO      CPRCSO.
+           MOVE    K4X0001             TO      NUEMPRCE.
+           MOVE    '24'                TO      WV-PIN-C.
+           MOVE    'FFFFFFFFFF'        TO      WV-PIN-RESTO.    
+           MOVE    WV-PINISO            TO      TXTCFRDO OF EMPXCIFR.
+      *    DISPLAY "GTPETPIN - WV-PINISO: " WV-PINISO.
+      *    DISPLAY  'ENCRIPTA-PIN. PMPXCIFR: ' PMPXCIFR.
+      *
+           CALL   'GRCIFRAR'           USING   PMPXCIFR.
+      *
+      *
+           IF    OK-MPXCIFR
+           THEN  MOVE    TXTPLNO  OF  SMPXCIFR    
+                                       TO      WV-CIFRADO
+           ELSE  DISPLAY 'GTPETPIN. ERROR LLAMADA GRCIFRAR. STATUS: ' 
+                              CRSPSTA ' TARJETA: ' TPI-NTAR
+                 MOVE     CONDVJ82        TO    DLCOND-NUM
+                 MOVE     SPACES          TO    DLCOND-DATOS
+                 MOVE     WV-PINISO       TO    MASC-DISPLA-D-X
+                 MOVE     MASC2           TO    MASC-DISPLA-T
+                 MOVE     MASC-DISPLA     TO    DLDISPLA-BLOCK
+                 MOVE     K1X2            TO    DLDISPLA-TIPERR
+                 PERFORM  DISPLAYAR       THRU  FIN-DISPLAYAR
+                 DISPLAY 'MASC-DISPLA :' MASC-DISPLA
+                 PERFORM  CONDICION       THRU  FIN-CONDICION.
+      *    DISPLAY "GTPETPIN - WV-PIN-CIFRADO: " WV-PIN-CIFRADO.
+      *
+      *
+      ******************
+       FIN-ENCRIPTA-PIN.
+      ******************
+           EXIT.
+      *
+      *
+      *************
+       GRABAR-HNOC.
+      *************
+      *
+      *
+           DISPLAY 'GTPETPIN. GRABAR-HNOC.' AMPA-CLAV.
+      *    DISPLAY "GTPETPIN - WV-PIN-CIFRADO: " WV-PIN-CIFRADO.
+           MOVE      SPACES            TO      DLINSNC-CLAMAE-HNOC.
+           MOVE      SPACES            TO      DLINSNC-DATA1.
+           MOVE      SPACES            TO      DLINSNC-DATA2.
+           MOVE      DLPROCED          TO      DLINS-PROCED.
+           MOVE      DLDIGITO-1(1:)    TO      DLINS-COGEOP-1(1:).
+           MOVE      CGO80675          TO      DLINS-COGEOP-2-6.
+           MOVE      K4XAMPA           TO      DLINSNC-NOMARC.
+           MOVE      AMPA-CLAV         TO      DLINSNC-CLAMAE-N.
+           MOVE      AMPA-OFFI         TO      WK-HNOC-OFFI.
+           MOVE      AMPA-OFFP         TO      WK-HNOC-OFFP.
+      *
+           MOVE      WK-HNOC           TO      DLINSNC-DATA1.
+           PERFORM   INSERCION         THRU    FIN-INSERCION.
+      *
+      *
+      *****************
+       FIN-GRABAR-HNOC.
+      *****************
+           EXIT.
+      *
+      *
+      *
+      ***************
+       LEER-TABMOVMP.
+      ***************
+      *
+      *
+           MOVE     NTABTABMOVMP          TO       INFO-TABLA.
+           MOVE     SPACES                TO       CLAVE-TABMOVMP.
+           MOVE     IBTXCODE              TO       MOVMP-CODTX.
+           MOVE     CLAVE-TABMOVMP        TO       INFO-CLADATO.
+           MOVE     DLENTIDAD             TO       INFO-CLAINST.
+           MOVE     K3U102                TO       INFO-VLI.
+           MOVE     K1U0                  TO       INFO-CONT.
+      *
+           PERFORM  CALL-PDU              THRU     FIN-CALL-PDU.
+      *
+           IF    DLBUEN-ACCESO
+           THEN  MOVE  INFO-DATOS         TO       DATOS-MOVMP
+           ELSE  IF    DLNOT-DATA
+                 THEN  MOVE     CONDVJ79        TO    DLCOND-NUM
+                       MOVE     SPACES          TO    DLCOND-DATOS
+                       MOVE     CLAVE-TABMOVMP  TO    MASC-DISPLA-D-X
+                       MOVE     MASC1           TO    MASC-DISPLA-T
+                       MOVE     MASC-DISPLA     TO    DLDISPLA-BLOCK
+                       MOVE     K1X3            TO    DLDISPLA-TIPERR
+                       PERFORM  DISPLAYAR       THRU  FIN-DISPLAYAR
+                       PERFORM  CONDICION       THRU  FIN-CONDICION
+                 ELSE  MOVE     CONDVJ80        TO    DLCOND-NUM
+                       MOVE     K1X2            TO    DLDISPLA-TIPERR
+                       PERFORM  DISPLAYAR       THRU  FIN-DISPLAYAR
+                       PERFORM  CONDICION       THRU  FIN-CONDICION.
+      *
+      *
+      *******************
+       FIN-LEER-TABMOVMP.
+      *******************
+           EXIT.
+      *
+      *
+      **************
+       PREP-SALIDAS.
+      **************
+      *
+      *
+           MOVE     FMTCM3901           TO      DLNUM-FORMATO.
+           MOVE     DLPT-LENGUA         TO      DLCODIGO-LENG.
+           MOVE     DLFECHAEQ           TO      TPO-CM3901-FECQ.
+           MOVE     DLHHMM              TO      TPO-CM3901-HHMM.
+           MOVE     MSGYD23             TO      TPO-CM3901-MSG.
+           MOVE     TPO-CM3901          TO      DLTEXTO-MSG.
+           PERFORM  LLAMADA-SALIDA      THRU    FIN-LLAMADA-SALIDA.
+      *
+           MOVE     FMTCM3902           TO      DLNUM-FORMATO.
+           MOVE     DLPT-LENGUA         TO      DLCODIGO-LENG.
+           MOVE     WV-PIN-CIFRADO      TO      TPO-CM3902-PIN.
+           MOVE     AMPA-NOMR           TO      TPO-CM3902-NOMB.
+           MOVE     TPO-CM3902          TO      DLTEXTO-MSG.
+           PERFORM  LLAMADA-SALIDA      THRU    FIN-LLAMADA-SALIDA.
+      *
+      *
+      ******************
+       FIN-PREP-SALIDAS.
+      ******************
+           EXIT.
+      *
+      *         
+      ******************
+       PREP-SALIDA-CERT.
+      ******************
+      *
+      *
+           PERFORM  SALIDA-CABECERA     THRU    FIN-SALIDA-CABECERA.
+           PERFORM  SALIDA-TEXTO        THRU    FIN-SALIDA-TEXTO.
+           PERFORM  SALIDA-PIE          THRU    FIN-SALIDA-PIE.
+      *
+      *
+      **********************
+       FIN-PREP-SALIDA-CERT.
+      **********************
+           EXIT.
+      *
+      *
+      * +--------------------------------------------------------------+
+      * [                        SALIDA-TEXTO.                         ]
+      * [                        -------------                         ]
+      * +--------------------------------------------------------------+
+      *
+      **************
+       SALIDA-TEXTO.
+      **************
+      *
+      *
+           MOVE     FMTZT0015           TO       DLNUM-FORMATO.
+           MOVE     DLPT-LENGUA         TO       DLCODIGO-LENG.
+           MOVE     MSGSL02             TO       TPO-SZ0002-1.
+           MOVE     TPO-SZ0002          TO       DLTEXTO-MSG.
+           PERFORM  LLAMADA-SALIDA      THRU     FIN-LLAMADA-SALIDA.
+      *
+           MOVE     FMTZT0001           TO       DLNUM-FORMATO.
+           MOVE     DLPT-LENGUA         TO       DLCODIGO-LENG.
+           MOVE     MSG090T             TO       TPO-ST0102.
+           MOVE     TPO-ST0102          TO       DLTEXTO-MSG.
+           PERFORM  LLAMADA-SALIDA      THRU     FIN-LLAMADA-SALIDA.
+      *
+           MOVE     MSG605T             TO       TPO-ST0102.
+           MOVE     TPO-ST0102          TO       DLTEXTO-MSG.
+           PERFORM  LLAMADA-SALIDA      THRU     FIN-LLAMADA-SALIDA.
+      *
+           MOVE     FMTZT0015           TO       DLNUM-FORMATO.
+           MOVE     DLPT-LENGUA         TO       DLCODIGO-LENG.
+           MOVE     MSGSL02             TO       TPO-SZ0002-1.
+           MOVE     TPO-SZ0002          TO       DLTEXTO-MSG.
+           PERFORM  LLAMADA-SALIDA      THRU     FIN-LLAMADA-SALIDA.
+      *
+      *
+      ******************
+       FIN-SALIDA-TEXTO.
+      ******************
+           EXIT.
+      *
+      *
+      ***************
+       CERRAR-CURSOR.
+      ***************
+      *
+      *
+      *******************
+       FIN-CERRAR-CURSOR.
+      *******************
+           EXIT.
+      *
+      * +--------------------------------------------------------------+
+      * [               -------------------------------                ]
+      * [               L L A M A D A S   R U T I N A S                ]
+      * [               -------------------------------                ]
+      * +--------------------------------------------------------------+
+      *
+      *
+      ***************
+       CALL-GRVALTAR.
+      ***************
+      *
+      *
+           CALL 'GRVALTAR'             USING       DLMT-INFO-BLOCK
+                                                   INPUT-AREA
+                                                   DLMT-WORK-AREA
+                                                   DLMT-OUTPUT-AREA
+                                                   DLMT-SAVE-DATA
+                                                   AREA-GRTRATAR.
+      *
+           IF    DLVOID
+           THEN  GO TO ENVIO-SALIDA
+           ELSE  NEXT SENTENCE.
+      *
+      *
+      *******************
+       FIN-CALL-GRVALTAR.
+      *******************
+           EXIT.
+      *
+      *
+           COPY 'TDOCU.LPD'.
+           COPY 'STATOWH.LEP'.
+      *
+      *
+      *************
+       DISPLAY-TPI.
+      *************
+      *
+      *
+           DISPLAY 'TPI-NTAR ........: ' TPI-NTAR-R.
+      *
+      *
+      *****************
+       FIN-DISPLAY-TPI.
+      *****************
+           EXIT.
+      *

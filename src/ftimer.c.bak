@@ -1,0 +1,167 @@
+
+/* cada "FUERZA_REFRESCO" operaciones recorre la SVM buscando caducadas */ 
+#define FUERZA_REFRESCO (MAX_REG_SVM/3);
+/***************************************************************************
+   PROGRAMA:  FTIMER.C
+   DESCRIPCION: Funcion encargada de lanzar el control de time-out .
+****************************************************************************/
+int Pkill(int Ppid,int Psenal);
+int ftimer(formato_interno * pforitn, int pid_ptimer,
+                       int segundos, int tipo_tiempo)
+{
+  int ii, retorno;
+  time_t t_actual;
+  int subsis;
+  void *p_aux;
+  int offset_timer;
+  int t_asignado=0;
+  SVMtimer *tb_timer_i;
+  SVMtimer *tb_timer00;
+  static int t_continuar = 0;
+
+ subsis = atoi(subsistema_general);
+/**   hora_actual en segundos  */
+ time(&t_actual);
+#if defined (TRAZA) && (TRAZA > 10)
+  fprintLog(nomProg,"[ftimer]: t_actual >%d< segundos >%d< tipo_tiempo >%d<\n",
+                            t_actual, segundos, tipo_tiempo);
+#endif
+ if(!tipo_tiempo) /** Tiempo relativo **/
+ {
+/*  sumar a hora actual el tiempo de espera respuesta */
+  t_actual = t_actual + segundos;
+ }
+ else  /** Tiempo absoluto **/
+ {
+  t_actual = segundos;
+ }
+
+#if defined (TRAZA) && (TRAZA > 10)
+  fprintLog(nomProg,"t_continuar >%d<\n", t_continuar);
+#endif
+
+
+ switch(subsis)
+ {
+  case 03:
+   tb_timer00 = &psvm->tb_timer03; 
+   break;
+  case 05:
+   tb_timer00 = &psvm->tb_timer05;
+   break;
+  case 07:
+   tb_timer00 = &psvm->tb_timer07;
+   break;
+  case 20:
+   tb_timer00 = &psvm->tb_timer20;
+   break;
+  case 30:
+     tb_timer00 = &psvm->tb_timer30;
+   break;
+  case 40:
+   tb_timer00 = &psvm->tb_timer40;
+   break;
+  case 10:
+   tb_timer00 = &psvm->tb_timer10;
+   break;
+ }
+
+//RAQUEL COMPROBAR SI ESTO FUNCIONA
+ // tb_timer00 = &psvm->tb_timer;
+
+ offset_timer = (char *)tb_timer00 - (char *)psvm;
+
+ if(!t_continuar)
+ {
+  tb_timer00->t_exp = 0;
+  t_continuar = FUERZA_REFRESCO;
+ }
+ t_continuar--;
+
+#if defined (TRAZA) && (TRAZA > 10)
+ fprintLog(nomProg,"t_espera_vigente >%ld<\n", tb_timer00->t_exp);
+#endif
+
+/* grabar el tiempo y numero de operacion en una entrada libre */
+ 
+#if defined (TRAZA) && (TRAZA > 10)
+  fprintLog(nomProg,"MAX_REG_SVM= %d\n", MAX_REG_SVM);
+#endif 
+
+ ii=1;
+ t_asignado=0;
+ while( ii < MAX_REG_SVM && t_asignado == 0) /** tratamiento de la tabla de msg pendientes **/
+ {
+    p_aux = (char *)(psvm + ii) + offset_timer;
+    tb_timer_i = (SVMtimer *) p_aux;
+
+    if(!tb_timer_i->numope)
+    {
+      /* entrada libre en la tabla  */
+      tb_timer_i->numope = atoi(pforitn->fidatpro.finumope);
+      tb_timer_i->t_exp = t_actual;
+//#if defined (TRAZA) && (TRAZA > 10)
+//      fprintLog(nomProg,"ii >%i< asigna numope >%06d<   t_espera operacion >%ld<\n",
+//             ii,tb_timer_i->numope, tb_timer_i->t_exp);
+//#endif     
+      usleep(5); // esperamos un poco a ver si otro penvio ha machacado el dato
+	  if(tb_timer_i->numope == atoi(pforitn->fidatpro.finumope))
+         t_asignado=1;
+    }
+#if defined (TRAZA) && (TRAZA > 10)
+    else
+    {
+      fprintLog(nomProg,"ii >%i< numope >%06d<   t_espera operacion >%ld<\n",
+             ii, tb_timer_i->numope, tb_timer_i->t_exp);
+    }
+#endif
+    ii++;
+ }/*** fin while ***/
+
+ 
+ if(ii >= MAX_REG_SVM)
+ {
+#if defined (TRAZA) && (TRAZA > 1)
+  fprintLog(nomProg,"superado el numero maximo(%d) de mensajes pendientes (%d)\n",
+            MAX_REG_SVM, ii);
+#endif
+  strcpy(reginci.innomfic, "TBTIME");
+  //Codigo de demasiadas operaciones pendientes
+  strcpy(coderror, "044");
+  fgraba_incidencia_cp(coderror, NULL, NULL, reginci.innomfic);
+  return(-1);
+ }
+
+/*   si el tiempo del timer es distinto de 0 y mayor que
+     el tiempo calculado , cancelar y activar con el nuevo tiempo
+*/
+#if defined (TRAZA) && (TRAZA > 10)
+ fprintLog(nomProg,"t_actual =%ld \n", t_actual);
+ fprintLog(nomProg,"t_espera actual =%ld\n", tb_timer00->t_exp);
+ fprintLog(nomProg,"pid timer =%d  SIGALRM >%d<\n", pid_ptimer, SIGALRM);
+#endif
+ if(tb_timer00->t_exp > t_actual || !tb_timer00->t_exp)
+ {
+  tb_timer00->t_exp = t_actual;
+  retorno = Pkill((pid_t)(pid_ptimer),SIGALRM); 
+  if(retorno)
+  {
+#if defined (TRAZA) && (TRAZA > 10)
+   fprintLog(nomProg," ERROR PKILL AL TIMER\n");
+#endif
+   strcpy(reginci.innomfic, "     ");
+   // Codigo de error en alarma del temporizador
+   strcpy(coderror, "045");   
+   fgraba_incidencia_cp(coderror, NULL, NULL, reginci.innomfic);
+  }   
+#if defined (TRAZA) && (TRAZA > 10)
+  else 
+  {
+   fprintLog(nomProg,"PKILL OK AL TIMER\n");
+   fflush(stderr);
+  }
+#endif
+ }
+
+ return(t_actual);
+}

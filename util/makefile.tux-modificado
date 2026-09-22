@@ -1,0 +1,50 @@
+###clear
+##EXEC=/sf/sisma/exec
+###INCLUD=/sf/sisma/includes
+##
+##OBJ=/sf/sisma/obj
+##
+###CFLAGS="-I/sf/sisma/include -DSUN_OS -DUNIX -DTRAZA=20"; export CC CFLAGS 
+###CC=cc CFLAGS="-I/sf/sisma/includes"; export CC CFLAGS
+##
+###buildclient -o pmanejTux -f /sf/sisma/src/pmanejTux.c -f "$/sf/sisma/obj/filefun.o /sf/sisma/obj/libisma.a"
+### Make 
+##
+##
+##COMPILER_C=proc
+###aplicación para montar la libreria libmepa
+##
+###SOL_CC= "cc -m64 -DSUN_OS -DUNIX -DTRAZA=20 -DTUXEDO"
+##MP_SISMA=/sf/sisma
+##export MP_SISMA
+##
+##
+##FUEN_COMUN=$MP_SISMA/src
+##export FUEN_COMUN
+##
+##
+##FUENTES=$MP_SISMA/src
+##export FUENTES
+##
+##PROCFLAGS=
+##include=\($ORACLE_HOME/precomp/public/,/sf/sisma/includes\)
+##
+##LN=curses
+##LN2=/opt/oracle/product/12.1.0/client_1/precomp/lib
+##LN3=nsl 
+##LN6=sisma
+##LN7=/opt/oracle/product/12.1.0/client_1/lib 
+     
+
+##UNIX_LIB=/sf/sisma/obj/filefun.o -l$(LN6) -L$(LN2) -L$(LN7) -l$(LN3)
+##UNIX_INCS=-I$ORACLE_HOME/precomp/public/ -I/sf/sisma/includes -I$(TUXDIR)/include
+##BUILDCLIENT=$(TUXDIR)/bin/buildclient
+
+/sf/sisma/exec/pmanejTux: /sf/sisma/obj/pmanejTux.o  /sf/sisma/obj/libsisma.a
+	cc -m64 -o /sf/sisma/exec/pmanejTux /sf/sisma/obj/pmanejTux.o /sf/sisma/obj/libsisma.a -L/opt/oracle/product/12.1.0/client_1/lib -lnsl -I/opt/tuxedo/tuxedo12.2.2.0.0/include -L/opt/tuxedo/tuxedo12.2.2.0.0/bin/buildclient 
+	chmod 777  /sf/sisma/exec/pmanejTux
+
+/sf/sisma/obj/pmanejTux.o: /sf/sisma/src/pmanejTux.c
+	cc -m64 -c -O -I/sf/sisma/includes /sf/sisma/src/pmanejTux.c -lsisma -L/opt/oracle/product/12.1.0/client_1/lib -lnsl -I/opt/tuxedo/tuxedo12.2.2.0.0/include -L/opt/tuxedo/tuxedo12.2.2.0.0/bin/buildclient 
+	mv pmanejTux.o /sf/sisma/obj
+	chmod 777  /sf/sisma/obj/pmanejTux.o

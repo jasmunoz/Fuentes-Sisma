@@ -1,0 +1,97 @@
+#ifndef DEFFICH_H
+#define DEFFICH_H
+//PRJ0258542 - se incluyen UNO y DOS
+typedef enum
+{ABANDONAR,
+ ACTIVAR,
+ ANTERIOR,
+ CARGAR,
+ BLOQUEAR,
+ BORRAR,
+ ESCRIBIR,
+ DESACTIVAR,
+ FECMODIF,
+ IGUAL,
+ LIMPIAR,
+ MAYORIGUAL,
+ MAYOR,
+ MENORIGUAL,
+ MENOR,
+ PRIMERO,
+ REESCRIBIR,
+ SIGUIENTE,
+ SEMAF,
+ SEMAF00,
+ PACONCIL,
+ MONITOR,
+ THNPTPARS,
+ IGUALBLOQ,
+ NSMILT,
+ DESBLOQ,
+ SESIONF,
+ NODOCIERRE,
+ DEBITO,
+ CREDITO,
+ RESPALDO,
+ TOTAL,
+ IGUALBORRAR,
+ MODIFICO,
+ TRUNCAR,
+ NUMERO,
+ THNPTSIOC,
+ MODIFESTADO,
+ ULTIMO,
+ ACTSALDO,
+ CIFRATJT,
+ DESCIFRATJT,
+ COMPENS,
+} OPCION_FICH;
+
+typedef enum
+  {
+   NPTBIMA,
+   NPTBINE,
+   NPTDAP1,
+   NPTDAP2,
+   NPTDISO,
+   NPTINCI,
+   NPTLOGO,
+   NPTPARA,
+   NPTPARS,
+   NPTTARJ,
+   NPTTBOP,
+   NPTTOTO,
+   NPTCASA,
+   NumeroCruceYOperacion,
+   ATTLOGNP,
+   ATTLOGNPR,
+   NPTHOST,
+   NPTTIEM,
+   NPTACTV,
+   NPTACTO,
+   ATTHINCI,
+   NPTSIOC,
+   ATTGEMAO,
+   NPTDESC,
+   NPTCACO,
+   NPTTCIF,
+   ULTIMOFICH
+  }  NOMFICH;
+
+#define FIC_BASE -1*ULTIMOFICH
+
+typedef enum
+{NO_ACTIVO,
+ ACTIVO,
+ SUSPENDER,
+ RESTAURAR,
+ LECTURA
+} BLOQUEOS;
+
+extern int bloquear(short tipobloq);
+extern int transaccion(int transmodo);
+extern int tratar_fich(char* fichero, OPCION_FICH opcion, void *registro, void *clave);
+
+#define ABIERTO 46 //FUSE_ERR        
+
+#endif

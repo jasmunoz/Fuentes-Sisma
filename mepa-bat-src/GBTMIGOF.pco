@@ -1,0 +1,1181 @@
+      * +--------------------------------------------------------------+
+      * [                           --------                           ]
+      * [                           GBTMIGOF                           ]
+      * [                           --------                           ]
+      * [                                                              ]
+      * [  DESCRIPCION GENERAL :                                       ]
+      * [  ---------------------                                       ]
+      * [  MIGRACION DE LOS OFFSETS DE LAS TARJETAS A OFFSETS          ]
+      * [  GENERADOS POR HSM MANTENIENDO EL PIN                        ]
+      * [                                                              ]
+      * [  INDRA - MARZO 2026                                          ]
+      * [                                                              ]
+      * [******************** ZONA DE MODIFICACIONES ******************]
+      * [                                                              ]
+      * [                                                              ]
+      * [********************  FIN MODIFICACIONES *********************]
+      * +--------------------------------------------------------------+
+      *
+      * +--------------------------------------------------------------+
+      * [        ---------------------------------------------         ]
+      * [        I D E N T I F I C A T I O N   D I V I S I O N         ]
+      * [        ---------------------------------------------         ]
+      * +--------------------------------------------------------------+
+       IDENTIFICATION DIVISION.
+      *------------------------
+      *
+       PROGRAM-ID. GBTMIGOF.
+      * 
+      * +--------------------------------------------------------------+
+      * [           ---------------------------------------            ]
+      * [           E N V I R O N M E N T   D I V I S I O N            ]
+      * [           ---------------------------------------            ]
+      * +--------------------------------------------------------------+
+       ENVIRONMENT DIVISION.
+      *---------------------
+      *
+       CONFIGURATION SECTION.
+      *
+       SPECIAL-NAMES.
+           DECIMAL-POINT IS COMMA.
+      *
+       INPUT-OUTPUT SECTION.
+      **********************
+      *
+       FILE-CONTROL.
+      **************
+      *
+       DATA DIVISION.
+      ***************
+      *
+       FILE SECTION.
+      **************
+      *
+       WORKING-STORAGE SECTION.
+      *************************
+           COPY 'STATORA.LED'.
+           COPY "INFOBLOC.LED".
+           COPY "WORKAREA.LED".
+           COPY "WORKCOMU.LED".
+           COPY "INFOAREA.LED".
+           COPY "SAVEDATA.LED".
+           COPY "OUTPDATA.LED".
+           COPY "MONITORF.LRD".
+           COPY 'INIENTI.LUD'.
+      *
+           EXEC SQL  INCLUDE SQLCA                  END-EXEC.
+           EXEC SQL  BEGIN DECLARE SECTION          END-EXEC.
+           EXEC SQL  INCLUDE AMPA                   END-EXEC.
+           EXEC SQL  INCLUDE MOFF                   END-EXEC.
+       01  HV-DINAMICA                              PIC X(400).
+           EXEC SQL  DECLARE S1 STATEMENT           END-EXEC
+           EXEC SQL  END DECLARE SECTION            END-EXEC.
+      *
+      * +--------------------------------------------------------------+
+      * [                       DATOS DE TARJETA                       ]
+      * +--------------------------------------------------------------+
+       01  TARJETA.
+           05  FILLER                  PIC X(017).
+           05  ID-TARJETA              PIC X(006).
+               88  ID-TARJETA-CONTRL               VALUE 'CONTRL'.
+               88  ID-TARJETA-COMMIT               VALUE 'COMMIT'.
+           05  DATOS-TARJETA.
+               10  ID-PROGRAMA         PIC X(8).
+               10  ID-EJECUCION        PIC X(2).
+               10  ID-EMISOR           PIC X(2).
+               10  ID-CODEMI           PIC X(4).
+               10  FILLER              PIC X(41).
+      *
+           COPY "GROPECLO.LRD".
+      *    COPY 'GRTRDEMI.LRD'.
+      *
+       01  DATOS-SICIFRA.
+           COPY 'TSCIF.LFD'.
+           COPY 'NBSDE.LRD'.
+           COPY 'PMPXHSM0.LRD'.
+           COPY 'SCPCIPIN.LRD'.
+           COPY 'GRSOLOTP.LRD'.
+      *
+           COPY 'TRJBAT.LRD'.
+      *
+       01  VAR-NUMERICAS.
+      *******************
+      *
+           05  WK-ERROR                PIC S9(4)  COMP-5.
+           05  WK-FECHA.
+               10  WK-FECHA-SS         PIC 9(2).
+               10  WK-FECHA-AAMMDD     PIC 9(6).
+           05  WK-TIME                 PIC 9(8).
+      *
+           05  WK-NUEVO-OFFSET-INVENTADO     PIC 9(4).
+      *
+           05  WK-CONTADORES.
+               10  WK-CONT-READ-AMPA         PIC 9(9).
+               10  WK-CONT-UPDA-MOFF         PIC 9(9).
+               10  WK-CONT-UPDA-AMPA         PIC 9(9).
+               10  WK-CONT-NO-MIGRA          PIC 9(9).
+      *
+       01  VAR-ALFANUMERICAS.
+      ***********************
+      *
+           05  WK-ID-EMISOR            PIC X(2).
+           05  WK-ID-CODEMI            PIC X(4).
+      *
+           05  WE-RUT-GRCONHSM.
+               10  FILLER              PIC X(015)  VALUE                 
+                  'ERROR GRCONHSM:'.
+               10  WE-OPC-GRCONHSM     PIC X(005).
+               10  WE-ERR-GRCONHSM     PIC X(030).
+      *
+           05  WV-OFFSET-4             PIC X(04).
+           05  WK-NUSOCKET             PIC X(20).
+      *
+           05  WK-REDES                PIC X(04)  VALUE SPACES.
+      *
+           05  WE-PDU.
+               10 FILLER               PIC X(28)  VALUE
+               'ERROR EN ACCESO A TABLA PDU '.
+               10 WE-PDU-ID            PIC X(10).
+      *
+       01  SWITCH.
+      ************
+      *
+           05  FG-ABORTAR              PIC 9(01).
+               88  ABORTAR             VALUE 1
+                                       FALSE 0.
+      *
+           05  FG-ERRO                 PIC X(01).
+               88  SIN-ERROR           VALUE '0'.
+               88  ERROR-BBDD          VALUE '1'.
+               88  ERROR-HSM           VALUE '2'.
+      *
+           05  SW-OPEN-AMPA            PIC 9(01).
+               88  OPEN-AMPA           VALUE 1.
+               88  CLOSE-AMPA          VALUE 0.
+      *
+           05  SW-FIN-AMPA             PIC 9(01).
+               88  FIN-AMPA            VALUE 1.
+      *
+           05  SW-INCID-TARJETA        PIC 9(01).
+               88 INCIDENCIA-TARJETA   VALUE 1.
+      *
+           05  SW-TRATAR-TARJETA       PIC 9(01).
+               88 TRATAR-TARJETA       VALUE 1.
+      *
+           05  FG-HSM                  PIC 9(01).
+               88 HSM-OPEN             VALUE 0.
+               88 HSM-NO-OPEN          VALUE 1.
+      *
+           05  FG-TIPCLA               PIC 9(01).
+               88  CLAV-TDES           VALUE 0.
+               88  CLAV-AES            VALUE 1.
+               88  CLAV-AES-P          VALUE 2.
+      *
+           05  FG-TIPCLA1              PIC 9(01). 
+               88  CLAV-P-TDES         VALUE 0.
+               88  CLAV-P-AES          VALUE 1. 
+      *
+           05  FG-INCIDENCIA           PIC 9(0 1).
+               88  SIN-INCIDENCIA      VALUE 0.
+               88  CON-INCIDENCIA      VALUE 1.
+      * 
+           05  CLAV-TABSICIFRA.
+               10  SICIF-EMISOR        PIC X(02). 
+               10  SICIF-FUNC          PIC X(01).
+      * 
+           05  AREA-CLAVES-HSM-AES.
+               10  CL-REDES            PIC X(04). 
+               10  CL-COMA-1           PIC X(50). 
+               10  CL-COMA-2           PIC X(50). 
+               10  CL-COMA-3           PIC X(50).
+               10  CL-COMA-4           PIC X(50).
+      *
+       01  WV-INCI-DATOS.
+           05  WV-INCI-CLAV            PIC X(18).
+           05  WV-INCI-TEXT            PIC X(60).
+           05  WV-INCI-STAT            PIC X(08).
+      *
+       01  WKI                         PIC 9(10).
+      *
+       01  WK-AMPAOFFP                 PIC 9(04).
+       01  WK-AMPACLAV                 PIC 9(18).
+       01  WK-AMPACLAV-R REDEFINES WK-AMPACLAV.
+           05  FILLER                  PIC X(02).
+           05  WK-AMPACLAV-A           PIC X(16).           
+      * 
+      * +--------------------------------------------------------------+
+      * [                   -----------------------                    ]
+      * [                     C O N S T A N T E S                      ]
+      * [                   -----------------------                    ]
+      * +--------------------------------------------------------------+
+      *
+      * +--------------------------------------------------------------+
+      * [                            VARIOS                            ]
+      * +--------------------------------------------------------------+
+       01  VARIOS.
+           05  CODIGOTX                PIC X(06)  VALUE 'BATCH'.
+           05  AREAGOLF                PIC X(01)  VALUE 'T'.
+           05  NOMBREPG                PIC X(08)  VALUE 'GBTMIGOF'.
+      *
+      * +--------------------------------------------------------------+
+      * [                          CONSTANTES                          ]
+      * +--------------------------------------------------------------+
+       01  CONSTANTES.
+      ****************
+      *
+           05  K1U0                    PIC 9(01)  VALUE 0.
+           05  K1U1                    PIC 9(01)  VALUE 1.
+           05  K1U4                    PIC 9(01)  VALUE 4. 
+           05  K1S1                    PIC S9     VALUE -1.
+           05  K2U16                   PIC 9(02)  VALUE 16.
+           05  K2U20                   PIC 9(02)  VALUE 20.
+           05  K2U24                   PIC 9(02)  VALUE 24.
+           05  K2U25                   PIC 9(02)  VALUE 25.
+           05  K2U28                   PIC 9(02)  VALUE 28.
+           05  K2U35                   PIC 9(02)  VALUE 35.
+           05  K2U36                   PIC 9(02)  VALUE 36.
+           05  K3U102                  PIC 9(03)  VALUE 102.
+           05  K3U202                  PIC 9(03)  VALUE 202.
+           05  K4U8801                 PIC 9(04)  VALUE 8801.
+           05  K9U10                   PIC 9(09)  VALUE 10.
+      *
+           05  K1X0                    PIC X(01)  VALUE '0'.
+           05  K1X1                    PIC X(01)  VALUE '1'.
+           05  K1XA                    PIC X(01)  VALUE 'A'.
+           05  K1XG                    PIC X(01)  VALUE 'G'.
+           05  K1XM                    PIC X(01)  VALUE 'M'.
+           05  K1XN                    PIC X(01)  VALUE 'N'.
+           05  K1XE                    PIC X(01)  VALUE 'E'.
+           05  K1XP                    PIC X(01)  VALUE 'P'.
+           05  K1XS                    PIC X(01)  VALUE 'S'.
+           05  K1XCP                   PIC X(01)  VALUE ')'.
+           05  K1XCO                   PIC X(01)  VALUE ''''.
+           05  K1XCM                   PIC X(01)  VALUE ','.
+           05  K2X00                   PIC X(02)  VALUE '00'.
+           05  K2X01                   PIC X(02)  VALUE '01'.
+           05  K2X02                   PIC X(02)  VALUE '02'.
+           05  K2X03                   PIC X(02)  VALUE '03'.
+           05  K4X0000                 PIC X(04)  VALUE '0000'.
+           05  K4X0001                 PIC X(04)  VALUE '0001'.
+           05  K4XOK                   PIC X(04)  VALUE 'OK  '.
+      * 
+           05  WC-MIGRTDESAAESXX.
+            10   FILLER                PIC X(12)  VALUE 'MIGRTDESAAES'.
+            10   WC-EMIS-AES           PIC X(02)  VALUE SPACES. 
+      *
+       01  WK-SELECT-1                 PIC X(55)  VALUE
+           'SELECT AMPACLAV, AMPAFECA, AMPAOFFP, AMPAOFFI,         '.
+       01  WK-SELECT-2                 PIC X(55)  VALUE
+           'AMPASITU INTO :AMPACLAV, :AMPAFECA, :AMPAOFFP,         '.
+       01  WK-SELECT-3                 PIC X(55)  VALUE
+           ':AMPAOFFI, :AMPASITU FROM AMPA WHERE AMPASITU IN (     '.
+       01  WK-SELECT-4                 PIC X(55)  VALUE
+           ' AND AMPACLAV IN (                                    '.
+      *
+       01  WK-ERRO-DEF                 PIC X(32). 
+      *
+       01  WK-ERRO-1                   PIC X(32)  VALUE
+           'ERROR ACCESO A GRNBSDES         '.
+       01  WK-ERRO-2                   PIC X(32)  VALUE
+           'ERROR EN UPDATE AMPA            '.
+       01  WK-ERRO-3                   PIC X(32)  VALUE
+           'ERROR ACCESO A GRCONHSM         '.
+      *
+       01  TABLAS-PDU.
+      *****************
+           05  NTABSICIFRA             PIC X(10)  VALUE 'TABSICIFRA'.
+           05  NTABTABPROGSCM          PIC X(10)  VALUE 'TABPROGSCM'.
+      *
+      * +--------------------------------------------------------------+
+      * [             ------------------------------------             ]
+      * [             P R O C E D U R E    D I V I S I O N             ]
+      * [             ------------------------------------             ]
+      * +--------------------------------------------------------------+
+       PROCEDURE DIVISION.
+      *-------------------
+      *
+           DISPLAY '***  GBTMIGOF - 27 MARZO 2026 ***'.
+      *
+           PERFORM   INICIO          THRU   FIN-INICIO.
+      *
+           PERFORM   PROCESO         THRU   FIN-PROCESO
+                                     UNTIL  FIN-AMPA.
+      *
+           PERFORM   ACABAR          THRU   FIN-ACABAR.
+      *
+       FIN-PROGRAMA.
+      **************
+      *
+           IF   OPEN-AMPA
+           THEN PERFORM  CERRAR-CURSOR THRU  FIN-CERRAR-CURSOR
+           ELSE NEXT SENTENCE.
+      *
+           PERFORM  CERRAR-BDD         THRU  FIN-CERRAR-BDD.
+      *
+           STOP RUN RETURNING WK-ERROR.
+      *
+      ********
+       INICIO.
+      ********
+      *
+           DISPLAY "GBTMIGOF - INICIO".
+      *
+           PERFORM  INICIALIZAR-VAR    THRU   FIN-INICIALIZAR-VAR.
+      *
+           PERFORM  LEER-TARJETA       THRU   FIN-LEER-TARJETA.
+      *
+           PERFORM  ABRIR-BDD          THRU   FIN-ABRIR-BDD.
+      *
+           PERFORM  INIENTI            THRU   FIN-INIENTI.
+      *
+           PERFORM  COMPROBAR-SICIF    THRU  FIN-COMPROBAR-SICIF.
+      *
+           PERFORM  LEER-TABPROGSCM    THRU  FIN-LEER-TABPROGSCM.
+      *
+           PERFORM  DECLARE-AMPA       THRU   FIN-DECLARE-AMPA.
+      *
+           PERFORM  FETCH-AMPA         THRU   FIN-FETCH-AMPA.
+      *
+      *
+      ************
+       FIN-INICIO.
+      ************
+           EXIT.
+      *
+      *
+      *****************
+       INICIALIZAR-VAR.
+      *****************
+      *
+           DISPLAY "GBTMIGOF - INICIALIZAR-VAR".
+      *
+           MOVE   ZEROES           TO      VAR-NUMERICAS
+                                           SWITCH
+                                           WK-ERROR.
+           MOVE   SPACES           TO      VAR-ALFANUMERICAS.
+      *
+           ACCEPT WK-FECHA-AAMMDD  FROM    DATE.
+           MOVE   K2U20            TO      WK-FECHA-SS.
+           ACCEPT WK-TIME          FROM    TIME.
+      *
+           DISPLAY 'GBTMIGOF. FECHA: ' WK-FECHA.
+           DISPLAY 'GBTMIGOF. HORA : ' WK-TIME.
+      *
+      *********************
+       FIN-INICIALIZAR-VAR.
+      *********************
+           EXIT.
+      *
+      ***********
+       ABRIR-BDD.
+      ***********
+      *
+           DISPLAY "GBTMIGOF - ABRIR-BBDD".
+      *
+           MOVE      SPACES              TO     AREA-GROPECLO.
+      *
+           PERFORM   CALL-GROPECLO       THRU   FIN-CALL-GROPECLO.
+      *
+           IF    OPECLO-STAT = 'OK'
+           THEN  NEXT SENTENCE
+           ELSE  DISPLAY 'ERROR AL ABRIR BBDD. STATUS: ' OPECLO-STAT
+                 MOVE   K1U1             TO     WK-ERROR
+                 GO TO FIN-PROGRAMA
+           END-IF.
+      *
+      ***************
+       FIN-ABRIR-BDD.
+      ***************
+           EXIT.
+      *
+      **************
+       LEER-TARJETA.
+      **************
+      *
+           DISPLAY "GBTMIGOF - LEER-TARJETA".
+      *
+           PERFORM  CALL-GRTRJBAT      THRU   FIN-CALL-GRTRJBAT.
+      *
+           MOVE  TRJBAT-TARJETA        TO  TARJETA.
+      *
+           IF    NOT ID-TARJETA-CONTRL
+           THEN  DISPLAY 'ERROR REGISTRO TARJETA. NO ES CONTRL'
+                 MOVE  K1U1            TO  WK-ERROR
+                 GO TO FIN-PROGRAMA
+           ELSE  NEXT SENTENCE
+           END-IF.
+      *
+           IF    ID-PROGRAMA NOT = NOMBREPG
+           THEN  DISPLAY 'ERROR REGISTRO TARJETA. NOMBRE ERRONEO: '
+                                       ID-PROGRAMA
+                 MOVE   K1U1           TO  WK-ERROR
+                 GO TO FIN-PROGRAMA
+           ELSE  NEXT SENTENCE
+           END-IF.
+      *
+           MOVE  ID-EMISOR             TO  WK-ID-EMISOR.
+      *
+           MOVE  ID-CODEMI             TO  WK-ID-CODEMI.
+      *
+           DISPLAY '*** GBTMIGOF. EJECUCION EMISOR: ' WK-ID-EMISOR
+                                                  '-' WK-ID-CODEMI.
+      *
+      ******************
+       FIN-LEER-TARJETA.
+      ******************
+           EXIT.
+      *
+      ***************
+       CALL-GRTRJBAT.
+      ***************
+      *
+           DISPLAY "GBTMIGOF - CALL-GRTRJBAT".
+      *
+           MOVE   SPACES            TO          AREA-GRTRJBAT.
+           MOVE   NOMBREPG          TO          TRJBAT-NOMBREPG.
+      *
+           CALL  'GRTRJBAT'         USING       AREA-GRTRJBAT.
+      *
+      *******************
+       FIN-CALL-GRTRJBAT.
+      *******************
+           EXIT.
+      * 
+      * +--------------------------------------------------------------+
+      * [                        LEER-TABPROGSCM                       ]
+      * [                        --------------                        ]
+      * +--------------------------------------------------------------+
+      * 
+       LEER-TABPROGSCM. 
+      *---------------                                                  
+      * 
+           DISPLAY "GBTMIGOF - LEER-TABPROGSCM".
+      *
+           MOVE SPACES                 TO  INFO-PDU.
+           MOVE NTABTABPROGSCM         TO  INFO-TABLA.
+           MOVE SPACES                 TO  INFO-CLADATO.
+                                                                
+           MOVE ID-EMISOR              TO  WC-EMIS-AES. 
+           MOVE WC-MIGRTDESAAESXX      TO  INFO-CLADATO.
+           MOVE K1U0                   TO  INFO-CLAINST.
+           MOVE K3U202                 TO  INFO-VLI.
+           MOVE K1U0                   TO  INFO-CONT. 
+      * 
+           CALL 'GRACCPDU'             USING DLMT-INFO-BLOCK    
+                                             INFO-PDU.
+      * 
+           IF   DLBUEN-ACCESO                                   
+           THEN MOVE INFO-DATOS        TO  DATOS-SCPCIPIN
+                DISPLAY "GBTMIGOF - DATOS-SCPCIPIN: " DATOS-SCPCIPIN
+           ELSE MOVE INFO-CLADATO      TO  WV-INCI-CLAV         
+                MOVE NTABTABPROGSCM    TO  WE-PDU-ID            
+                MOVE WE-PDU            TO  WV-INCI-TEXT         
+                MOVE DLINFO-STATUS     TO  WV-INCI-STAT         
+                DISPLAY 'ERROR EN ACCESO TABPROGSCM'
+                MOVE  K1U1             TO  WK-ERROR
+                GO TO FIN-PROGRAMA               
+           END-IF.
+      *
+           PERFORM  MIRA-CLAVES        THRU  FIN-MIRA-CLAVES.
+      *
+       FIN-LEER-TABPROGSCM.
+      *-------------------
+           EXIT.
+      *
+       MIRA-CLAVES.
+      *------------
+      *
+           DISPLAY "GBTMIGOF - MIRA-CLAVES".
+      *
+           IF  (DLPT-FECHAOP >= SCPCIPIN-FEC-PILO
+           AND  DLPT-FECHAOP  < SCPCIPIN-FEC-ARR)
+           THEN SET  CLAV-AES-P        TO  TRUE
+           ELSE IF   DLPT-FECHAOP >= SCPCIPIN-FEC-ARR
+                THEN SET  CLAV-AES     TO  TRUE
+                ELSE DISPLAY 'FUERA DE PILOTO Y ARRANQUE'
+                     MOVE  K1U1        TO  WK-ERROR
+                     GO TO FIN-PROGRAMA
+                END-IF
+           END-IF.
+      *
+           DISPLAY "GBTMIGOF - FG-TIPCLA: " FG-TIPCLA.
+      *                                                      
+       FIN-MIRA-CLAVES.                                      
+      *----------------                                      
+      *                                                      
+           EXIT.                                             
+      *                                                      
+      **************
+       DECLARE-AMPA.
+      **************                                             
+      *                                        
+           DISPLAY "GBTMIGOF - DECLARE-AMPA".
+      *                  
+           MOVE  SPACES                 TO  HV-DINAMICA.
+      *
+           STRING WK-SELECT-1 WK-SELECT-2 WK-SELECT-3 
+                  DELIMITED BY '  '
+                  INTO  HV-DINAMICA
+           END-STRING.
+      *
+           PERFORM VARYING WKI FROM 1 BY 1 
+                   UNTIL WKI > 10 OR SCPCIPIN-SITU(WKI) = SPACE
+      *
+                   IF   WKI = K1U1
+                   THEN STRING HV-DINAMICA K1XCO SCPCIPIN-SITU(WKI) 
+                               K1XCO
+                               DELIMITED BY '  '
+                               INTO  HV-DINAMICA
+                        END-STRING
+                   ELSE STRING HV-DINAMICA K1XCM K1XCO 
+                               SCPCIPIN-SITU(WKI) K1XCO
+                               DELIMITED BY '  '
+                               INTO  HV-DINAMICA
+                        END-STRING
+                   END-IF
+      *
+           END-PERFORM.
+      *
+           STRING HV-DINAMICA K1XCP
+                  DELIMITED BY '  '
+                  INTO  HV-DINAMICA
+           END-STRING.
+      *
+           IF   CLAV-AES-P
+           THEN STRING HV-DINAMICA WK-SELECT-4
+                       DELIMITED BY '  ' 
+                       INTO  HV-DINAMICA
+                END-STRING
+      *
+                PERFORM VARYING WKI FROM 1 BY 1 
+                        UNTIL WKI > 10 OR SCPCIPIN-TAR-PILO(WKI) = SPACE
+                                     OR SCPCIPIN-TAR-PILO-N(WKI) = ZEROS
+      *
+                        IF   WKI = K1U1
+                        THEN STRING HV-DINAMICA  
+                                    SCPCIPIN-TAR-PILO-N(WKI)
+                                    DELIMITED BY '  '
+                                    INTO  HV-DINAMICA
+                             END-STRING
+                        ELSE STRING HV-DINAMICA K1XCM  
+                                    SCPCIPIN-TAR-PILO-N(WKI)
+                                    DELIMITED BY '  '
+                                    INTO  HV-DINAMICA
+                             END-STRING
+                        END-IF
+      *
+                END-PERFORM
+      *
+                STRING HV-DINAMICA K1XCP
+                       DELIMITED BY '  '
+                       INTO  HV-DINAMICA
+                END-STRING
+      *
+           END-IF.
+      *           
+           DISPLAY "GBTMIGOF - HV-DINAMICA: " HV-DINAMICA.
+      *
+           EXEC SQL
+                PREPARE S1 FROM :HV-DINAMICA
+           END-EXEC.
+      *
+           PERFORM   CAMB-STAT-ORA     THRU   FIN-CAMB-STAT-ORA.
+      *
+           IF   DLBUEN-ACCESO
+           THEN NEXT SENTENCE
+           ELSE DISPLAY 'GBTMIGOF. ERROR EN PREPARE: ' SQLCODE
+                MOVE K1U1              TO   WK-ERROR
+                GO TO FIN-PROGRAMA
+           END-IF.
+      *
+           EXEC SQL
+                DECLARE CUR_AMPA CURSOR FOR S1
+           END-EXEC.
+      *
+           PERFORM   CAMB-STAT-ORA     THRU   FIN-CAMB-STAT-ORA.
+      *
+           IF   DLBUEN-ACCESO
+           THEN NEXT SENTENCE
+           ELSE DISPLAY 'GBTMIGOF. ERROR EN DECLARE: ' SQLCODE
+                MOVE K1U1              TO   WK-ERROR
+                GO TO FIN-PROGRAMA
+           END-IF.
+      *
+           EXEC SQL
+               OPEN CUR_AMPA
+           END-EXEC.
+      *
+           PERFORM   CAMB-STAT-ORA     THRU   FIN-CAMB-STAT-ORA.
+      *
+           IF   DLBUEN-ACCESO
+           THEN SET  OPEN-AMPA     TO  TRUE
+           ELSE DISPLAY 'GBTMIGOF. ERROR AL ABRIR CURSOR: ' SQLCODE
+                MOVE K1U1              TO   WK-ERROR
+                GO TO FIN-PROGRAMA
+           END-IF.
+      *
+      ******************
+       FIN-DECLARE-AMPA.
+      ******************
+           EXIT.
+      *
+      ************
+       FETCH-AMPA.
+      ************
+      *
+           DISPLAY "GBTMIGOF - FETCH-AMPA".
+      *
+           SET   SIN-ERROR             TO  TRUE.
+           MOVE  SPACES                TO  WK-ERRO-DEF.
+      *
+           EXEC SQL
+            FETCH  CUR_AMPA
+             INTO  :AMPACLAV, :AMPAFECA , :AMPAOFFP,
+                   :AMPAOFFI, :AMPASITU
+           END-EXEC.
+      *
+           PERFORM CAMB-STAT-ORA       THRU FIN-CAMB-STAT-ORA.
+      *
+           IF   DLBUEN-ACCESO
+           THEN ADD   K1U1             TO  WK-CONT-READ-AMPA
+                MOVE  ZEROES           TO  SW-INCID-TARJETA
+                SET   TRATAR-TARJETA   TO  TRUE
+                MOVE  AMPAOFFP         TO  WK-AMPAOFFP
+                DISPLAY "GBTMIGOF - AMPACLAV: " AMPACLAV
+                PERFORM COMPRUEBA-MOFF THRU  FIN-COMPRUEBA-MOFF
+           ELSE IF   DLNOT-DATA
+                THEN SET FIN-AMPA      TO   TRUE
+                ELSE DISPLAY 'GBTMIGOF. ERROR LECTURA CURSOR: ' SQLCODE
+                     MOVE K1U1         TO   WK-ERROR
+                     GO TO FIN-PROGRAMA
+                END-IF
+           END-IF.
+      *
+      ****************
+       FIN-FETCH-AMPA.
+      ****************
+           EXIT.
+      *
+      ****************
+       COMPRUEBA-MOFF.
+      ****************
+      *
+           DISPLAY "COMPRUEBA-MOFF".
+      *
+           MOVE  AMPACLAV              TO  MOFFCLAV.
+      *
+           EXEC SQL
+              SELECT   MOFFCLAV,  MOFFINDI
+                 INTO :MOFFCLAV, :MOFFINDI
+                 FROM  MOFF
+                 WHERE MOFFCLAV = :MOFFCLAV
+           END-EXEC.
+      *
+           PERFORM CAMB-STAT-ORA       THRU  FIN-CAMB-STAT-ORA.
+      *
+           IF   DLBUEN-ACCESO
+           THEN IF   MOFFINDI = K1X0
+                THEN DISPLAY "GBTMIGOF - TARJETA: " AMPACLAV
+                                                  " YA MIGRADA"
+                     MOVE  ZERO        TO  SW-TRATAR-TARJETA
+                ELSE PERFORM BORRA-MOFF THRU FIN-BORRA-MOFF
+                END-IF
+           ELSE NEXT SENTENCE
+           END-IF.
+      *
+      ********************
+       FIN-COMPRUEBA-MOFF.
+      ********************
+      *
+           EXIT.
+      *
+      ************
+       BORRA-MOFF.
+      ************
+      *
+           DISPLAY "BORRA-MOFF".
+      *
+           MOVE  AMPACLAV              TO  MOFFCLAV.
+      *
+           EXEC SQL
+                DELETE FROM MOFF
+                 WHERE MOFFCLAV = :MOFFCLAV
+           END-EXEC.
+      *
+           PERFORM CAMB-STAT-ORA       THRU  FIN-CAMB-STAT-ORA.
+      *
+           IF   DLBUEN-ACCESO
+           THEN NEXT SENTENCE
+           ELSE DISPLAY 'GBTMIGOF. ERROR AL BORRA MOFF: ' SQLCODE
+                MOVE K1U1              TO   WK-ERROR
+                GO TO FIN-PROGRAMA
+           END-IF.
+      *
+      ****************
+       FIN-BORRA-MOFF.
+      ****************
+      *
+           EXIT.
+      *
+      *********
+       PROCESO.
+      *********
+      *
+           DISPLAY "GBTMIGOF - PROCESO".
+      *
+      *    PERFORM   CALL-GRTRDEMI     THRU   FIN-CALL-GRTRDEMI.
+      *
+           IF   TRATAR-TARJETA
+           THEN PERFORM  CALCULO-PIN   THRU  FIN-CALCULO-PIN
+           ELSE NEXT SENTENCE
+           END-IF.
+      *
+           IF    INCIDENCIA-TARJETA
+           THEN  NEXT SENTENCE
+           ELSE  IF   TRATAR-TARJETA
+                 THEN PERFORM  OBT-PIN-CIFRADO-AES 
+                                          THRU  FIN-OBT-PIN-CIFRADO-AES
+                 ELSE NEXT SENTENCE
+                 END-IF
+           END-IF.
+      *
+           IF    INCIDENCIA-TARJETA
+           THEN  NEXT SENTENCE
+           ELSE  IF   TRATAR-TARJETA
+                 THEN PERFORM  UPDATE-AMPA   THRU  FIN-UPDATE-AMPA
+                 ELSE NEXT SENTENCE
+                 END-IF
+           END-IF.
+      *
+           IF   TRATAR-TARJETA
+           THEN PERFORM  GRABA-MOFF    THRU  FIN-GRABA-MOFF
+           ELSE NEXT SENTENCE
+           END-IF.
+      *
+           IF    INCIDENCIA-TARJETA
+           THEN  NEXT SENTENCE
+           ELSE  IF   TRATAR-TARJETA
+                 THEN PERFORM LLAMA-GRSOLOTP THRU  FIN-LLAMA-GRSOLOTP
+                 ELSE NEXT SENTENCE
+                 END-IF
+           END-IF.
+      *
+           MOVE  ZEROES                TO  SW-TRATAR-TARJETA.
+      *
+           PERFORM  FETCH-AMPA         THRU  FIN-FETCH-AMPA.
+      *
+      *************
+       FIN-PROCESO.
+      *************
+           EXIT.
+      *
+      ****************
+      * CALL-GRTRDEMI.
+      ****************
+      **
+      *     DISPLAY "GBTMIGOF - CALL-GRTRDEMI".
+      **
+      *     MOVE    SPACES             TO  RDEMI-ENTRADA.
+      *     MOVE    AMPACLAV           TO  RDEMI-NTAR.
+      *     DISPLAY 'GBTMIGOF CALL-GRTRDEMI RDEMI-NTAR: ' RDEMI-NTAR.
+      **
+      *     CALL   'GRTRDEMI'          USING  AREA-GRTRDEMI.
+      **
+      *     IF    RDEMIST-OK
+      *     THEN  IF    RDEMI-CEMI = ID-EMISOR
+      *           THEN  MOVE  K1U1     TO  SW-TRATAR-TARJETA
+      *                 MOVE  K4X0000  TO  WK-REDES 
+      *           ELSE  MOVE  ZEROES   TO  SW-TRATAR-TARJETA
+      *     ELSE  MOVE  K1U1           TO  SW-INCID-TARJETA
+      *           ADD   K1U1           TO  WK-CONT-NO-MIGRA
+      *           DISPLAY 'ERROR LLAMADA GRTRDEMI. RDEMI-STAT:'
+      *                                            RDEMI-STAT.
+      **
+      ********************
+      * FIN-CALL-GRTRDEMI.
+      ********************
+      *     EXIT.
+      *
+      *****************
+       COMPROBAR-SICIF.
+      *****************
+      *
+           DISPLAY "GBTMIGOF - COMPROBAR-SICIF".
+      *
+           DISPLAY 'GBTMIGOF COMPROBAR-SICIF ID-EMISOR: ' ID-EMISOR.
+      *
+           MOVE     NTABSICIFRA          TO        INFO-TABLA.
+           MOVE     ZEROES               TO        INFO-CLAINST.
+           MOVE     ID-EMISOR            TO        SICIF-EMISOR.
+           MOVE     K1XG                 TO        SICIF-FUNC.
+           MOVE     CLAV-TABSICIFRA      TO        INFO-CLADATO.
+           MOVE     K3U202               TO        INFO-VLI.
+           MOVE     ZEROS                TO        INFO-CONT.
+           MOVE     SPACES               TO        INFO-DATOS.
+      *
+           PERFORM  CALL-PDU             THRU      FIN-CALL-PDU.
+      *
+           IF    DLBUEN-ACCESO
+           THEN  MOVE INFO-DATOS        TO          DATOS-TABCIF
+                 DISPLAY 'GBTMIGOF COMPROBAR-SICIF DATOS-TABCIF.: '
+                          DATOS-TABCIF
+           ELSE  DISPLAY 'GBTMIGOF. ERROR TABSICIFRA: ' SQLCODE
+                 MOVE K1U1         TO   WK-ERROR
+                 GO TO FIN-PROGRAMA
+           END-IF.
+      *
+      *********************
+       FIN-COMPROBAR-SICIF.
+      *********************
+           EXIT.
+      *
+      *************
+       CALCULO-PIN.
+      *************
+      *
+           DISPLAY "GBTMIGOF - CALCULO-PIN".
+      *
+           MOVE  LOW-VALUES            TO  AREA-GRNBSDES.
+           MOVE  AMPACLAV              TO  RUTDES-PAN.
+           MOVE  AMPAOFFP              TO  RUTDES-OFFSET.
+           MOVE  K4U8801               TO  RUTDES-FUNCION.
+           DISPLAY "GBTMIGOF - AREA-GRNBSDES: " AREA-GRNBSDES "**".
+      *
+           PERFORM CALL-GRNBSDES       THRU FIN-CALL-GRNBSDES.
+      *
+           IF    RUTDES-RESULT = K4XOK
+           THEN  NEXT SENTENCE
+           ELSE  MOVE  K1U1            TO  SW-INCID-TARJETA
+                 ADD   K1U1            TO  WK-CONT-NO-MIGRA
+                 SET   ERROR-HSM       TO  TRUE
+                 MOVE  WK-ERRO-1       TO  WK-ERRO-DEF
+                 DISPLAY 'ERROR LLAMADA GRNBSDES. RUTDES-RESULT:'
+                                                  RUTDES-RESULT
+           END-IF.
+      *
+           DISPLAY "GBTMIGOF - RUTDES-PIN: " RUTDES-PIN.
+      *
+      *****************
+       FIN-CALCULO-PIN.
+      *****************
+           EXIT.
+      *
+      ***************
+       CALL-GRNBSDES.
+      ***************
+      *
+           DISPLAY "GBTMIGOF - CALL-GRNBSDES".
+      *
+           CALL   'GRNBSDES'   USING   DLMT-INFO-BLOCK
+                                       INPUT-AREA
+                                       DLMT-WORK-AREA
+                                       DLMT-OUTPUT-AREA
+                                       DLMT-SAVE-DATA
+                                       AREA-GRNBSDES.
+      *
+      *******************
+       FIN-CALL-GRNBSDES.
+      *******************
+           EXIT.
+      *
+      *********************
+       OBT-PIN-CIFRADO-AES.
+      *********************
+      *
+           DISPLAY "GBTMIGOF - OBT-PIN-CIFRADO-AES".
+      *
+           MOVE  SPACES                TO  TVALOR  OF EMPXHSM0
+                                           TCLAVES OF EMPXHSM0.
+      * 
+           SET    OBT-VAL-AES          OF  EMPXHSM0 TO TRUE.
+           SET    MIGRA                OF  EMPXHSM0 TO TRUE.
+           MOVE   K4X0000              TO  CDESTINO OF EMPXHSM0. 
+           MOVE   K4X0001              TO  NUEMPRCE OF EMPXHSM0. 
+      *
+           MOVE  SPACES                TO  AREA-CLAVES-HSM-AES.
+           MOVE  K4X0000               TO  WK-REDES.
+           MOVE  WK-REDES              TO  CL-REDES.
+           MOVE  TCCOMANDO-HSM         TO  CL-COMA-1.
+           MOVE  TCCOMANDO-HSM-AES-1   TO  CL-COMA-2.
+           MOVE  TCCOMANDO-HSM-AES-2   TO  CL-COMA-3.
+           MOVE  TCCOMANDO-HSM-AES-3   TO  CL-COMA-4.
+           MOVE  AREA-CLAVES-HSM-AES   TO  TVALOR OF EMPXHSM0.
+      *
+           MOVE  K4X0000               TO  TCLAVES OF EMPXHSM0(1:4).
+           MOVE  RUTDES-PIN            TO  TCLAVES OF EMPXHSM0(5:4).
+           MOVE  AMPACLAV              TO  WK-AMPACLAV.
+           MOVE  WK-AMPACLAV-A         TO  TCLAVES OF EMPXHSM0(9:16).
+      *
+           DISPLAY "GBTMIGOF - COMANDO-TRAD: " COMANDO-TRAD OF EMPXHSM0.
+           DISPLAY "GBTMIGOF - TVALOR......: " TVALOR       OF EMPXHSM0. 
+           DISPLAY "GBTMIGOF - TCLAVES.....: " TCLAVES      OF EMPXHSM0.
+      * 
+           CALL  'GRCONHSM' USING PMPXHSM0. 
+      * 
+           IF    OK-SMPXHSM0                                            
+           THEN  NEXT SENTENCE                                          
+           ELSE  DISPLAY 'GBTMIGOF. ERROR LLAMADA HSM. TRTRNO: '        
+                                       TRTRNO OF SMPXHSM0     
+                 MOVE  K1U1            TO  SW-INCID-TARJETA
+                 ADD   K1U1            TO  WK-CONT-NO-MIGRA
+                 SET   ERROR-HSM       TO  TRUE
+                 MOVE  WK-ERRO-3       TO  WK-ERRO-DEF
+                 DISPLAY 'ERROR LLAMADA GRCONHSM. NUMNSJE:' NUMNSJE
+           END-IF.
+      *
+           MOVE  TVALOR-S(1:4)         TO  WV-OFFSET-4.
+      *
+           DISPLAY "GBTMIGOF - TRTRNO.....: " TRTRNO.
+           DISPLAY "GBTMIGOF - CRTRNO.....: " CRTRNO.
+           DISPLAY "GBTMIGOF - CRSPSTA....: " CRSPSTA.
+           DISPLAY "GBTMIGOF - TVALOR-S...: " TVALOR-S(1:80).
+           DISPLAY "GBTMIGOF - WV-OFFSET-4: " WV-OFFSET-4.
+      * 
+      *************************
+       FIN-OBT-PIN-CIFRADO-AES. 
+      *************************
+           EXIT. 
+      *
+      *************
+       UPDATE-AMPA.
+      *************
+      *
+           DISPLAY "GBTMIGOF - UPDATE-AMPA".
+      *
+           MOVE  WV-OFFSET-4           TO  AMPAOFFP
+                                           AMPAOFFI.
+      *
+           EXEC SQL
+                UPDATE AMPA
+                   SET AMPAOFFP = :AMPAOFFP,
+                       AMPAOFFI = :AMPAOFFI
+                 WHERE AMPACLAV = :AMPACLAV
+           END-EXEC.
+      *
+           PERFORM  CAMB-STAT-ORA      THRU  FIN-CAMB-STAT-ORA.
+      *
+           IF    DLBUEN-ACCESO
+           THEN  ADD  K1U1             TO  WK-CONT-UPDA-AMPA
+           ELSE  DISPLAY 'GBTMIGOF. ERROR UPDATE AMPA: ' SQLCODE
+                 MOVE  K1U1            TO  SW-INCID-TARJETA
+                 ADD   K1U1            TO  WK-CONT-NO-MIGRA
+                 SET   ERROR-BBDD      TO  TRUE
+                 MOVE  WK-ERRO-2       TO  WK-ERRO-DEF
+                 DISPLAY 'ERROR LLAMADA GRNBSDES. RUTDES-RESULT:'
+                                                  RUTDES-RESULT
+           END-IF.
+      *
+      *****************
+       FIN-UPDATE-AMPA.
+      *****************
+           EXIT.
+      *
+      ************
+       GRABA-MOFF.
+      ************
+      *
+           DISPLAY "GBTMIGOF - GRABA-MOFF".
+      *
+           INITIALIZE  MOFF.
+      *
+           MOVE  AMPACLAV              TO  MOFFCLAV.
+           MOVE  AMPAFECA              TO  MOFFFECA.
+           MOVE  WK-AMPAOFFP           TO  MOFFOFFV.
+           MOVE  AMPAOFFP              TO  MOFFOFFN.
+      *
+           IF   INCIDENCIA-TARJETA
+           THEN MOVE  K1X1             TO  MOFFINDI
+                MOVE  FG-ERRO          TO  MOFFERRO
+                MOVE  WK-ERRO-DEF      TO  MOFFERRD
+           ELSE MOVE  K1X0             TO  MOFFINDI
+           END-IF.
+      *
+           IF   CLAV-AES-P
+           THEN MOVE  K1XS             TO  MOFFPILO
+           ELSE MOVE  K1XN             TO  MOFFPILO
+           END-IF.
+      *
+           MOVE  AMPASITU              TO  MOFFSITU.
+           MOVE  DLPT-FECHAOP          TO  MOFFFEAL.
+           MOVE  K9U10                 TO  MOFFUSAL.
+      *
+           EXEC SQL
+                INSERT INTO MOFF                           
+                       (  MOFFCLAV,  MOFFFECA,  MOFFOFFV,  MOFFOFFN, 
+                          MOFFINDI,  MOFFERRO,  MOFFERRD,  MOFFPILO, 
+                          MOFFSITU,  MOFFFEAL,  MOFFUSAL )
+                VALUES ( :MOFFCLAV, :MOFFFECA, :MOFFOFFV, :MOFFOFFN, 
+                         :MOFFINDI, :MOFFERRO, :MOFFERRD, :MOFFPILO, 
+                         :MOFFSITU, :MOFFFEAL, :MOFFUSAL )
+           END-EXEC.
+      *
+           PERFORM CAMB-STAT-ORA       THRU FIN-CAMB-STAT-ORA.
+      *
+           IF    DLBUEN-ACCESO
+           THEN  NEXT SENTENCE
+           ELSE  DISPLAY 'GBTMIGOF. ERROR INSERT MOFF: ' SQLCODE
+                 MOVE K1U1             TO   WK-ERROR
+                 GO TO FIN-PROGRAMA
+           END-IF.
+      *
+      ****************
+       FIN-GRABA-MOFF.
+      ****************
+      *
+           EXIT.
+      *
+      ****************
+       LLAMA-GRSOLOTP.
+      ****************
+      *
+           DISPLAY "GBTMIGOF - LLAMA-GRSOLOTP".
+      *
+           INITIALIZE  AREA-GRSOLOTP.
+      *
+           MOVE  AMPACLAV              TO  RSOTP-NTAR-N.
+           MOVE  DLENTIDAD             TO  RSOTP-CSB.
+           MOVE  K9U10                 TO  RSOTP-PERS.
+           MOVE  NOMBREPG              TO  RSOTP-ORIG.
+           MOVE  DLPT-FECHAOP          TO  RSOTP-FECH.
+           MOVE  K1XA                  TO  RSOTP-STAT
+      *
+           DISPLAY "GBTMIGOF - AREA-GRSOLOTP: " AREA-GRSOLOTP.
+      *
+           CALL  'GRSOLOTP'            USING   AREA-GRSOLOTP.
+      *
+           IF    RSOTP-OK
+           THEN  NEXT SENTENCE
+           ELSE  DISPLAY 'GBTMIGOF. ERROR LLAMADA GRSOLOTP: ' RSOTP-RESU
+                 MOVE K1U1             TO   WK-ERROR
+                 GO TO FIN-PROGRAMA
+           END-IF.
+      *
+      ********************
+       FIN-LLAMA-GRSOLOTP.
+      ********************
+      *
+           EXIT.
+      *
+      ********
+       ACABAR.
+      ********
+      *
+           DISPLAY "GBTMIGOF - ACABAR".
+      *
+           PERFORM  ESTADISTICA-FIN    THRU  FIN-ESTADISTICA-FIN.
+      *
+      ************
+       FIN-ACABAR.
+      ************
+           EXIT.
+      *
+      ***********                                                      
+       CLOSE-HSM. 
+      ***********                                                      
+      *
+           DISPLAY "GBTMIGOF - CLOSE-HSM".
+      *
+           DISPLAY 'GBTMIGOF CLOSE-HSM'. 
+           SET    CERRAR-HSM    TO     TRUE.
+           DISPLAY "GBTMIGOF - EMPXHSM0: " EMPXHSM0. 
+      * 
+          CALL   'GRCONHSM'     USING  PMPXHSM0. 
+      * 
+           IF    OK-SMPXHSM0                                         
+           THEN  NEXT SENTENCE                                       
+           ELSE  MOVE 'CLOS '           TO          WE-OPC-GRCONHSM    
+                 MOVE NUMNSJE           TO          WE-ERR-GRCONHSM     
+                 DISPLAY 'GBTMIGOF ERROR HSM :'  WE-RUT-GRCONHSM       
+                 MOVE K1U1              TO   WK-ERROR
+                 GO TO FIN-PROGRAMA                     
+           END-IF.
+      * 
+      ***************                                            
+       FIN-CLOSE-HSM.
+      ***************                                              
+           EXIT.
+      *
+      ***************
+       CERRAR-CURSOR.
+      ***************
+      *
+           DISPLAY "GBTMIGOF - CERRAR-CURSOR".
+      *
+           SET  CLOSE-AMPA             TO  TRUE.
+      *
+           EXEC SQL
+                CLOSE CUR_AMPA
+           END-EXEC.
+      *
+           PERFORM  CAMB-STAT-ORA      THRU  FIN-CAMB-STAT-ORA.
+      *
+           IF    DLBUEN-ACCESO
+           THEN  NEXT SENTENCE
+           ELSE  DISPLAY 'GBTMIGOF. ERROR AL CERRAR CURSOR: ' SQLCODE
+                 MOVE K1U1             TO  WK-ERROR
+           END-IF.
+      *
+      *******************
+       FIN-CERRAR-CURSOR.
+      *******************
+           EXIT.
+      *
+      ************
+       CERRAR-BDD.
+      ************
+      *
+           DISPLAY "GBTMIGOF - CERRAR-BD".
+      *
+           MOVE  SPACES                TO  AREA-GROPECLO.
+           MOVE  SPACES                TO  OPECLO-ARCH.
+           MOVE  K1X1                  TO  OPECLO-OPCION.
+      *
+           PERFORM  CALL-GROPECLO      THRU  FIN-CALL-GROPECLO.
+      *
+           IF    OPECLO-STAT = 'OK'
+           THEN  NEXT SENTENCE
+           ELSE  DISPLAY 'ERROR AL CERRAR BASE DE DATOS'
+                 DISPLAY 'STATUS: '          OPECLO-STAT
+                 MOVE     K1U1          TO   WK-ERROR
+                 GO TO FIN-PROGRAMA
+           END-IF.
+      *
+      ****************
+       FIN-CERRAR-BDD.
+      ****************
+          EXIT.
+      *
+      *****************
+       ESTADISTICA-FIN.
+      *****************
+      *
+           DISPLAY '******* ESTADISTICAS ***********'.
+           DISPLAY 'REG. LEIDOS AMPA    .....: ' WK-CONT-READ-AMPA.
+           DISPLAY 'REG. MODIFICADOS AMPA ...: ' WK-CONT-UPDA-AMPA.
+           DISPLAY 'REG. NO MIGRADOS ........: ' WK-CONT-NO-MIGRA.
+      *
+      *********************
+       FIN-ESTADISTICA-FIN.
+      *********************
+           EXIT.
+      *
+      ***************
+       CALL-GROPECLO.
+      ***************
+      *
+           DISPLAY "GBTMIGOF - CALL-GROPECLO".
+      *
+           MOVE  NOMBREPG              TO  OPECLO-NOMPG.
+      *
+           CALL  "GROPECLO"            USING AREA-GROPECLO.
+      *
+      *******************
+       FIN-CALL-GROPECLO.
+      *******************
+           EXIT.
+      *
+           COPY "INIENTI.LUP" REPLACING FIN-PG BY FIN-PROGRAMA.
+      *
+           COPY "CALLPDU.LEP".
+           COPY 'STATORA.LEP'.
+      *

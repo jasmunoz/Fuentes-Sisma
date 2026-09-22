@@ -1,0 +1,102 @@
+echo "########################## compilo servicios ####################"
+alias echo='echo -e'
+
+################################
+# directorio
+################################
+
+echo "PWD" `pwd`
+DIR=""
+export DIR
+DIR=`pwd | cut -c 1-15`
+echo "DIR1" $DIR
+export DIR
+
+if [[ $DIR = "/sf/preprod/sf" ]]
+then  echo "PREPROD"
+      DIR="/sf/preprod/sf"
+else 
+      echo "SF"
+      DIR="/sf"
+fi 
+
+echo "DIR2" $DIR
+
+MP_SISMA=$DIR/sisma
+export MP_SISMA
+
+##################### Defino compilador
+DEF_COMUN="-DSUN_OS -DUNIX -DTRAZA=20"
+export DEF_COMUN
+
+FUEN_COMUN=$MP_SISMA/src
+export FUEN_COMUN
+
+INCLUDES=$MP_SISMA/includes
+export INCLUDES
+FUENTES=$MP_SISMA/src
+export FUENTES
+
+DIRECTORIO=$DIR/tux/include
+export DIRECTORIO
+echo "DIRECTORIO" $DIRECTORIO
+
+##################### Mueve los ejecutables a carpeta de seguridad
+cd $MP_SISMA/exec
+for a in `ls | grep -v pmanejTux.sh | grep -v conexhsm.o | grep -v *Tux `; do mv $a $MP_SISMA/copiaexec; done
+cd $MP_SISMA/util
+
+##################### compilo servicios 
+make -f makepro.mak
+err=$?
+err=0
+if [ $err -ne 0 ]
+then
+  rm $control
+  exit
+fi
+
+#### para simulaMensaje 
+cd /sf/sisma/src
+
+cc -m64 -c -O -I/sf/sisma/includes /sf/sisma/src/SimulaRedsys1M.c -L/opt/oracle/product/12.1.0/client_1/precomp/lib 
+mv SimulaRedsys1M.o /sf/sisma/obj
+chmod 777  /sf/sisma/obj/SimulaRedsys1M.o
+
+cc -m64  -o /sf/sisma/exec/SimulaRedsys1M /sf/sisma/obj/SimulaRedsys1M.o /sf/sisma/obj/libsisma.a -L$ORACLE_HOME/lib -lclntsh -lpthread
+ 
+chmod 777  /sf/sisma/exec/SimulaRedsys1M
+
+################################
+# directorio
+################################
+
+echo "PWD" `pwd`
+DIR=""
+export DIR
+DIR=`pwd | cut -c 1-15`
+echo "DIR1" $DIR
+export DIR
+
+if [[ $DIR = "/sf/preprod/sf" ]]
+then  echo "PREPROD"
+      DIR="/sf/preprod/sf"
+       export preprod=2
+else 
+      echo "SF"
+      DIR="/sf"
+      export preprod=1
+fi 
+echo "preprod" $preprod
+echo "DIR2" $DIR
+
+MP_SISMA=$DIR/sisma
+export MP_SISMA
+
+echo "MP_SISMA" $MP_SISMA
+
+cc -m64 -c -O -I$MP_SISMA/includes $MP_SISMA/src/pmanejTux.c  -o $MP_SISMA/obj/pmanejTux.o -I/opt/tuxedo/tuxedo12.2.2.0.0/include
+
+
+buildclient -o $MP_SISMA/exec/pmanejTux -f $MP_SISMA/obj/pmanejTux.o  -f $MP_SISMA/obj/libsisma.a
+

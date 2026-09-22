@@ -1,0 +1,92 @@
+000000*GRINTDES  COBOL4             8
+000010 IDENTIFICATION DIVISION.
+000020*------------------------
+000030 PROGRAM-ID. GRINTDES.
+000040*-----------------------------------------------------------*
+000050*                                                           *
+000060*                         GRINTDES                          *
+000070*                         --------                          *
+000080*                                                           *
+000090*    DESCRIPCION GENERAL.  PROGRAMA QUE INVOCA A GRDESKEY.  *
+000100*                          LLEVA EL ESQUEMA DE LLAMADA.     *
+000110*                                                           *
+000120*    RUTINAS LLAMADAS:     GRDESKEY.                        *
+000130*                                                           *
+000140*    ANALISTA:             CARLOS RUIZ LAPE¥A.              *
+000150*                                                           *
+000160*    PROGRAMADOR:          JOSE LUIS FERNANDEZ.             *
+000170*                                                           *
+000180*    FECHA:                15-09-1995                       *
+000190*                                                           *
+000200*                                                           *
+000210*-----------------------------------------------------------*
+000220*
+000230 ENVIRONMENT DIVISION.
+000240*---------------------
+000250 CONFIGURATION SECTION.
+000260*
+000270*SOURCE-COMPUTER. NCR-VRX.
+000280*OBJECT-COMPUTER. NCR-VRX.
+000290*
+000300 SPECIAL-NAMES.
+000310     DECIMAL-POINT IS COMMA.
+000320*
+000330 DATA DIVISION.
+000340*--------------
+000350*
+000360 WORKING-STORAGE SECTION.
+000370*
+000380     COPY "STATORA.LED".
+000390     COPY "INFOBLOC.LED".
+000400*
+000410*
+000420*
+000430     EXEC SQL INCLUDE SQLCA          END-EXEC.
+000440     EXEC SQL BEGIN DECLARE SECTION  END-EXEC.
+000450     EXEC SQL END DECLARE SECTION    END-EXEC.
+000460 LINKAGE SECTION.
+000470*-----------------------------------------------------------*
+000480*                                                           *
+000490*                     Interfaz con GRDESKEY.                *
+000500*                     ----------------------                *
+000510*                                                           *
+000520* Los datos pasan descomprimidos, es decir, cada byte ser   *
+000530* un d¡gito Hexadecimal. El c¢digo de operaci¢n es:         *
+000540* 'C' = Codificar. 'D' = Descodificar. El ¡ndice de clave   *
+000550* vale entre 1 y 20.                                        *
+000560* Para terminar la aplicaci¢n, responder 'T' a c¢digo de    *
+000570* operaci¢n.                                                *
+000580*                                                           *
+000590*-----------------------------------------------------------*
+000600*
+000610 01  AREA-GRDESKEY.
+000620     05  CADENA-DATOS       PIC X(17). *> 16 bytes + Nulo.
+000630     05  CADENA-CLAVE       PIC X(17). *> 16 bytes + Nulo.
+000640     05  OPERACION          PIC X(02). *> 1 byte + Nulo.
+000650     05  INDICE-CLAVE       PIC X(08). *> 2 bytes + Nulos.
+000660     05  ALDESCID-OUT       PIC X(17). *> 17 bytes + Nulo.
+000670*
+000680*-----------------------------------------------------------*
+000690*
+000700 PROCEDURE DIVISION USING AREA-GRDESKEY.
+000710*-----------------------------------------
+000720*
+000730 PROCESO.
+000740*--------
+000750     PERFORM LLAMAR-GXDESKEY THRU LLAMAR-GXDESKEY-FIN.
+000760 PROCESO-FIN.
+000770     EXIT PROGRAM.
+000780*
+000790 LLAMAR-GXDESKEY.
+000800*----------------
+000810     CALL 'GRDESKEY' USING by reference CADENA-DATOS
+000820                           by reference CADENA-CLAVE
+000830                           by reference OPERACION
+000840                           by reference INDICE-CLAVE
+000850                           by reference ALDESCID-OUT.
+000860 LLAMAR-GXDESKEY-FIN.
+000870     EXIT.
+000880*
+000890     COPY "STATORA.LEP".
+000900**CONVERS*VERSION_NO*V-3.0.
+000910**CONVERS*LAST-ACTION*-VO*Mon Dec 16 14:38:32 1996

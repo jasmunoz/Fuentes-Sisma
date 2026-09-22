@@ -1,0 +1,1942 @@
+000000*GRNBSDES  COBOL4        
+     8
+000010 IDENTIFICATION DIVISION.
+000020*------------------------
+000030*
+000040 PROGRAM-ID.     GRNBSDES.
+000050 AUTHOR.         INFODESA.
+000060*
+000070*
+      *
+      ******************************************************************
+      *
+      *  JOSEP FLORES - ENERO 2020                                      PRJ0144187
+      *                                                                 PRJ0144187
+      *  SE AÑADE LA OPCION DE CALCULAR EL OFFSET A PARTIR DEL PIN EN   PRJ0144187
+      *  CLARO.                                                         PRJ0144187
+      *  SE AÑADE LA OPCION DE CALCULAR EL PINBLOCK EN METODO ISO-0     PRJ0144187
+      *  PARA HSM.                                                      PRJ0144187
+      *
+      *  JOSE SEGOVIA -MAYO 2022                                        PRJ0211439
+      *  VOLVER DEL PIN BLOCK AL PIN CLARO                              PRJ0212439
+      *                                                                 
+      ******************************************************************
+000080*
+000090*---------------------
+000100 ENVIRONMENT DIVISION.
+000110*---------------------
+000120 CONFIGURATION SECTION.
+000130*
+000140 SPECIAL-NAMES.
+000150      DECIMAL-POINT IS COMMA.
+000160/
+000170*--------------
+000180 DATA DIVISION.
+000190*--------------
+000200*
+000210* +--------------------------------------------------------------+
+000220* [        W O R K I N G - S T O R A G E    S E C T I O N        ]
+000230* [        ----------------------------------------------        ]
+000240* +--------------------------------------------------------------+
+000250 WORKING-STORAGE SECTION.
+000260*
+000270     COPY "STATORA.LED".
+000280*
+      * +--------------------------------------------------------------+CSSSGM
+      *                 AREA DE COMUNICACIONES CON EL DBSR              CSSSGM
+      * +--------------------------------------------------------------+CSSSGM
+       01  DLDISPLA-SQLDUMP            PIC 9(009)  COMP-5               CSSSGM
+                                                   VALUE 500.           CSSSGM
+000290*
+000300 01  CONSTANTES.
+000310     05  K1B16                     PIC 9(002)  COMP VALUE 16.
+000320     05  K1B17                     PIC 9(002)  COMP VALUE 17.
+000330     05  K1U1                      PIC 9(001)  VALUE 1.
+000340     05  K1U3                      PIC 9(001)  VALUE 3.
+000350     05  K1U4                      PIC 9(001)  VALUE 4.
+000360     05  K2U1                      PIC 9(002)  VALUE 1.
+           05  K2U04                     PIC 9(2)    VALUE 04.          PRJ0144187
+000370     05  K2U10                     PIC 9(002)  VALUE 10.
+000380     05  K2U11                     PIC 9(002)  VALUE 11.
+000390     05  K2U12                     PIC 9(002)  VALUE 12.
+000400     05  K2U13                     PIC 9(002)  VALUE 13.
+000410     05  K2U14                     PIC 9(002)  VALUE 14.
+000420     05  K2U15                     PIC 9(002)  VALUE 15.
+000430     05  K2U16                     PIC 9(002)  VALUE 16.
+           05  K3U102                    PIC 9(003)  VALUE 102.         CSSSGM
+           05  K3U202                    PIC 9(003)  VALUE 202.         CSSSGM
+000440     05  K3U255                    PIC 9(003)  VALUE 255.
+           05  K4U0                      PIC 9(4)    VALUE 0000.        PRJ0144187
+           05  K1X2                      PIC X(001)  VALUE '2'.         CSSSGM
+000450     05  K1XA                      PIC X(001)  VALUE 'A'.
+000460     05  K1XB                      PIC X(001)  VALUE 'B'.
+000470     05  K1XC                      PIC X(001)  VALUE 'C'.
+000480     05  K1XD                      PIC X(001)  VALUE 'D'.
+000490     05  K1XE                      PIC X(001)  VALUE 'E'.
+000500     05  K1XF                      PIC X(001)  VALUE 'F'.
+000510     05  K2X01                     PIC X(002)  VALUE '01'.
+000520     05  K2X02                     PIC X(002)  VALUE '02'.
+000530     05  CIFRAR                    PIC X(001)  VALUE 'C'.
+000540     05  DESCIFRAR                 PIC X(001)  VALUE 'D'.
+000550     05  K4XNOK                    PIC X(004)  VALUE 'NOK'.
+000550     05  K4XOK                     PIC X(004)  VALUE 'OK  '.
+000560     05  K4XERRPINB                PIC X(004)  VALUE 'ERPB'.
+           05  K4XERRORBD                PIC X(004)  VALUE 'ERBD'.      CSSSGM
+           05  K10XF                     PIC X(10)   VALUE 'FFFFFFFFFF'.PRJ0144187
+      *                                                                 CSSSGM
+000570 01  CAMPOS-TRABAJO.
+000580     05  W-AUX.
+000590         10  W-PAN-X                   PIC X(016).
+000600         10  W-PAN  REDEFINES W-PAN-X  PIC 9(016).
+000610         10  FILLER                    PIC X VALUE '0'.
+000620     05  DATOCIFR                  PIC X(008).
+000630     05  DATOEMPK                  PIC 9(017) COMP-3.
+000640     05  DATOEMPK-R REDEFINES DATOEMPK.
+000650         10  DATOACIF              PIC X(008).
+000660         10  FILLER                PIC X.
+000670     05  IND-ENCONTRADO            PIC 9.
+000680         88  ENCONTRADO            VALUE 1.
+000690     05  WK-CLAVETRAN              PIC 99.
+000700 01  TABLA-DECIM                   PIC X(016).
+000710 01  FILLER   REDEFINES TABLA-DECIM.
+000720     05  ELEM-TABLA                PIC X OCCURS 16.
+000730 01  INDICE-TABLA                  PIC 9(002).
+000740 01  DATODECIM                     PIC X(016).
+000750 01  FILLER   REDEFINES DATODECIM.
+000760     05  ELEM-DATO                 PIC X OCCURS 16.
+000770 01  FILLER   REDEFINES DATODECIM.
+000780     05  ELEM-DATO-N               PIC 9 OCCURS 16.
+000790 01  INDICE                        PIC 9(002).
+000800*
+000810 01  W-AUX-NUME                    PIC 9.
+000820 01  ELEM-BINA                     PIC X.
+000830 01  ELEM-BINA-N REDEFINES ELEM-BINA PIC 9(2) COMP.
+000840 01  ELEM-BINA-2 REDEFINES ELEM-BINA PIC 9.
+000850*
+000860 01  W-OFFSET.
+000870     05  W-OFFSET-ELEM             PIC 9 OCCURS 4.
+000880*
+000890 01  W-PIN.
+000900     05  W-PIN-ELEM                PIC 9 OCCURS 4.
+000910*
+000920 01  W-DATOS-PA.
+000930     05  W-PA-PIN                  PIC X(004).
+000940     05  W-PA-NA                   PIC X(012).
+000950*
+000960 01  W-GUARDPAN-VIEJO              PIC 9(016).
+000970*
+000980 01  W-AUX-2U                      PIC 9(002).
+       01 FG-SACAR-DISPLAY-CSS           PIC 9(001).                    FANTASMA
+          88  NO-SACAR-DISPLAY-CSS       VALUE 0.                       FANTASMA
+       01 FG-SACAR-DISPLAY-CVV           PIC 9(001).                    FANTASMA
+          88  NO-SACAR-DISPLAY-CVV       VALUE 0.                       FANTASMA
+      *                                                                 SAL92320
+       01  WK-SUMA-2U                    PIC 9(002).                    SAL92320
+       01  WK-SUMA-2U-X  REDEFINES  WK-SUMA-2U.                         SAL92320
+           03  FILLER                    PIC 9(001).                    SAL92320
+           03  WK-SUMA-1U                PIC 9(001).                    SAL92320
+000990*
+001000 01  WK-CHAR-16                    PIC X(016).
+001010 01  WK-CHAR-16-N REDEFINES WK-CHAR-16 PIC 9(16).
+001020 01  WK-CHAR-16-R REDEFINES WK-CHAR-16.
+001030     05  FILLER                    PIC X(003).
+           05  WK-CHAR-16-4-4            PIC 9(004).                    SAL92320
+001050     05  FILLER                    PIC X(009).
+001060 01  WK-CHAR-16-R2 REDEFINES WK-CHAR-16.
+001070     05  WK-CHAR-16-1-4            PIC 9(004).
+001080     05  WK-CHAR-16-5-3            PIC 9(003).
+001090     05  FILLER                    PIC X(009).
+001100 01  WK-CHAR-16-R3 REDEFINES WK-CHAR-16.
+001110     05  WK-ELEM-CHAR-16           PIC X  OCCURS 16 TIMES.
+       01  WK-CHAR-16-R4 REDEFINES WK-CHAR-16.                          SAL92320
+           05  FILLER                    PIC X(002).                    SAL92320
+           05  WK-CHAR-16-3-4            PIC 9(004).                    SAL92320
+           05  FILLER                    PIC X(010).                    SAL92320
+       01  WK-CHAR-16-MONEDERO   REDEFINES WK-CHAR-16.                  EURO6000
+           05  WK-PAN-DE-MONEDERO        PIC 9(12).                     EURO6000
+           05  FILLER                    PIC X(4).                      EURO6000
+001120*
+001130 01  WK-AUX                        PIC X(016).
+001140 01  WK-AUX-R REDEFINES WK-AUX.
+001150     05  WK-ELEM-AUX               PIC X  OCCURS 16 TIMES.
+COMP-4*01  WK-CHAR-8                     PIC X(008).
+COMP-4*01  WK-CHAR-8-R REDEFINES WK-CHAR-8.
+COMP-4*    05  WK-ELEM-CHAR-8            PIC 99 COMP-4 OCCURS 8 TIMES.
+COMP-4*01  WK-CHAR-8-R2 REDEFINES WK-CHAR-8.
+COMP-4*    05  WK-ELEM-CHARX-8           PIC X  OCCURS 8 TIMES.
+001210*
+001220 01  WK-BLOQ1-CSS                  PIC X(008).
+001230 01  WK-BLOQ2-CSS                  PIC X(008).
+001240 01  WK-NA.
+001250     05  FILLER                    PIC X(003).
+001260     05  WK-NA-4-3                 PIC X(003).
+001270     05  FILLER                    PIC X(006).
+001280 01  TAB-CORR                PIC X(16)
+001290              VALUE '0123456789ABCDEF'.
+001300 01  TAB-CORR-R REDEFINES TAB-CORR.
+001310     05  WK-EL-TAB-CORR      PIC X  OCCURS 16 TIMES.
+001320 01  WK-INDICE               PIC 99.
+001330 01  WK-INDICE2              PIC 99.
+COMP-4*01  WK-BIN                  PIC 999 COMP-4.
+COMP-4*01  WK-BIN-R     REDEFINES WK-BIN.
+COMP-4*    05  FILLER              PIC X.
+COMP-4*    05  WK-BIN-X            PIC X.
+COMP-4 COPY GRNBSDESCOMP4.
+001380 01  WK-DIV                  PIC 99.
+001390 01  WK-RESTO                PIC 99.
+001400 01  WK-MULT                 PIC 999.
+001410 01  WK-SUM                  PIC 999.
+001420 01  WK-BLOQ-PIN.
+001430     05  FILLER              PIC X.
+001440     05  WK-BLOQ-PIN-L       PIC 9.
+001450     05  WK-BLOQ-PIN-PIN     PIC X(4).
+001460     05  WK-BLOQ-PIN-FILLER  PIC X(10).
+001470 01  WK-BLOQ-PAN.
+001480     05  FILLER              PIC X(4).
+001490     05  WK-BLOQ-PAN-PAN     PIC X(12).
+001500*
+001510 01  WK-PAN.
+001520     05  FILLER              PIC X(3).
+001530     05  WK-PAN-4-15         PIC X(12).
+001540     05  FILLER              PIC X.
+001550 01  WK-PAN-R REDEFINES WK-PAN.
+001560     05  WK-PAN-BIN          PIC X(6).
+001570     05  FILLER              PIC X(10).
+      *
+      *
+       01  WK-DATA1.                                                    PRJ0144187
+           05  WK-DATA1-A          PIC X(2).                            PRJ0144187
+           05  WK-DATA1-B          PIC X(4).                            PRJ0144187
+           05  WK-DATA1-C          PIC X(10).                           PRJ0144187
+       01  FILLER REDEFINES WK-DATA1.                                   PRJ0144187
+           05  WK-DATA1-1          PIC X(8).                            PRJ0144187
+           05  WK-DATA1-2          PIC X(8).                            PRJ0144187
+       01  WK-DATA2.                                                    PRJ0144187
+           05  WK-DATA2-A          PIC X(4).                            PRJ0144187
+           05  WK-DATA2-B          PIC X(12).                           PRJ0144187
+       01  FILLER REDEFINES WK-DATA2.                                   PRJ0144187
+           05  WK-DATA2-1          PIC X(8).                            PRJ0144187
+           05  WK-DATA2-2          PIC X(8).                            PRJ0144187
+       01  WK-RESUL-XOR.                                                PRJ0144187
+           05  WK-RESUL-XOR-1      PIC X(8).                            PRJ0144187
+           05  WK-RESUL-XOR-2      PIC X(8).                            PRJ0144187
+      *       
+      ******************* VARIABLES PARA DISPLAY BUSQUEDA CSS Y CVV     FANTASMA
+      *                                                                 FANTASMA
+       01  WK-VARIABLES-DISPLAY.                                        FANTASMA
+           05  DISPLA-INDICE-CLAVECSS    PIC X(8).                      FANTASMA
+           05  DISPLA-INDICE-CLAVECVV1   PIC X(8).                      FANTASMA
+           05  DISPLA-INDICE-CLAVECVV2   PIC X(8).                      FANTASMA
+           05  DISPLA-ALDESCID-1         PIC X(16).                     FANTASMA
+           05  DISPLA-ALDESCID-2         PIC X(16).                     FANTASMA
+           05  DISPLA-ALDESCID-3         PIC X(16).                     FANTASMA
+           05  DISPLA-ALDESCID-4         PIC X(16).                     FANTASMA
+           05  DISPLA-RES-XOR-COMPACT    PIC X(8).                      FANTASMA
+           05  DISPLA-RES-XOR-DESCOMPACT PIC X(16).                     FANTASMA
+           05  DISPLA-TABLA-DECIM        PIC X(16).                     FANTASMA
+           05  DISPLA-DATO-A-DECIM       PIC X(16).                     FANTASMA
+           05  DISPLA-RUTDES-CSS         PIC X(16).                     FANTASMA
+           05  DISPLA-RUTDES-CVV         PIC X(16).                     FANTASMA
+           05  DISPLA-DEF-TABLADECCSS    PIC 9(002).                    FANTASMA
+           05  DISPLA-DEF-TABLADECCVV    PIC 9(002).                    FANTASMA
+           05  DISPLA-ACC-TABINCLBIN     PIC 9(001).                    FANTASMA
+           05  DISPLA-AREA-GRGENTDE      PIC X(025).                    FANTASMA
+      **********************************+                               FANTASMA
+001580*
+001590*   VALORES POR DEFECTO DE POSICION DE CLAVES.
+001600*
+001610 01  WK-DEF-CLAVESMAES             PIC 9(002)  VALUE 1.
+001620 01  WK-DEF-CLAVESNA               PIC 9(002)  VALUE 2.
+       01  WK-DEF-CLAVETRAN              PIC 9(002)  VALUE 3.           SAL92320
+001630 01  WK-DEF-CLAVECIFPIN1           PIC 9(002)  VALUE 2.           INVERSIS
+001640 01  WK-DEF-CLAVECIFPIN2           PIC 9(002)  VALUE 3.           INVERSIS
+001630 01  WK-DEF-CLAVECSS               PIC 9(002)  VALUE 4.
+001640 01  WK-DEF-CLAVECVV1              PIC 9(002)  VALUE 7.
+001650 01  WK-DEF-CLAVECVV2              PIC 9(002)  VALUE 8.
+001660 01  WK-DEF-TABLADECMAES           PIC 9(002)  VALUE 1.
+001670 01  WK-DEF-TABLADECNA             PIC 9(002)  VALUE 2.
+001680 01  WK-DEF-TABLADECCSS            PIC 9(002)  VALUE 3.
+001690 01  WK-DEF-TABLADECCVV            PIC 9(002)  VALUE 3.
+001700*
+001710*   TABLA DE POSICIONAMIENTO DE CLAVES EN FUNCION DE LOS BINES.
+001720*   SI ALGUNA CLAVE NO TIENE SENTIDO PARA UN BIN ( P.EJ. CVV EN
+001730*   TARJETA 6000 SE PONDRA 0 EN LA POSICION DE LA CLAVE CORRESP.)
+001740*   SI TODOS LOS BINES TIENEN ID. CLAVES NO HACE FALTA DAR DE
+001750*   ALTA NINGUN ELEMENTO. EN CASO DE QUE HAYA QUE DISTINGUIR,
+001760*   SE DARAN DE ALTA LOS EEMENTO EN TABLA CLAVES PERO DEJANDO
+001770*   SIEMPRE SU LONGITUD EN 600 Y DEJANDO FILLER A HIGH-VALUES
+001780*   AL FINAL. EN CASO DE QUE UN BIN NO SE ENCUENTRE EN LA TABLA
+001790*   SE TOMAN LOS VALORES POR DEFECTO.
+001800*
+001810 01  TABLA-CLAVES.
+001820     05  FILLER              PIC X(600)  VALUE HIGH-VALUES.
+001830 01  TABLA-CLAVES-R2 REDEFINES TABLA-CLAVES.
+001840     05  ELEM-TABLA-CLAVES   OCCURS 21 TIMES.
+001850         10  WK-ELEM-BIN     PIC X(6).
+001860         10  WK-PO-CLMA      PIC 9(2).
+001870         10  WK-PO-CNA       PIC 9(2).
+001880         10  WK-PO-CVV1      PIC 9(2).
+001890         10  WK-PO-CVV2      PIC 9(2).
+001900         10  WK-PO-CSS       PIC 9(2).
+001910         10  WK-PO-TDEMA     PIC 9(2).
+001920         10  WK-PO-TDENA     PIC 9(2).
+001930         10  WK-PO-TDECSS    PIC 9(2).
+001940         10  WK-PO-TDECVV    PIC 9(2).
+001950*
+001960*
+001970*
+001980 01  POSICIONES-UTILIZADAS.
+001990     05  CLAVESMAES                PIC 9(002).
+002000     05  CLAVESNA                  PIC 9(002).
+002010     05  CLAVETRANCAJ              PIC 9(002)    VALUE 3.
+002020     05  CLAVETRANSEP              PIC 9(002)    VALUE 3.
+002030     05  CLAVETRANADQ1             PIC 9(002)    VALUE 3.
+002040     05  CLAVETRANADQ2             PIC 9(002)    VALUE 3.
+002050     05  CLAVETRANEMI1             PIC 9(002)    VALUE 3.
+002060     05  CLAVETRANEMI2             PIC 9(002)    VALUE 3.
+002010     05  CLAVECIFRAPIN1            PIC 9(002).                    INVERSIS
+002020     05  CLAVECIFRAPIN2            PIC 9(002).                    INVERSIS
+002070     05  CLAVECSS                  PIC 9(002).
+002080     05  CLAVECVV1                 PIC 9(002).
+002090     05  CLAVECVV2                 PIC 9(002).
+002100     05  TABLADECMAES              PIC 9(002).
+002110     05  TABLADECNA                PIC 9(002).
+002120     05  TABLADECCSS               PIC 9(002).
+002130     05  TABLADECCVV               PIC 9(002).
+      *                                                                 CSSSGM
+       01  WK-CVV-RECIBIDO        PIC X(3).                             CSSSGM
+002140*
+002150/
+002160*-----------------------------------------------------------*
+002170*                                                           *
+002180*                     Interfaz con GRDESKEY.                *
+002190*                     ----------------------                *
+002200*                                                           *
+002210* Los datos pasan descomprimidos, es decir, cada byte ser   *
+002220* un d¡gito Hexadecimal. El c¢digo de operaci¢n es:         *
+002230* 'C' = Codificar. 'D' = Descodificar. El ¡ndice de clave   *
+002240* vale entre 1 y 20.                                        *
+002250*                                                           *
+002260*-----------------------------------------------------------*
+002270*
+002280 01  AREA-GRDESKEY.
+002290     05  CADENA-DATOS       PIC X(17). *> 16 bytes + Nulo.
+002300     05  CADENA-CLAVE       PIC X(17). *> 16 bytes + Nulo.
+002310     05  OPERACION          PIC X(02). *> 1 byte + Nulo.
+002320     05  INDICE-CLAVE       PIC X(08). *> 2 bytes + Nulos.
+002330     05  ALDESCID-OUT       PIC X(17). *> 17 bytes + Nulo.
+002340*-----------------------------------------------------------*
+002350*                                                           *
+002360*                     Interfaz con GRGENTDE.                *
+002370*                     ----------------------                *
+002380*-----------------------------------------------------------*
+002390*
+002400 01  AREA-GRGENTDE.
+002410     05  INDICE-CLAVE-TD    PIC X(08). *> 2 bytes + Nulos.
+002420     05  ALDESCID-OUT-TD    PIC X(17). *> 17 bytes + Nulo.
+      *-----------------------------------------------------------*     CSSSGM
+      *                                                           *     CSSSGM
+      *                Areas de datos para tablas de PDU          *     CSSSGM
+      *                ---------------------------------          *     CSSSGM
+      *-----------------------------------------------------------*     CSSSGM
+      *                                                                 CSSSGM
+       01  AREAS-DATOS-PDU.                                             CSSSGM
+           COPY "TCLAB.LFD".                                            CSSSGM
+      *                                                                 SAL92320
+           COPY "TCLAE.LFD".                                            SAL92320
+      *                                                                 CSSSGM
+           COPY "TPART.LFD".
+      *
+      *NCR-CONSTANT-STORAGE SECTION.                                    CSSSGM
+      ******************************                                    CSSSGM
+      *                                                                 CSSSGM
+       01  TABLAS-PDU.                                                  CSSSGM
+           05  NTABTABINCLBIN     PIC X(10)      VALUE 'TABINCLBIN'.    SAL92320
+           05  NTABTABINCLENT     PIC X(10)      VALUE 'TABINCLENT'.    SAL92320
+           05  NTABPARAMETROS     PIC X(10)      VALUE 'PARAMETROS'.    SAL92320
+      *                                                                 CSSSGM
+       01  VARIOS.                                                      CSSSGM
+           05  NOMBREPG           PIC X(8)       VALUE 'GRNBSDES'.      CSSSGM
+           05  AREAGOLF           PIC X(1)       VALUE 'T'. 
+      *                                                                 CSSSGM
+       01  MASCARAS.                                                    CSSSGM
+           05  MASC1              PIC X(70)      VALUE 'ERROR DE ACCESO SAL92320
+      -        'A LA TABLA DE PDU TABINCLBIN                          '.SAL92320
+           05  MASC2              PIC X(70)      VALUE 'ERROR DE ACCESO SAL92320
+      -        'A LA TABLA DE PDU TABINCLENT                          '.SAL92320
+           05  MASC3              PIC X(70)      VALUE 'ERROR DE ACCESO SAL92320
+      -        'A LA TABLA DE PDU PARAMETROS                          '.SAL92320
+002440*
+002450* +--------------------------------------------------------------+
+002460* [                L I N K A G E    S E C T I O N                ]
+002470* [                ------------------------------                ]
+002480* +--------------------------------------------------------------+
+002490     EXEC SQL INCLUDE SQLCA          END-EXEC.
+002500     EXEC SQL BEGIN DECLARE SECTION  END-EXEC.
+002510     EXEC SQL END DECLARE SECTION    END-EXEC.
+002520 LINKAGE SECTION.
+002530*
+002540      01  AREA-GR-NBSDES.
+002550*
+002560     COPY "NBSDE.LRD"  .
+002570*
+002580 01  INPUT-AREA.
+002590     COPY "INPUTVLI.LED".
+002600*    05  TPI-VLI            PIC S9(004)    COMP-4.
+002610     05  TPI-FORMATO        PIC X(006).
+002620     05  TPI-ORIGEN-MOV.
+002630         10  TIPO-ENTRA     PIC X(001).
+002640         10  COD-CAJERO     PIC X(001).
+002650         10  TIPO-TRADUC    PIC X(001).
+002660         10  CONVE-INSTL    PIC X(001).
+002670         10  TIPO-TX        PIC X(001).
+002680         10  MODO-ENTRA     PIC X(001).
+002690     05  FILLER             PIC X(256).
+002700*
+002710*
+002720     COPY "INFOBLOC.LED"   .
+002730     COPY "SAVEDATA.LED"   .
+002740     COPY "OUTPDATA.LED"   .
+002750*
+002760     COPY "WORKAREA.LED"   .
+002770     COPY "WORKCOMU.LED"   .
+002780* +--------------------------------------------------------------+
+002790* [             P R O C E D U R E    D I V I S I O N             ]
+002800* [             ------------------------------------             ]
+002810* +--------------------------------------------------------------+
+002820 PROCEDURE DIVISION USING DLMT-INFO-BLOCK
+002830                          INPUT-AREA             
+002840                          DLMT-WORK-AREA         
+002850                          DLMT-OUTPUT-AREA       
+002860                          DLMT-SAVE-DATA         
+002870                          AREA-GR-NBSDES.        
+002880*
+002890 RUTINA.
+           display "XPN-GRNBSDES-RUTINA".
+      *    DISPLAY 'VERSIO FEBRERO 2020'.                               PRJ0211439
+           DISPLAY 'VERSION MAYO 2022'.                                 PRJ0211439
+002900*
+002910     MOVE 'OK'                   TO   RUTDES-RESULT.
+           PERFORM BUSCAR-INDI-CLAVES THRU FIN-BUSCAR-INDI-CLAVES.      CSSSGM
+002930     IF   CAL-NA
+002940     THEN PERFORM CALCULO-NA THRU FIN-CALCULO-NA
+002950     ELSE IF    CAL-PA
+002960          THEN  PERFORM CALCULO-PA THRU FIN-CALCULO-PA
+002970          ELSE  IF    CAL-SUSTITUIR
+002980                THEN  PERFORM CALCULO-NUE THRU FIN-CALCULO-NUE
+002990                ELSE  IF    CAL-PIN
+003000                      THEN  PERFORM CALCULO-PIN THRU
+003010                                    FIN-CALCULO-PIN
+003020                      ELSE  IF    CAL-CAMPIN
+003030                            THEN  PERFORM CALCULO-PA
+003040                                     THRU FIN-CALCULO-PA
+003050                                  MOVE  RUTDES-OFFSET TO
+003060                                        RUTDES-OFF-NUEVO
+003070                                        RUTDES-OFF-VIEJO
+003080*    <------------------------------
+003090*    <------------------------------
+003100*    <------------------------------
+003110     ELSE  IF    VAL-PIN-CAJERO
+003120           THEN  PERFORM VALIDAR-PIN-CAJ THRU FIN-VALIDAR-PIN-CAJ
+003130           ELSE  IF    VAL-PIN-REDES
+003140                 THEN  PERFORM VALIDAR-PIN-RED
+003150                          THRU FIN-VALIDAR-PIN-RED
+003160                 ELSE  IF    CAMBIO-CL-TRAN
+003170                       THEN  PERFORM CAMBIAR-CLTR
+003180                                THRU FIN-CAMBIAR-CLTR
+003190                       ELSE  IF    CAL-CSS
+003200                             THEN  PERFORM CALCULO-CSS
+003210                                       THRU FIN-CALCULO-CSS
+003220*   <------------------------
+003230*   <------------------------
+003240*   <------------------------
+003250    ELSE  IF    CAL-NA-VISA
+003260          THEN  PERFORM CALCULA-NA-VISA THRU FIN-CALCULA-NA-VISA
+003270          ELSE  IF    CAL-CVV
+003280                THEN  PERFORM CALCULO-CVV THRU FIN-CALCULO-CVV
+003290                ELSE  IF    CAL-PA-1
+003300                      THEN  PERFORM CALCULO-PA1
+003310                               THRU FIN-CALCULO-PA1
+                            ELSE   IF    CAMBIO-BL-PIN                  EURO6000
+                                   THEN  PERFORM VAL-Y-CAMBIO-BLOQ-PIN  EURO6000
+                                         THRU FIN-VAL-Y-CAMBIO-BLOQ-PIN EURO6000
+      *   <------------------------                                     CSSSGM
+      *   <------------------------                                     CSSSGM
+      *   <------------------------                                     CSSSGM
+          ELSE  IF    VAL-CSS-CVC-CVV                                   CSSSGM
+                THEN  PERFORM VALI-CSS-CVC-CVV THRU FIN-VALI-CSS-CVC-CVVCSSSGM
+                ELSE  IF    CAL-OFFSET                                  SAL92320
+                      THEN  PERFORM CALCULO-OFFSET                      SAL92320
+                               THRU FIN-CALCULO-OFFSET                  SAL92320
+                      ELSE  IF    CAL-OFFSET-2                          PRJ0144187
+      *                     THEN  PERFORM  CALCULO-OFFSET-PIN-CLARO     PRJ0211439
+                            THEN  PERFORM VOY-A-XOR                     PRJ0211439      
+                                       THRU FIN-VOY-A-XOR               PRJ0211439
+                                  PERFORM  CALCULO-OFFSET-PIN-CLARO     PRJ0211439
+                                     THRU  FIN-CALCULO-OFFSET-PIN-CLARO PRJ0144187
+                            ELSE  IF    CAL-PIN-ISO0                    PRJ0144187
+                                  THEN  PERFORM  CALCULO-PIN-ISO0       PRJ0144187
+                                           THRU  FIN-CALCULO-PIN-ISO0   PRJ0144187
+                                  ELSE  MOVE 'ERCO'  TO RUTDES-RESULT.  SAL92320
+003330*
+003340 FIN-RUTINA.
+003350     EXIT PROGRAM.
+003360*
+003370*    ELECCION DE CLAVES SEGUN EL BIN DE LA TARJETA
+003380*
+003390 VER-CLAVES.
+003400************
+           display "XPN-GRNBSDES-VER-CLAVES".
+003410*
+003420     MOVE   RUTDES-PAN             TO  WK-PAN.
+003430     MOVE   K1U1                   TO  WK-INDICE.
+003440     MOVE   ZERO                   TO  IND-ENCONTRADO.
+003450     PERFORM BUSCA-BIN   THRU FIN-BUSCA-BIN
+003460             UNTIL WK-ELEM-BIN ( WK-INDICE ) = HIGH-VALUES OR
+003470                   ENCONTRADO.
+003480     IF    ENCONTRADO
+003490     THEN  NEXT SENTENCE
+003500     ELSE  MOVE   WK-DEF-CLAVESMAES      TO  CLAVESMAES
+003510           MOVE   WK-DEF-CLAVESNA        TO  CLAVESNA
+003520           MOVE   WK-DEF-CLAVECSS        TO  CLAVECSS
+003530           MOVE   WK-DEF-CLAVECVV1       TO  CLAVECVV1
+003540           MOVE   WK-DEF-CLAVECVV2       TO  CLAVECVV2
+003550           MOVE   WK-DEF-TABLADECMAES    TO  TABLADECMAES
+003560           MOVE   WK-DEF-TABLADECNA      TO  TABLADECNA
+003570           MOVE   WK-DEF-TABLADECCSS     TO  TABLADECCSS
+003580           MOVE   WK-DEF-TABLADECCVV     TO  TABLADECCVV.
+003590*
+003600 FIN-VER-CLAVES.
+003610****************
+003620     EXIT.
+003630*
+003640*
+003650*
+003660 BUSCA-BIN.
+003670***********
+003680*
+           display "XPN-GRNBSDES-BUSCA-BIN".
+
+003690     IF    WK-ELEM-BIN ( WK-INDICE ) = WK-PAN-BIN
+003700     THEN  MOVE  WK-PO-CLMA  (WK-INDICE)  TO   CLAVESMAES
+003710           MOVE  WK-PO-CVV1  (WK-INDICE)  TO   CLAVECVV1
+003720           MOVE  WK-PO-CVV2  (WK-INDICE)  TO   CLAVECVV2
+003730           MOVE  WK-PO-CSS   (WK-INDICE)  TO   CLAVECSS
+003740           MOVE  WK-PO-CNA   (WK-INDICE)  TO   CLAVESNA
+003750           MOVE  WK-PO-TDEMA (WK-INDICE)  TO   TABLADECMAES
+003760           MOVE  WK-PO-TDENA (WK-INDICE)  TO   TABLADECNA
+003770           MOVE  WK-PO-TDECSS(WK-INDICE)  TO   TABLADECCSS
+003780           MOVE  WK-PO-TDECVV(WK-INDICE)  TO   TABLADECCVV
+003790           MOVE  K1U1                     TO   IND-ENCONTRADO
+003800     ELSE  ADD   K1U1                     TO   WK-INDICE.
+003810*
+003820 FIN-BUSCA-BIN.
+003830***************
+003840     EXIT.
+      *                                                                 CSSSGM
+      *                                                                 CSSSGM
+       BUSCAR-INDI-CLAVES.                                              CSSSGM
+      ********************                                              CSSSGM
+      *                                                                 CSSSGM
+           display "XPN-GRNBSDES-INDI-CLAVES".
+
+           MOVE  RUTDES-PAN       TO   WK-PAN.                          CSSSGM
+           PERFORM LEER-TABINCLBIN THRU FIN-LEER-TABINCLBIN.            SAL92320
+      *                                                                 CSSSGM
+           IF    DLBUEN-ACCESO                                          CSSSGM
+           THEN  MOVE  CLBIMAES             TO  CLAVESMAES              ID990913
+                 MOVE  CLBINA               TO  CLAVESNA                ID990913
+                 MOVE  CLBICSS              TO  CLAVECSS                ID990913
+                 MOVE  CLBICVV1             TO  CLAVECVV1               ID990913
+                 MOVE  CLBICVV2             TO  CLAVECVV2               ID990913
+                 MOVE  CLBITDMA             TO  TABLADECMAES            ID990913
+                 MOVE  CLBITDNA             TO  TABLADECNA              ID990913
+JLCJLC     EXHIBIT NAMED 'BUSCAR-INDI-CLAVES 1' TABLADECNA CLBITDNA
+                 MOVE  WK-DEF-TABLADECCSS   TO  TABLADECCSS             ID990913
+                 MOVE  WK-DEF-TABLADECCVV   TO  TABLADECCVV             ID990913
+                 MOVE  K1U1                 TO  DISPLA-ACC-TABINCLBIN   FANTASMA
+           ELSE  MOVE  WK-DEF-CLAVESMAES    TO  CLAVESMAES              CSSSGM
+                 MOVE  WK-DEF-CLAVESNA      TO  CLAVESNA                CSSSGM
+                 MOVE  WK-DEF-CLAVECSS      TO  CLAVECSS                CSSSGM
+                 MOVE  WK-DEF-CLAVECVV1     TO  CLAVECVV1               CSSSGM
+                 MOVE  WK-DEF-CLAVECVV2     TO  CLAVECVV2               CSSSGM
+                 MOVE  WK-DEF-TABLADECMAES  TO  TABLADECMAES            CSSSGM
+JLCJLC     EXHIBIT NAMED 'BUSCAR-INDI-CLAVES 2' TABLADECNA 
+JLCJLC        WK-DEF-TABLADECMAES
+                 MOVE  WK-DEF-TABLADECNA    TO  TABLADECNA              CSSSGM
+                 MOVE  WK-DEF-TABLADECCSS   TO  TABLADECCSS             CSSSGM
+                 MOVE  WK-DEF-TABLADECCVV   TO  TABLADECCVV             FANTASMA
+                 MOVE  ZERO                 TO  DISPLA-ACC-TABINCLBIN.  FANTASMA
+      *                                                                 SAL92320
+      ***L  POR SI SE MACHACA DE ALGUNA FORMA EL AREA DE WORKING        FANTASMA
+      ***L  DONDE SE TIENE DEFINIDA EL VALOR DE LA POSICION             FANTASMA
+      ***L  DE LA TABLA PARA CSS,  GUARDAMOS EL VALOR DE                FANTASMA
+      ***L  WK-DEF-TABLADECCSS Y LE MOVEMOS SU VALOR DIRECTAMENTE       FANTASMA
+      **    IGUAL PARA EL CVV.                                          FANTASMA
+      *                                                                 FANTASMA
+            MOVE   WK-DEF-TABLADECCSS       TO  DISPLA-DEF-TABLADECCSS. FANTASMA
+            MOVE   WK-DEF-TABLADECCVV       TO  DISPLA-DEF-TABLADECCVV. FANTASMA
+            MOVE   K1U3                     TO  TABLADECCSS.            FANTASMA
+            MOVE   K1U3                     TO  TABLADECCVV.            FANTASMA
+      *
+           PERFORM LEER-TABINCLENT THRU FIN-LEER-TABINCLENT.            SAL92320
+      *                                                                 SAL92320
+           IF    DLBUEN-ACCESO                                          SAL92320
+           THEN  MOVE  CLBECIFRA-PIN1    TO CLAVECIFRAPIN1
+                 MOVE  CLBECIFRA-PIN2    TO CLAVECIFRAPIN2
+                 MOVE  CLBETXPOR-ATM     TO CLAVETRANCAJ                SAL92320
+                                            CLAVETRANSEP                SAL92320
+                                            CLAVETRANADQ1               SAL92320
+                                            CLAVETRANADQ2               SAL92320
+                                            CLAVETRANEMI1               SAL92320
+                                            CLAVETRANEMI2               SAL92320
+           ELSE  MOVE  WK-DEF-CLAVECIFPIN1 TO CLAVECIFRAPIN1
+                 MOVE  WK-DEF-CLAVECIFPIN2 TO CLAVECIFRAPIN2  
+                 MOVE  WK-DEF-CLAVETRAN    TO CLAVETRANCAJ              SAL92320
+                                              CLAVETRANSEP              SAL92320
+                                              CLAVETRANADQ1             SAL92320
+                                              CLAVETRANADQ2             SAL92320
+                                              CLAVETRANEMI1             SAL92320
+                                              CLAVETRANEMI2.            SAL92320
+      *                                                                 CSSSGM
+       FIN-BUSCAR-INDI-CLAVES.                                          CSSSGM
+           EXIT.                                                        CSSSGM
+003850*
+003860*    FUNCION 8802
+003870*            OBTENER NA A PARTIR DEL PAN
+003880*
+003890 CALCULO-NA.
+003900************
+003910*
+           display "XPN-GRNBSDES-CALCULO-NA".
+
+003920     MOVE    LOW-VALUES    TO  AREA-GRDESKEY.
+003930     MOVE    RUTDES-PAN    TO  CADENA-DATOS.
+003940     MOVE    CIFRAR        TO  OPERACION.
+003950     MOVE    CLAVESNA      TO  INDICE-CLAVE.
+003960     CALL    'GRINTDES'    USING  AREA-GRDESKEY.
+003970     MOVE    TABLADECNA    TO  INDICE-CLAVE-TD.
+JLCJLC     EXHIBIT NAMED 'CALCULO-NA' TABLADECNA.
+003980     MOVE    ALDESCID-OUT  TO  DATODECIM.
+           DISPLAY 'CALCULO-NA. AREA-GRDESKEY-SALIDA: ' AREA-GRDESKEY.  JFL
+           DISPLAY 'CALCULO-NA. AREA-GRGENTDE       : ' AREA-GRGENTDE.  JFL
+003990     CALL    'GRINTTDE'    USING  AREA-GRGENTDE.
+004000     MOVE  ALDESCID-OUT-TD TO  TABLA-DECIM.
+004010     PERFORM DECIMALIZAR   THRU FIN-DECIMALIZAR
+004020             VARYING INDICE FROM 1 BY 1 UNTIL INDICE = 17.
+004030     MOVE    DATODECIM     TO  RUTDES-NA.
+004040*
+004050 FIN-CALCULO-NA.
+004060****************
+004070     EXIT.
+004080*
+004090*    CALCULO DE PA A PARTIR DE PAN Y OFFSET
+004100*
+004110 CALCULO-PA.
+004120************
+004130*
+           display "XPN-GRNBSDES-CALCULO-PA".
+
+004140     PERFORM CALCULO-NA    THRU FIN-CALCULO-NA.
+004150     PERFORM CALCULO-PIN   THRU FIN-CALCULO-PIN.
+004160     MOVE    RUTDES-PIN    TO   W-PA-PIN.
+004170     MOVE    RUTDES-NA     TO   W-PA-NA.
+004180     MOVE    LOW-VALUES    TO  AREA-GRDESKEY.
+004190     MOVE    W-DATOS-PA    TO  CADENA-DATOS
+004200                               CADENA-CLAVE.
+004210     MOVE    CIFRAR        TO  OPERACION.
+004220     MOVE    ZERO          TO  INDICE-CLAVE.
+004230     CALL    'GRINTDES'    USING  AREA-GRDESKEY.
+004240     MOVE    ALDESCID-OUT  TO  RUTDES-PA.
+004250*
+004260 FIN-CALCULO-PA.
+004270****************
+004280     EXIT.
+004290*
+004300*
+004310 CALCULO-PIN.
+004320*************
+004330*
+           display "XPN-GRNBSDES-CALCULO-PIN".
+
+004340     MOVE    LOW-VALUES    TO  AREA-GRDESKEY.
+           DISPLAY 'GRNBSDES AREA-GRDESKEY-ENTRAD1: ' AREA-GRDESKEY '**'. 
+004350     MOVE    RUTDES-PAN    TO  CADENA-DATOS.
+           DISPLAY 'GRNBSDES AREA-GRDESKEY-ENTRAD2: ' AREA-GRDESKEY '**'. 
+           DISPLAY 'GRNBSDES CADENA-DATOS: ' CADENA-DATOS.
+004360     MOVE    CIFRAR        TO  OPERACION.
+           DISPLAY 'GRNBSDES AREA-GRDESKEY-ENTRAD3: ' AREA-GRDESKEY '**'. 
+           DISPLAY 'GRNBSDES OPERACION: ' OPERACION.
+004370     MOVE    CLAVESMAES    TO  INDICE-CLAVE.
+           DISPLAY 'GRNBSDES INDICE-CLAVE: ' INDICE-CLAVE.
+           DISPLAY 'GRNBSDES AREA-GRDESKEY-ENTRADA: ' AREA-GRDESKEY '**'. 
+004380     CALL    'GRINTDES'    USING  AREA-GRDESKEY.
+004390     MOVE    TABLADECMAES  TO  INDICE-CLAVE-TD.
+           EXHIBIT NAMED 'CALCULO-PIN' TABLADECMAES.                    JFL
+004400     MOVE    ALDESCID-OUT  TO  DATODECIM.
+           DISPLAY 'CALCULO-PIN DATODECIM:' DATODECIM.
+           DISPLAY 'CALCULO-PIN. AREA-GRDESKEY-SALIDA: ' AREA-GRDESKEY. JFL
+           DISPLAY 'CALCULO-PIN. AREA-GRGENTDE: ' AREA-GRGENTDE.        JFL
+004410*
+004420     CALL    'GRINTTDE'    USING  AREA-GRGENTDE.
+004430     MOVE  ALDESCID-OUT-TD TO  TABLA-DECIM.
+004440     PERFORM DECIMALIZAR   THRU FIN-DECIMALIZAR
+004450             VARYING INDICE FROM 1 BY 1 UNTIL INDICE > 16.
+004460     MOVE    RUTDES-OFFSET TO  W-OFFSET.
+004470     PERFORM SUMAR-OFFSET  THRU FIN-SUMAR-OFFSET
+004480             VARYING INDICE FROM 1 BY 1 UNTIL INDICE > 4.
+004490     MOVE    W-OFFSET      TO  RUTDES-PIN.
+           DISPLAY 'CALCULO-PIN. RUTDES-PIN: ' RUTDES-PIN.              JFL
+004500*
+004510 FIN-CALCULO-PIN.
+004520*****************
+004530     EXIT.
+004540*
+004550*    CALCULO DE NUEVOS DATOS EN SUSTITUCION PARA CONSERVAR PIN
+004560*
+004570 CALCULO-NUE.
+004580*************
+004590*
+           display "XPN-GRNBSDES-CALCULO-NUE".
+
+004600     PERFORM CALCULO-PIN      THRU FIN-CALCULO-PIN.
+LKMOVE*    MOVE    RUTDES-PAN       TO   W-GUARDPAN-VIEJO.
+LKMOVE     MOVE RUTDES-PAN(1:) TO W-GUARDPAN-VIEJO(1:).
+004620     MOVE    RUTDES-PAN-NUEVO TO   RUTDES-PAN.
+004630     PERFORM CALCULO-NA       THRU FIN-CALCULO-NA.
+004640     MOVE    W-GUARDPAN-VIEJO TO   RUTDES-PAN.
+004650     MOVE    RUTDES-PIN       TO   W-PA-PIN.
+004660     MOVE    RUTDES-NA        TO   W-PA-NA.
+004670     MOVE    LOW-VALUES       TO  AREA-GRDESKEY.
+004680     MOVE    W-DATOS-PA       TO  CADENA-DATOS
+004690                                  CADENA-CLAVE.
+004700     MOVE    CIFRAR           TO  OPERACION.
+004710     MOVE    ZERO             TO  INDICE-CLAVE.
+004720     CALL    'GRINTDES'    USING  AREA-GRDESKEY.
+004730     MOVE    ALDESCID-OUT     TO  RUTDES-PA.
+004740     MOVE    LOW-VALUES       TO  AREA-GRDESKEY.
+004750     MOVE    RUTDES-PAN-NUEVO TO  CADENA-DATOS.
+004760     MOVE    CIFRAR           TO  OPERACION.
+004770     MOVE    CLAVESMAES       TO  INDICE-CLAVE.
+004780*
+004790     CALL    'GRINTDES'    USING  AREA-GRDESKEY.
+004800*
+004810     MOVE    TABLADECMAES     TO  INDICE-CLAVE-TD.
+004820     MOVE    ALDESCID-OUT     TO  DATODECIM.
+004830     CALL    'GRINTTDE'    USING  AREA-GRGENTDE.
+004840     MOVE  ALDESCID-OUT-TD TO  TABLA-DECIM.
+004850     PERFORM DECIMALIZAR      THRU FIN-DECIMALIZAR
+004860             VARYING INDICE FROM 1 BY 1 UNTIL INDICE > 16.
+004870     MOVE    RUTDES-PIN       TO  W-PIN.
+004880     PERFORM RESTAR-PIN       THRU FIN-RESTAR-PIN
+004890             VARYING INDICE FROM 1 BY 1 UNTIL INDICE > 4.
+004900     MOVE    W-PIN            TO  RUTDES-OFF-NUEVO
+004910                                  RUTDES-OFF-VIEJO.
+004920     MOVE    W-GUARDPAN-VIEJO TO  RUTDES-PAN.
+004930*
+004940 FIN-CALCULO-NUE.
+004950*****************
+004960     EXIT.
+004970*
+004980*
+004990 DECIMALIZAR.
+005000*************
+005010*
+           display "XPN-GRNBSDES-DECIMALIZAR".
+
+005020     MOVE  K2U1           TO  INDICE-TABLA.
+005030     IF    ELEM-DATO ( INDICE ) IS NUMERIC
+005040     THEN  MOVE ELEM-DATO ( INDICE ) TO W-AUX-NUME
+005050           ADD W-AUX-NUME TO  INDICE-TABLA
+005060           MOVE ELEM-TABLA ( INDICE-TABLA) TO ELEM-DATO ( INDICE )
+005070     ELSE  MOVE ELEM-DATO ( INDICE ) TO ELEM-BINA
+005080           SUBTRACT K1B17 FROM ELEM-BINA-N
+005090           MOVE ELEM-BINA-2 TO  W-AUX-NUME
+005100           ADD  K2U10       TO  INDICE-TABLA
+005110           ADD  W-AUX-NUME  TO INDICE-TABLA
+005120           MOVE ELEM-TABLA ( INDICE-TABLA )
+005130                            TO ELEM-DATO ( INDICE ).
+005140*
+005150 FIN-DECIMALIZAR.
+005160     EXIT.
+005170*
+005180*
+005190 SUMAR-OFFSET.
+005200**************
+005210*
+           display "XPN-GRNBSDES-SUMAR-OFFSET".
+
+005220* ** ADD  ELEM-DATO-N ( INDICE ) TO  W-OFFSET-ELEM ( INDICE ).    SAL92320
+      * POR PROBLEMAS DEL MICROFOCUS CON LOS ACARREOS, NO SE PUEDE      SAL92320
+      * SUMAR DIRECTAMENTE UN NUMERICO DE 1 A OTRO NUMERICO DE 1.       SAL92320
+005220     ADD  ELEM-DATO-N ( INDICE ) TO  W-OFFSET-ELEM ( INDICE )     SAL92320
+                                   GIVING  WK-SUMA-2U.                  SAL92320
+           MOVE  WK-SUMA-1U            TO  W-OFFSET-ELEM ( INDICE ).    SAL92320
+005230*
+005240 FIN-SUMAR-OFFSET.
+005250******************
+005260     EXIT.
+005270*
+005280*
+005290 RESTAR-PIN.
+005300************
+005310*
+           display "XPN-GRNBSDES-RESTAR-PIN".
+
+005320     IF    ELEM-DATO-N ( INDICE ) > W-PIN-ELEM ( INDICE )
+005330     THEN  MOVE W-PIN-ELEM ( INDICE ) TO W-AUX-2U
+005340           ADD  K2U10                 TO W-AUX-2U
+005350           SUBTRACT ELEM-DATO-N ( INDICE )  FROM W-AUX-2U
+005360           MOVE W-AUX-2U              TO W-PIN-ELEM ( INDICE )
+005370     ELSE  SUBTRACT ELEM-DATO-N ( INDICE )  FROM
+005380                                   W-PIN-ELEM ( INDICE  ).
+005390*
+005400 FIN-RESTAR-PIN.
+005410****************
+005420     EXIT.
+005430*
+005440 VALIDAR-PIN-CAJ.
+005450********************
+005460*
+           display "XPN-GRNBSDES-VALIDAR-PIN-CAJ".
+
+005470     MOVE   CLAVETRANCAJ TO   WK-CLAVETRAN.
+005480     PERFORM VAL-PINB THRU FIN-VAL-PINB.
+005490*
+005500 FIN-VALIDAR-PIN-CAJ.
+005510*********************
+005520     EXIT.
+005530*
+005540*    VALIDACION DE BLOQUE DE PIN
+005550*
+005560 VAL-PINB.
+005570**********
+005580*
+           display "XPN-GRNBSDES-VAL-PINB".
+
+005590     IF     DLPETIBLOPIN =  K1U1
+005600     THEN   PERFORM VALPINB-1  THRU  FIN-VALPINB-1
+005610     ELSE   IF    DLPETIBLOPIN = K1U3
+005620            THEN  PERFORM VALPINB-3 THRU FIN-VALPINB-3
+005630            ELSE  MOVE K4XERRPINB   TO  RUTDES-RESULT.
+005640 FIN-VAL-PINB.
+005650**************
+005660     EXIT.
+005670*
+005680*    VALIDACION DE BLOQUE DE PIN FORMATO 1 (CAJEROS)
+005690*
+005700 VALPINB-1.
+005710***********
+005720*
+           display "XPN-GRNBSDES-VALPINB-1".
+
+005740     PERFORM CALCULO-PIN      THRU FIN-CALCULO-PIN.
+005750*
+005770     MOVE    ZEROES           TO  WK-BLOQ-PIN.
+005780     MOVE    K1U4             TO  WK-BLOQ-PIN-L.
+005790     MOVE    RUTDES-PIN       TO  WK-BLOQ-PIN-PIN.
+005800     MOVE    HIGH-VALUES      TO  WK-BLOQ-PIN-FILLER.
+005810     MOVE    WK-BLOQ-PIN      TO  WK-CHAR-16.
+005830     MOVE    K1U1             TO  WK-INDICE.
+005840     MOVE    K1U1             TO  WK-INDICE2.
+005850     PERFORM COMPRIMIR        THRU FIN-COMPRIMIR
+005860             8 TIMES.
+005870     MOVE    WK-CHAR-8        TO  WK-BLOQ1-CSS.
+005880     MOVE    ZEROES           TO  WK-BLOQ-PAN.
+005890     MOVE    RUTDES-PAN       TO  WK-PAN.
+005900     MOVE    WK-PAN-4-15      TO  WK-BLOQ-PAN-PAN.
+005910     MOVE    WK-BLOQ-PAN      TO  WK-CHAR-16.
+005920     MOVE    K1U1             TO  WK-INDICE.
+005930     MOVE    K1U1             TO  WK-INDICE2.
+005950     PERFORM COMPRIMIR        THRU FIN-COMPRIMIR
+005960             8 TIMES.
+005970     MOVE    WK-CHAR-8        TO  WK-BLOQ2-CSS.
+005980     PERFORM HACER-XOR        THRU FIN-HACER-XOR.
+005990     MOVE    WK-BLOQ2-CSS     TO  WK-CHAR-8.
+006000     MOVE  K1U1         TO  WK-INDICE.
+006010     MOVE  K1U1         TO  WK-INDICE2.
+006020     PERFORM DESCOMPRIMIR THRU FIN-DESCOMPRIMIR
+006030             8 TIMES.
+006050     MOVE    LOW-VALUES       TO  AREA-GRDESKEY.
+006060     MOVE    WK-CHAR-16       TO  CADENA-DATOS.
+006070     MOVE    CIFRAR           TO  OPERACION.
+006080     MOVE    WK-CLAVETRAN     TO  INDICE-CLAVE.
+006090*
+006100     CALL    'GRINTDES'    USING  AREA-GRDESKEY.
+006110     MOVE    ALDESCID-OUT     TO  WK-CHAR-16.
+006120*
+006140     IF    RUTDES-BPIN = WK-CHAR-16
+006150     THEN  NEXT SENTENCE
+006160     ELSE  MOVE  K4XNOK       TO  RUTDES-RESULT.
+006170*
+006180 FIN-VALPINB-1.
+006190***************
+006200     EXIT.
+006210*
+006220*    VALIDACION DE BLOQUE DE PIN FORMATO 3 (CAJEROS).
+006230*
+006240 VALPINB-3.
+006250***********
+006260*
+           display "XPN-GRNBSDES-VALPINB-3".
+
+006270     MOVE    LOW-VALUES       TO  AREA-GRDESKEY.
+006280     MOVE    RUTDES-BPIN      TO  CADENA-DATOS.
+006290     MOVE    DESCIFRAR        TO  OPERACION.
+006300     MOVE    WK-CLAVETRAN     TO  INDICE-CLAVE.
+006310     CALL    'GRINTDES'    USING  AREA-GRDESKEY.
+006320     MOVE    ALDESCID-OUT     TO  WK-CHAR-16.
+006330     PERFORM CALCULO-PIN      THRU FIN-CALCULO-PIN.
+006340*
+006350*   ATENCION, EN CAN VA A PARTIR DEL DIGITO 4 AUNQUE EN MANUAL DE
+006360*   SEMP DICE QUE ES A PARTIR DEL 2.
+006370*
+006380     IF    RUTDES-PIN = WK-CHAR-16-4-4                            SAL92320
+006390     THEN  NEXT SENTENCE
+006400     ELSE  MOVE  K4XNOK       TO  RUTDES-RESULT.
+006410*
+006420 FIN-VALPINB-3.
+006430***************
+006440     EXIT.
+006450*
+006460*    RUTDES-II = 00 TRANSPORTE DE SEP
+006470*    RUTDES-II = 01 TRANSPORTE DE PRICE CLAVE 1
+006480*    RUTDES-II = 02 TRANSPORTE DE PRICE CLAVE 2
+006490*
+006500 VALIDAR-PIN-RED.
+006510*****************
+006520*
+           display "XPN-GRNBSDES-VALIDAR-PIN-RED".
+
+006530     IF    RUTDES-II = K2X01
+006540     THEN  MOVE  CLAVETRANEMI1  TO WK-CLAVETRAN
+006550     ELSE  IF    RUTDES-II = K2X02
+006560           THEN  MOVE  CLAVETRANEMI2  TO WK-CLAVETRAN
+006570           ELSE  MOVE  CLAVETRANSEP   TO WK-CLAVETRAN.
+006580*
+006590     PERFORM VAL-PINB  THRU FIN-VAL-PINB.
+006600*
+006610 FIN-VALIDAR-PIN-RED.
+006620*********************
+006630     EXIT.
+006640*
+006650*
+006660*
+006670 CAMBIAR-CLTR.
+006680**************
+006690*
+           display "XPN-GRNBSDES-CAMBIAR-CLTR".
+
+006700     MOVE    LOW-VALUES       TO  AREA-GRDESKEY.
+006710     MOVE    RUTDES-BPIN      TO  CADENA-DATOS.
+006720     MOVE    DESCIFRAR        TO  OPERACION.
+006730     MOVE    CLAVETRANCAJ     TO  INDICE-CLAVE.
+006740     CALL    'GRINTDES'    USING  AREA-GRDESKEY.
+006750     MOVE    ALDESCID-OUT     TO  WK-CHAR-16.
+006760     MOVE    LOW-VALUES       TO  AREA-GRDESKEY.
+006770     IF    RUTDES-II = K2X01
+006780     THEN  MOVE  CLAVETRANADQ1  TO INDICE-CLAVE
+006790     ELSE  IF    RUTDES-II = K2X02
+006800           THEN  MOVE  CLAVETRANADQ2  TO INDICE-CLAVE
+006810           ELSE  MOVE  CLAVETRANSEP   TO INDICE-CLAVE.
+006820     MOVE    WK-CHAR-16       TO  CADENA-DATOS.
+006830     MOVE    CIFRAR           TO  OPERACION.
+006840     CALL    'GRINTDES'    USING  AREA-GRDESKEY.
+006850     MOVE    ALDESCID-OUT     TO  RUTDES-BPIN.
+006860*
+006870 FIN-CAMBIAR-CLTR.
+006880******************
+006890     EXIT.
+006900*
+006910*
+006920*
+006670 VAL-Y-CAMBIO-BLOQ-PIN.                                           EURO6000
+006680***********************                                           EURO6000
+      *
+           display "XPN-GRNBSDES-VAL-Y-CAMBIO-BLOQ-PIN".
+
+           MOVE  K4XOK                TO RUTDES-RESULT.
+      *
+           IF    CAMBIO-BL-PIN-ORIGEN
+           THEN  MOVE CLAVETRANCAJ    TO WK-CLAVETRAN
+006530     ELSE  IF    RUTDES-II = K2X01                                EURO6000
+006540           THEN  MOVE  CLAVETRANEMI1  TO WK-CLAVETRAN             EURO6000
+006550           ELSE  IF    RUTDES-II = K2X02                          EURO6000
+006560                 THEN  MOVE  CLAVETRANEMI2  TO WK-CLAVETRAN       EURO6000
+006570                 ELSE  MOVE  CLAVETRANSEP   TO WK-CLAVETRAN.      EURO6000
+      *                                                                 EURO6000
+005590     IF     DLPETIBLOPIN =  K1U1                                  EURO6000
+005600     THEN   PERFORM VALPINB-1-VINC THRU  FIN-VALPINB-1-VINC       EURO6000
+005610     ELSE   NEXT SENTENCE.                                        EURO6000
+006860*                                                                 EURO6000
+006870 FIN-VAL-Y-CAMBIO-BLOQ-PIN.                                       EURO6000
+006880***************************                                       EURO6000
+006890     EXIT.                                                        EURO6000
+      *
+005680*    VALIDACION DE BLOQUE DE PIN FORMATO 1                        EURO6000
+      *    CAJEROS (EURO6000 VINCULADA)                                 EURO6000
+005690*
+      ***************************************************************   EURO6000
+      *   1.- SE CALCULA EL PIN UTILIZANDO EL AMPA-OFFI, EL PAN DE LA   EURO6000
+      *       6000.                                                     EURO6000
+      *   2.- UNA VEZ CALCULADO SE UTILIZA EL PAN DE LA EURO PARA       EURO6000
+      *       OBTENER EL BLOQUE DE PIN CORRESPONDIENTE A ESTA TARJETA   EURO6000
+      *   3.- SE COMPARA ESTE BPIN CON EL BPIN ENVIADO POR CECA         EURO6000
+      *   4.- SI SON IGUALES SE CALCULA EL BPIN CORRESPONDIENTE A LA    EURO6000
+      *       TARJETA 6000 Y SE DEJA EN BPIN PARA PASARLO A CENAUT      EURO6000
+      *   5.- SI SON DISTINTOS SE TOMA EL BPIN ENVIADO POR CECA         EURO6000
+      *       Y SE PASA A CENAUT PARA QUE DE VOID                       EURO6000
+      ****************************************************************  EURO6000
+      *                                                                 EURO6000
+005700 VALPINB-1-VINC.                                                  EURO6000
+005710****************                                                  EURO6000
+005720*                                                                 EURO6000
+           display "XPN-GRNBSDES-VALPINB-1-VINC".
+
+005740     PERFORM CALCULO-PIN      THRU FIN-CALCULO-PIN.               EURO6000
+005750*                                                                 EURO6000
+005770     MOVE    ZEROES           TO  WK-BLOQ-PIN.                    EURO6000
+005780     MOVE    K1U4             TO  WK-BLOQ-PIN-L.                  EURO6000
+005790     MOVE    RUTDES-PIN       TO  WK-BLOQ-PIN-PIN.                EURO6000
+005800     MOVE    HIGH-VALUES      TO  WK-BLOQ-PIN-FILLER.             EURO6000
+005810     MOVE    WK-BLOQ-PIN      TO  WK-CHAR-16.                     EURO6000
+005830     MOVE    K1U1             TO  WK-INDICE.                      EURO6000
+005840     MOVE    K1U1             TO  WK-INDICE2.                     EURO6000
+005850     PERFORM COMPRIMIR        THRU FIN-COMPRIMIR                  EURO6000
+005860             8 TIMES.                                             EURO6000
+005870     MOVE    WK-CHAR-8        TO  WK-BLOQ1-CSS.                   EURO6000
+005880     MOVE    ZEROES           TO  WK-BLOQ-PAN.                    EURO6000
+005890     MOVE    RUTDES-PAN-NUEVO TO  WK-PAN.                         EURO6000
+005900     MOVE    WK-PAN-4-15      TO  WK-BLOQ-PAN-PAN.                EURO6000
+005910     MOVE    WK-BLOQ-PAN      TO  WK-CHAR-16.                     EURO6000
+005920     MOVE    K1U1             TO  WK-INDICE.                      EURO6000
+005930     MOVE    K1U1             TO  WK-INDICE2.                     EURO6000
+005950     PERFORM COMPRIMIR        THRU FIN-COMPRIMIR                  EURO6000
+005960             8 TIMES.                                             EURO6000
+005970     MOVE    WK-CHAR-8        TO  WK-BLOQ2-CSS.                   EURO6000
+005980     PERFORM HACER-XOR        THRU FIN-HACER-XOR.                 EURO6000
+005990     MOVE    WK-BLOQ2-CSS     TO  WK-CHAR-8.                      EURO6000
+006000     MOVE  K1U1         TO  WK-INDICE.                            EURO6000
+006010     MOVE  K1U1         TO  WK-INDICE2.                           EURO6000
+006020     PERFORM DESCOMPRIMIR THRU FIN-DESCOMPRIMIR                   EURO6000
+006030             8 TIMES.                                             EURO6000
+006050     MOVE    LOW-VALUES       TO  AREA-GRDESKEY.                  EURO6000
+006060     MOVE    WK-CHAR-16       TO  CADENA-DATOS.                   EURO6000
+006070     MOVE    CIFRAR           TO  OPERACION.                      EURO6000
+006080     MOVE    WK-CLAVETRAN     TO  INDICE-CLAVE.                   EURO6000
+006090*                                                                 EURO6000
+006100     CALL    'GRINTDES'    USING  AREA-GRDESKEY.                  EURO6000
+006110     MOVE    ALDESCID-OUT     TO  WK-CHAR-16.                     EURO6000
+006120*                                                                 EURO6000
+006140     IF    RUTDES-BPIN = WK-CHAR-16                               EURO6000
+006150     THEN  PERFORM VALPINB-1  THRU FIN-VALPINB-1                  EURO6000
+                 MOVE  K4XOK        TO  RUTDES-RESULT
+                 MOVE  WK-CHAR-16   TO  RUTDES-BPIN
+006160     ELSE  MOVE  K4XNOK       TO  RUTDES-RESULT.                  EURO6000
+006170*                                                                 EURO6000
+006180 FIN-VALPINB-1-VINC.                                              EURO6000
+006190********************                                              EURO6000
+006200     EXIT.                                                        EURO6000
+      *                                                                 EURO6000
+006930 CALCULA-NA-VISA.
+006940*****************
+006950*
+           display "XPN-GRNBSDES-CALCULA-NA-VISA".
+
+006960     PERFORM CALCULO-CVV     THRU  FIN-CALCULO-CVV.
+006970     PERFORM CALCULO-NA      THRU  FIN-CALCULO-NA.
+006980     MOVE    RUTDES-NA       TO    WK-NA.
+006990     MOVE    RUTDES-CVV      TO    WK-NA-4-3.
+007000     MOVE    WK-NA           TO    RUTDES-NA.
+007010     PERFORM CALCULO-PIN     THRU  FIN-CALCULO-PIN.
+007020     PERFORM CALCULO-PA1     THRU  FIN-CALCULO-PA1.
+007030*
+007040 FIN-CALCULA-NA-VISA.
+007050*********************
+007060     EXIT.
+007070*
+007080*
+007090*
+007100 CALCULO-PA1.
+007110*************
+007120*
+           display "XPN-GRNBSDES-CALCULO-PA1".
+
+007130     MOVE    RUTDES-PIN      TO    W-PA-PIN.
+007140     MOVE    RUTDES-NA       TO    W-PA-NA.
+007150     MOVE    LOW-VALUES      TO    AREA-GRDESKEY.
+007160     MOVE    W-DATOS-PA      TO    CADENA-DATOS
+007170                                   CADENA-CLAVE.
+007180     MOVE    CIFRAR          TO    OPERACION.
+007190     MOVE    ZERO            TO    INDICE-CLAVE.
+007200     CALL    'GRINTDES'    USING  AREA-GRDESKEY.
+007210     MOVE    ALDESCID-OUT    TO    RUTDES-PA.
+007220*
+007230 FIN-CALCULO-PA1.
+007240*****************
+007250     EXIT.
+007260*
+007270*
+007280*
+007290 CALCULO-CSS.
+007300*************
+007310*
+           display "XPN-GRNBSDES-CALCULO-CSS".
+
+007320     MOVE    LOW-VALUES       TO  WK-CHAR-8.
+007330     MOVE    ZEROS            TO  WK-CHAR-16-N.
+007340     MOVE    RUTDES-FECA      TO  WK-CHAR-16-1-4.
+007350     MOVE    RUTDES-CSER      TO  WK-CHAR-16-5-3.
+007360     MOVE    K1U1             TO  WK-INDICE.
+007370     MOVE    K1U1             TO  WK-INDICE2.
+007380     PERFORM COMPRIMIR        THRU FIN-COMPRIMIR
+007390             8 TIMES.
+007400     MOVE    WK-CHAR-8        TO  WK-BLOQ1-CSS.
+007410     MOVE    LOW-VALUES       TO  AREA-GRDESKEY.
+007420     MOVE    RUTDES-PAN       TO  CADENA-DATOS.
+007430     MOVE    CIFRAR           TO  OPERACION.
+007440     MOVE    CLAVECSS         TO  INDICE-CLAVE.
+      ****
+           MOVE    CLAVECSS         TO  DISPLA-INDICE-CLAVECSS.         FANTASMA
+      ****
+007450     CALL    'GRINTDES'    USING  AREA-GRDESKEY.
+007460     MOVE    ALDESCID-OUT     TO  WK-CHAR-16.
+      ****
+           MOVE    ALDESCID-OUT     TO  DISPLA-ALDESCID-1.              FANTASMA
+      ****
+007470     MOVE    LOW-VALUES       TO  WK-CHAR-8.
+007480     MOVE    K1U1             TO  WK-INDICE.
+007490     MOVE    K1U1             TO  WK-INDICE2.
+007500     PERFORM COMPRIMIR        THRU FIN-COMPRIMIR
+007510             8 TIMES.
+007520     MOVE    WK-CHAR-8        TO  WK-BLOQ2-CSS.
+007530     PERFORM HACER-XOR        THRU FIN-HACER-XOR.
+007540     MOVE    WK-BLOQ2-CSS     TO  WK-CHAR-8
+      ****
+           MOVE    WK-BLOQ2-CSS     TO  DISPLA-RES-XOR-COMPACT.         FANTASMA
+      ****
+007550     MOVE  K1U1         TO  WK-INDICE.
+007560     MOVE  K1U1         TO  WK-INDICE2.
+007570     PERFORM DESCOMPRIMIR THRU FIN-DESCOMPRIMIR
+007580             8 TIMES.
+007590     MOVE    WK-CHAR-16       TO  CADENA-DATOS.
+      ****
+           MOVE    WK-CHAR-16       TO  DISPLA-RES-XOR-DESCOMPACT.      FANTASMA
+      ****
+007600     MOVE    CIFRAR           TO  OPERACION.
+007610     MOVE    CLAVECSS         TO  INDICE-CLAVE.
+007620     CALL    'GRINTDES'    USING  AREA-GRDESKEY.
+007630     MOVE    ALDESCID-OUT     TO  WK-CHAR-16.
+      ****
+           MOVE    ALDESCID-OUT     TO  DISPLA-ALDESCID-2.              FANTASMA
+      ****
+007640     MOVE    K1U1             TO  WK-INDICE.
+007650     MOVE    K1U1             TO  WK-INDICE2.
+007660     PERFORM MOVER-NUM  THRU FIN-MOVER-NUM
+007670              16 TIMES.
+007680     MOVE  K1U1         TO  WK-INDICE.
+007690     PERFORM MOVER-ALFA  THRU FIN-MOVER-ALFA
+007700              16 TIMES.
+007710     MOVE  WK-AUX       TO  WK-CHAR-16.
+007720     MOVE  TABLADECCSS  TO  INDICE-CLAVE-TD.
+007730     MOVE  WK-CHAR-16   TO  DATODECIM.
+      ****
+           MOVE    WK-CHAR-16       TO  DISPLA-DATO-A-DECIM.            FANTASMA
+      ****
+           MOVE  AREA-GRGENTDE      TO  DISPLA-AREA-GRGENTDE.           FANTASMA
+007740     CALL  'GRINTTDE'   USING  AREA-GRGENTDE.
+007750     MOVE  ALDESCID-OUT-TD TO  TABLA-DECIM.
+      ****
+           MOVE    ALDESCID-OUT-TD  TO  DISPLA-TABLA-DECIM.             FANTASMA
+      ****
+           MOVE  ZERO          TO   FG-SACAR-DISPLAY-CSS.               FANTASMA
+           IF    TABLA-DECIM = '0123456789012345'                       FANTASMA
+           THEN  NEXT SENTENCE                                          FANTASMA
+           ELSE  MOVE  K1U1               TO FG-SACAR-DISPLAY-CSS       FANTASMA
+                 MOVE  '0123456789012345' TO TABLA-DECIM.               FANTASMA
+      ****
+007760     PERFORM DECIMALIZAR      THRU FIN-DECIMALIZAR
+007770             VARYING INDICE FROM 1 BY 1 UNTIL INDICE > 16.
+007780     MOVE  DATODECIM    TO  RUTDES-CVV.
+      ****
+           MOVE    DATODECIM        TO  DISPLA-RUTDES-CSS.              FANTASMA
+      ****
+007790*
+007800 FIN-CALCULO-CSS.
+007810*****************
+007820     EXIT.
+007830*
+007840*    CALCULO DE CVV.
+007850*
+007860 CALCULO-CVV.
+007870*************
+007880*
+           display "XPN-GRNBSDES-CALCULO-CVV".
+
+007890     MOVE    LOW-VALUES       TO  WK-CHAR-8.
+007900     MOVE    ZEROS            TO  WK-CHAR-16-N.
+007910     MOVE    RUTDES-FECA      TO  WK-CHAR-16-1-4.
+007920     MOVE    RUTDES-CSER      TO  WK-CHAR-16-5-3.
+007930     MOVE    K1U1             TO  WK-INDICE.
+007940     MOVE    K1U1             TO  WK-INDICE2.
+007950     PERFORM COMPRIMIR        THRU FIN-COMPRIMIR
+007960             8 TIMES.
+007970     MOVE    WK-CHAR-8        TO  WK-BLOQ1-CSS.
+007980     MOVE    LOW-VALUES       TO  AREA-GRDESKEY.
+007990     MOVE    RUTDES-PAN       TO  CADENA-DATOS.
+008000     MOVE    CIFRAR           TO  OPERACION.
+008010     MOVE    CLAVECVV1        TO  INDICE-CLAVE.
+      ****
+           MOVE    CLAVECVV1        TO  DISPLA-INDICE-CLAVECVV1.        FANTASMA
+      ****
+008020     CALL    'GRINTDES'    USING  AREA-GRDESKEY.
+008030     MOVE    ALDESCID-OUT     TO  WK-CHAR-16.
+      ****
+           MOVE    ALDESCID-OUT     TO  DISPLA-ALDESCID-1.              FANTASMA
+      ****
+008040     MOVE    LOW-VALUES       TO  WK-CHAR-8.
+008050     MOVE    K1U1             TO  WK-INDICE.
+008060     MOVE    K1U1             TO  WK-INDICE2.
+008070     PERFORM COMPRIMIR        THRU FIN-COMPRIMIR
+008080             8 TIMES.
+008090     MOVE    WK-CHAR-8        TO  WK-BLOQ2-CSS.
+008100     PERFORM HACER-XOR        THRU FIN-HACER-XOR.
+008110     MOVE    WK-BLOQ2-CSS     TO  WK-CHAR-8
+      ****
+           MOVE    WK-BLOQ2-CSS     TO  DISPLA-RES-XOR-COMPACT.         FANTASMA
+      ****
+008120     MOVE  K1U1               TO  WK-INDICE.
+008130     MOVE  K1U1               TO  WK-INDICE2.
+008140     PERFORM DESCOMPRIMIR THRU FIN-DESCOMPRIMIR
+008150             8 TIMES.
+008160     MOVE    LOW-VALUES       TO  AREA-GRDESKEY.
+008170     MOVE    WK-CHAR-16       TO  CADENA-DATOS.
+      ****
+           MOVE    WK-CHAR-16       TO  DISPLA-RES-XOR-DESCOMPACT.      FANTASMA
+      ****
+008180     MOVE    CIFRAR           TO  OPERACION.
+008190     MOVE    CLAVECVV1        TO  INDICE-CLAVE.
+008200     CALL    'GRINTDES'    USING  AREA-GRDESKEY.
+008210     MOVE    ALDESCID-OUT     TO  WK-CHAR-16.
+      ****
+           MOVE    ALDESCID-OUT     TO  DISPLA-ALDESCID-2.              FANTASMA
+      ****
+008220     MOVE    LOW-VALUES       TO  AREA-GRDESKEY.
+008230     MOVE    WK-CHAR-16       TO  CADENA-DATOS.
+008240     MOVE    DESCIFRAR        TO  OPERACION.
+008250     MOVE    CLAVECVV2        TO  INDICE-CLAVE.
+      ****
+           MOVE    CLAVECVV2        TO  DISPLA-INDICE-CLAVECVV2.        FANTASMA
+      ****
+008260     CALL    'GRINTDES'    USING  AREA-GRDESKEY.
+008270     MOVE    ALDESCID-OUT     TO  WK-CHAR-16.
+      ****
+           MOVE    ALDESCID-OUT     TO  DISPLA-ALDESCID-3.              FANTASMA
+      ****
+008280     MOVE    LOW-VALUES       TO  AREA-GRDESKEY.
+008290     MOVE    WK-CHAR-16       TO  CADENA-DATOS.
+008300     MOVE    CIFRAR           TO  OPERACION.
+008310     MOVE    CLAVECVV1        TO  INDICE-CLAVE.
+008320     CALL    'GRINTDES'    USING  AREA-GRDESKEY.
+008330     MOVE    ALDESCID-OUT     TO  WK-CHAR-16.
+      ****
+           MOVE    ALDESCID-OUT     TO  DISPLA-ALDESCID-4.              FANTASMA
+      ****
+008340     MOVE    K1U1             TO  WK-INDICE.
+008350     MOVE    K1U1             TO  WK-INDICE2.
+008360     PERFORM MOVER-NUM  THRU FIN-MOVER-NUM
+008370              16 TIMES.
+008380     MOVE    K1U1             TO  WK-INDICE.
+008390     PERFORM MOVER-ALFA  THRU FIN-MOVER-ALFA
+008400              16 TIMES.
+008410     MOVE    WK-AUX           TO  WK-CHAR-16.
+008420     MOVE    TABLADECCVV      TO  INDICE-CLAVE-TD.
+008430     MOVE    WK-CHAR-16   TO  DATODECIM.
+      ****
+           MOVE    WK-CHAR-16       TO  DISPLA-DATO-A-DECIM.            FANTASMA
+      ****
+           MOVE  AREA-GRGENTDE      TO  DISPLA-AREA-GRGENTDE.           FANTASMA
+008440     CALL    'GRINTTDE'   USING  AREA-GRGENTDE.
+008450     MOVE    ALDESCID-OUT-TD  TO  TABLA-DECIM.
+      ****
+           MOVE    ALDESCID-OUT-TD  TO  DISPLA-TABLA-DECIM.             FANTASMA
+      ****
+           MOVE  ZERO          TO   FG-SACAR-DISPLAY-CVV.               FANTASMA
+           IF    TABLA-DECIM = '0123456789012345'                       FANTASMA
+           THEN  NEXT SENTENCE                                          FANTASMA
+           ELSE  MOVE  K1U1               TO FG-SACAR-DISPLAY-CVV       FANTASMA
+                 MOVE  '0123456789012345' TO TABLA-DECIM.               FANTASMA
+      ****
+008460     PERFORM DECIMALIZAR      THRU FIN-DECIMALIZAR
+008470             VARYING INDICE FROM 1 BY 1 UNTIL INDICE > 16.
+008480     MOVE    DATODECIM        TO  RUTDES-CVV.
+      ****
+           MOVE    DATODECIM        TO  DISPLA-RUTDES-CVV.              FANTASMA
+      ****
+008490*
+008500 FIN-CALCULO-CVV.
+008510*****************
+008520     EXIT.
+      *                                                                 CSSSGM
+      *                                                                 CSSSGM
+       VALI-CSS-CVC-CVV.                                                CSSSGM
+      ******************                                                CSSSGM
+      *                                                                 CSSSGM
+           display "XPN-GRNBSDES-VALI-CSS-CVC-CVV".
+
+           IF    CLAVECSS = ZERO                                        CSSSGM
+           THEN  PERFORM VALIDAR-CVC-CVV THRU FIN-VALIDAR-CVC-CVV       CSSSGM
+           ELSE  PERFORM VALIDAR-CSS     THRU FIN-VALIDAR-CSS.          CSSSGM
+      *                                                                 CSSSGM
+       FIN-VALI-CSS-CVC-CVV.                                            CSSSGM
+           EXIT.                                                        CSSSGM
+      *                                                                 CSSSGM
+      *                                                                 CSSSGM
+       VALIDAR-CVC-CVV.                                                 CSSSGM
+      *****************                                                 CSSSGM
+      *                                                                 CSSSGM
+           display "XPN-GRNBSDES-VALIDAR-CVC-CVV".
+
+           MOVE  RUTDES-CVV             TO   WK-CVV-RECIBIDO.           CSSSGM
+           PERFORM CALCULO-CVV          THRU FIN-CALCULO-CVV.           CSSSGM
+           IF    RUTDES-CVV = WK-CVV-RECIBIDO                           CSSSGM
+                 AND NO-SACAR-DISPLAY-CVV                               FANTASMA
+           THEN  NEXT SENTENCE                                          CSSSGM
+           ELSE  MOVE  K4XNOK           TO   RUTDES-RESULT              CSSSGM
+      ****L      MOVE  WK-CVV-RECIBIDO  TO   RUTDES-CVV.                FANTASMA
+                 DISPLAY '********************************************' FANTASMA
+                 DISPLAY '*****                                 ******' FANTASMA
+                 DISPLAY '------>>> ERROR EN VALIDACION CVV <<<<-----'  FANTASMA
+                 DISPLAY '*****                                 ******' FANTASMA
+                 DISPLAY '              DATOS DE ENTRADA              ' FANTASMA
+                 DISPLAY '--------------------------------------------' FANTASMA
+                 DISPLAY 'CODIGO TX RECIBIDA:'  IBTXCODE                FANTASMA
+                 DISPLAY 'CVV RECIBIDO:'  WK-CVV-RECIBIDO               FANTASMA
+                 DISPLAY 'PAN RECIBIDO:'  RUTDES-PAN                    FANTASMA
+                 DISPLAY 'CSER RECIBIDO:' RUTDES-CSER                   FANTASMA
+                 DISPLAY 'FECA RECIBIDA:' RUTDES-FECA                   FANTASMA
+                 DISPLAY 'FG-SACAR-DISPLAY-CVV:' FG-SACAR-DISPLAY-CVV   FANTASMA
+                 DISPLAY '                                            '
+                 DISPLAY '                                            '
+                 DISPLAY '         DATOS UTILIZADOS EN CALCULO        ' FANTASMA
+                 DISPLAY '--------------------------------------------' FANTASMA
+                 DISPLAY 'VALOR DE WK-DEF-TABLADECCVV:'
+                          DISPLA-DEF-TABLADECCVV
+                 DISPLAY 'VALOR DE RETORNO DE ACCESO A INCLBIN: 1= OK'
+                          DISPLA-ACC-TABINCLBIN
+                 DISPLAY ' VALOR DE CLAVE INDICE CVV1:'
+                            DISPLA-INDICE-CLAVECVV1
+                 DISPLAY ' VALOR DE CLAVE INDICE CVV2:'
+                            DISPLA-INDICE-CLAVECVV2
+                 DISPLAY 'RESULTADO  DE CIFRAR PAN CON CLAVE CVV1'
+                 DISPLAY 'VALOR DE DISPLA-ALDESCID-1:'
+                           DISPLA-ALDESCID-1
+                 DISPLAY ' DISPLAY XOR DE PAN COMP Y FECA/CSER COMP  '
+                 DISPLAY 'VALOR DE DISPLA-RES-XOR-COMPACT:' 
+                             DISPLA-RES-XOR-COMPACT      
+                 DISPLAY 'SE DESCOMPRIME EL RESULTADO DEL XOR'
+                 DISPLAY 'VALOR DE DISPLA-RES-XOR-DESCOMPACT:'
+                             DISPLA-RES-XOR-DESCOMPACT
+                 DISPLAY 'SE CIFRA EL RESUL DE XOR DESCOMP CON CVV1'
+                 DISPLAY 'VALOR DE DISPLA-ALDESCID-2:' 
+                              DISPLA-ALDESCID-2
+                 DISPLAY 'SE DESCIFRA EL RESUL CON CVV2'
+                 DISPLAY 'VALOR DE DISPLA-ALDESCID-3:'
+                              DISPLA-ALDESCID-3
+                 DISPLAY 'SE VUELVE A CIFRAR CON CVV1'
+                 DISPLAY 'VALOR DE DISPLA-ALDESCID-4:'
+                              DISPLA-ALDESCID-4
+                 DISPLAY 'SE MUEVEN CARACTERES ALFA Y NUM ' 
+                 DISPLAY 'OBTENIENDOSE EL DATO A DECIMALIZAR'
+                 DISPLAY 'VALOR DE DISPLA-DATO-A-DECIM:' 
+                             DISPLA-DATO-A-DECIM
+                 DISPLAY 'AREA DE LLAMADA A GRGENTDE:'
+                              DISPLA-AREA-GRGENTDE
+                 DISPLAY 'SE OBTIENE LA TABLA DE DECIMALIZACION'   
+                 DISPLAY ' VALOR DE DISPLA-TABLA-DECIM:'
+                               DISPLA-TABLA-DECIM
+                 DISPLAY 'SE OBTIENE EL VALOR DE CVV'
+                 DISPLAY 'VALOR DE DISPLA-RUTDES-CVV:'
+                            DISPLA-RUTDES-CVV
+                 DISPLAY ' FIN DATOS UTILIZADOS EN CALCULO DE CVV     '
+                 DISPLAY '********************************************'
+                 DISPLAY '--------------------------------------------'
+                 DISPLAY '              DATOS CALCULADOS              ' FANTASMA
+                 DISPLAY '--------------------------------------------' FANTASMA
+                 DISPLAY 'CVV CALCULADO:' RUTDES-CVV                    FANTASMA
+                 DISPLAY '*****                                 ******' FANTASMA
+                 DISPLAY '********************************************' FANTASMA
+      ****
+                 IF    NO-SACAR-DISPLAY-CVV
+                 THEN  NEXT SENTENCE
+                 ELSE  MOVE  WK-CVV-RECIBIDO  TO   RUTDES-CVV           FANTASMA
+                       MOVE  K4XOK            TO   RUTDES-RESULT.
+      *                                                                 CSSSGM
+       FIN-VALIDAR-CVC-CVV.                                             CSSSGM
+           EXIT.                                                        CSSSGM
+      *                                                                 CSSSGM
+      *                                                                 CSSSGM
+       VALIDAR-CSS.                                                     CSSSGM
+      *************                                                     CSSSGM
+      *                                                                 CSSSGM
+           display "XPN-GRNBSDES-VALIDAR-CSS".
+
+           MOVE  RUTDES-CVV             TO   WK-CVV-RECIBIDO.           CSSSGM
+           PERFORM CALCULO-CSS          THRU FIN-CALCULO-CSS.           CSSSGM
+           IF    RUTDES-CVV = WK-CVV-RECIBIDO                           CSSSGM
+                 AND NO-SACAR-DISPLAY-CSS                               FANTASMA
+           THEN  NEXT SENTENCE                                          CSSSGM
+           ELSE  MOVE  K4XNOK           TO   RUTDES-RESULT              CSSSGM
+      ****L      MOVE  WK-CVV-RECIBIDO  TO   RUTDES-CVV.                FANTASMA
+                 DISPLAY '********************************************' FANTASMA
+                 DISPLAY '*****                                 ******' FANTASMA
+                 DISPLAY '------>>> ERROR EN VALIDACION CSS <<<<-----'  FANTASMA
+                 DISPLAY '*****                                 ******' FANTASMA
+                 DISPLAY '              DATOS DE ENTRADA              ' FANTASMA
+                 DISPLAY '--------------------------------------------' FANTASMA
+                 DISPLAY 'CODIGO TX RECIBIDA:'  IBTXCODE                FANTASMA
+                 DISPLAY 'CSS RECIBIDO:'  WK-CVV-RECIBIDO               FANTASMA
+                 DISPLAY 'PAN RECIBIDO:'  RUTDES-PAN                    FANTASMA
+                 DISPLAY 'CSER RECIBIDO:' RUTDES-CSER                   FANTASMA
+                 DISPLAY 'FECA RECIBIDA:' RUTDES-FECA                   FANTASMA
+                 DISPLAY 'FG-SACAR-DISPLAY-CSS:' FG-SACAR-DISPLAY-CSS   FANTASMA
+                 DISPLAY '                                            '
+                 DISPLAY '                                            '
+                 DISPLAY '         DATOS UTILIZADOS EN CALCULO        ' FANTASMA
+                 DISPLAY '--------------------------------------------' FANTASMA
+                 DISPLAY 'VALOR DE WK-DEF-TABLADECCSS:'
+                          DISPLA-DEF-TABLADECCSS
+                 DISPLAY 'VALOR DE RETORNO DE ACCESO A INCLBIN: 1= OK'
+                          DISPLA-ACC-TABINCLBIN
+                 DISPLAY ' VALOR DE CLAVE INDICE CSS:' 
+                            DISPLA-INDICE-CLAVECSS
+                 DISPLAY 'RESULTADO  DE CIFRAR PAN CON CLAVE CSS'
+                 DISPLAY 'VALOR DE DISPLA-ALDESCID-1:'
+                           DISPLA-ALDESCID-1
+                 DISPLAY ' DISPLAY XOR DE PAN COMP Y FECA/CSER COMP  '
+                 DISPLAY 'VALOR DE DISPLA-RES-XOR-COMPACT:' 
+                             DISPLA-RES-XOR-COMPACT      
+                 DISPLAY 'SE DESCOMPRIME EL RESULTADO DEL XOR'
+                 DISPLAY 'VALOR DE DISPLA-RES-XOR-DESCOMPACT:'
+                             DISPLA-RES-XOR-DESCOMPACT
+                 DISPLAY 'SE CIFRA EL RESUL DE XOR DESCOMP CON  CLAVE'         
+                 DISPLAY 'VALOR DE DISPLA-ALDESCID-2:' 
+                              DISPLA-ALDESCID-2
+                 DISPLAY 'SE MUEVEN CARACTERES ALFA Y NUM ' 
+                 DISPLAY 'OBTENIENDOSE EL DATO A DECIMALIZAR'
+                 DISPLAY 'VALOR DE DISPLA-DATO-A-DECIM:' 
+                             DISPLA-DATO-A-DECIM
+                 DISPLAY 'AREA DE LLAMADA A GRGENTDE:'
+                              DISPLA-AREA-GRGENTDE
+                 DISPLAY 'SE OBTIENE LA TABLA DE DECIMALIZACION'   
+                 DISPLAY ' VALOR DE DISPLA-TABLA-DECIM:'
+                               DISPLA-TABLA-DECIM
+                 DISPLAY 'SE OBTIENE EL VALOR DE CSS'
+                 DISPLAY 'VALOR DE DISPLA-RUTDES-CSS:'
+                            DISPLA-RUTDES-CSS
+                 DISPLAY ' FIN DATOS UTILIZADOS EN CALCULO DE CSS     '
+                 DISPLAY '********************************************'
+                 DISPLAY '--------------------------------------------'
+                 DISPLAY '              DATOS CALCULADOS              ' FANTASMA
+                 DISPLAY '--------------------------------------------' FANTASMA
+                 DISPLAY 'CSS CALCULADO:' RUTDES-CVV                    FANTASMA
+                 DISPLAY '*****                                 ******' FANTASMA
+                 DISPLAY '********************************************' FANTASMA
+      ***  SI EL CVV(CSS) CALCULADO ES NO NUMERICO SE MUEVE OK A RUTDES
+      *** RESULT.
+      *
+      ********** IF    RUTDES-CVV IS NUMERIC
+      ********** THEN  MOVE  WK-CVV-RECIBIDO  TO   RUTDES-CVV
+      ********** ELSE  MOVE  WK-CVV-RECIBIDO  TO   RUTDES-CVV           FANTASMA
+      **************** MOVE  K4XOK            TO   RUTDES-RESULT.
+                 IF    NO-SACAR-DISPLAY-CSS
+                 THEN  NEXT SENTENCE
+                 ELSE  MOVE  WK-CVV-RECIBIDO  TO   RUTDES-CVV           FANTASMA
+                       MOVE  K4XOK            TO   RUTDES-RESULT.
+      *
+      *  SI LA TX QUE PROVOCO LA LLAMADA A NBSDES ES LA OPEDES Y FALLA
+      *  EL CALCULO DE CSS SE DA RESULTADO OK PARA EVITAR LA DENEGACION
+      *  DE LA OPERACION
+      ***L       IF    IBTXCODE = '580670'
+      ***L       THEN  MOVE K4XOK        TO  RUTDES-RESULT
+      ***L       ELSE  NEXT SENTENCE.
+      *                                                                 CSSSGM
+       FIN-VALIDAR-CSS.                                                 CSSSGM
+           EXIT.                                                        CSSSGM
+      *                                                                 CSSSGM
+      *                                                                 CSSSGM
+      *    CALCULO DEL OFFSET A PARTIR DEL BLOQUE DE PIN ENVIADO        SAL92320
+      *    POR EL CAJERO. VARIA SEGUN EL FORMATO DE BLOQUE DE PIN.      SAL92320
+      *                                                                 SAL92320
+       CALCULO-OFFSET.                                                  SAL92320
+      ****************                                                  SAL92320
+      *              
+           display "XPN-GRNBSDES-CALCULO-OFFSET".                                                   
+
+      **** OBTENCION PARA INVERSIS:
+      ****
+      ****  1.- SE DECIFRA EL PAN CON LA CLAVE DE TRANSPORTE
+      ****     (inversis utiliza KTRAPIN-1, indice de busca = 02)
+      ****  2.- EL VALOR OBTENIDO ES LA CLAVE DE DESCIFRE DE BPIN
+      ****      DIVERSIFICADA POR PAN
+      ****  3.- SE DESCIFRA EL BPIN CON LA CLAVE DE DESCIFRADO.
+      ****  4.- SE CALCULA EL PIN ANTIGUO
+      ****  5.- SE LE RESTA EL OFFSET 
+
+           PERFORM LEER-PARAM  THRU FIN-LEER-PARAM.
+      *
+           MOVE  LOW-VALUES    TO     AREA-GRDESKEY.                    
+           MOVE  RUTDES-PAN    TO     CADENA-DATOS.                     
+           MOVE  DESCIFRAR     TO     OPERACION.                        
+      ***l     DISPLAY 'GRNBSDES: DESENCRIPTANDO PAN'.
+      *
+      ***l     IF    PART-PIN-CIF-CLAVT1
+      ***l     THEN  MOVE CLBECIFRA-PIN1    TO  INDICE-CLAVE
+      ***l     ELSE  MOVE CLBECIFRA-PIN2    TO  INDICE-CLAVE.
+      *
+      **** inversis usa KTRAPIN-1 como clave para cambios de pin
+      **** enviados desde 4B por banda--> indice 2
+      *
+           MOVE  K2X02              TO  INDICE-CLAVE.
+      *
+      ***** PRUEBAS EN INVERSIS: *******************
+      *
+      *    PONER EN INDICE CLAVE 16 (CLAVE CIFRADA DE PRUEBAS)
+      *
+      *****************************************************
+      *
+      ***l     DISPLAY 'VALOR DE INDICE:' INDICE-CLAVE.
+      ***l     DISPLAY 'DATO ENTRADA EN INTDES:' CADENA-DATOS.
+           CALL  'GRINTDES'    USING  AREA-GRDESKEY.                    SAL92320
+           MOVE  ALDESCID-OUT  TO     WK-CHAR-16.                       SAL92320
+      ***l     DISPLAY 'resultado de descifrado:' WK-CHAR-16.
+      *
+      ***l     DISPLAY 'DESCENCRIPTANDO BLOQUE PIN'.
+           MOVE  LOW-VALUES    TO     AREA-GRDESKEY.                    
+           MOVE  RUTDES-BPIN   TO     CADENA-DATOS.                     
+           MOVE  WK-CHAR-16    TO     CADENA-CLAVE.
+      ***l     DISPLAY 'CADENA-DATOS:' CADENA-DATOS.
+      ***l     DISPLAY 'CADENA-CLAVE:' CADENA-CLAVE.
+           MOVE  DESCIFRAR     TO     OPERACION.                        
+           MOVE  ZERO          TO     INDICE-CLAVE.
+      *
+      ***l     DISPLAY 'VALOR DE INDICE:' INDICE-CLAVE.
+           CALL  'GRINTDES'    USING  AREA-GRDESKEY.                    SAL92320
+           MOVE  ALDESCID-OUT  TO     WK-CHAR-16.                       SAL92320
+      ***l     DISPLAY 'RESULTADO DE DESCIFRE:' WK-CHAR-16.
+      *                                                                 SAL92320
+      ***l     DISPLAY 'RESULTADO DE INTDEES' ALDESCID-OUT.
+      **** EL BLOQUE DE PIN PARA INVERSIS TIENE LA SIGUIENTE ESTRUCTURA INVERSIS
+      **** 4 DIGITOS CON EL PIN TECLEADO POR EL CLIENTE Y 12 CARACTERES INVERSIS
+      ***  DE RELLENO                                                   INVERSIS
+      *                                                                 INVERSIS
+           MOVE  WK-CHAR-16-1-4   TO     W-PIN.                         INVERSIS
+      *
+      ***l     DISPLAY 'LO QUE TECLEO EL SENNOR ES:' W-PIN.
+           MOVE  LOW-VALUES       TO     AREA-GRDESKEY.                 SAL92320
+           MOVE  RUTDES-PAN       TO     CADENA-DATOS.                  SAL92320
+           MOVE  CIFRAR           TO     OPERACION.                     SAL92320
+           MOVE  CLAVESMAES       TO     INDICE-CLAVE.                  SAL92320
+           CALL  'GRINTDES'       USING  AREA-GRDESKEY.                 SAL92320
+           MOVE  TABLADECMAES     TO     INDICE-CLAVE-TD.               SAL92320
+           MOVE  ALDESCID-OUT     TO     DATODECIM.                     SAL92320
+      *                                                                 SAL92320
+           CALL  'GRINTTDE'       USING  AREA-GRGENTDE.                 SAL92320
+           MOVE  ALDESCID-OUT-TD  TO     TABLA-DECIM.                   SAL92320
+           PERFORM DECIMALIZAR    THRU   FIN-DECIMALIZAR                SAL92320
+               VARYING  INDICE                                          SAL92320
+                  FROM  1 BY 1                                          SAL92320
+                 UNTIL  INDICE > 16.                                    SAL92320
+      *                                                                 SAL92320
+           PERFORM RESTAR-PIN     THRU   FIN-RESTAR-PIN                 SAL92320
+               VARYING  INDICE                                          SAL92320
+                  FROM  1 BY 1                                          SAL92320
+                 UNTIL  INDICE > 4.                                     SAL92320
+      *                                                                 SAL92320
+           MOVE    W-PIN          TO     RUTDES-OFFSET.                 SAL92320
+      *                                                            
+      ***l     DISPLAY 'EL VALOR DE NUEVO OFFSET ES:' RUTDES-OFFSET.
+      *
+       FIN-CALCULO-OFFSET.                                              SAL92320
+           EXIT.                                                        SAL92320
+      *                                                                 SAL92320
+      *                                                                 SAL92320
+      **************************
+       CALCULO-OFFSET-PIN-CLARO.
+      **************************
+      *
+      *
+           DISPLAY 'CALCULO-OFFSET-PIN-CLARO. RUTDES-PAN:' RUTDES-PAN.   
+      *    DISPLAY 'CALCULO-OFFSET-PIN-CLARO. RUTDES-PIN:' RUTDES-BPIN.  
+           DISPLAY 'CALCULO-OFFSET-PIN-CLARO. RUTDES-ISO-0:' 
+           RUTDES-ISO-0. 
+           MOVE  LOW-VALUES       TO     AREA-GRDESKEY.              
+           MOVE  RUTDES-PAN       TO     CADENA-DATOS.               
+           MOVE  CIFRAR           TO     OPERACION.                     SAL92320
+           MOVE  CLAVESMAES       TO     INDICE-CLAVE.                  SAL92320
+           CALL  'GRINTDES'       USING  AREA-GRDESKEY.                 SAL92320
+      *
+           MOVE  TABLADECMAES     TO     INDICE-CLAVE-TD.               SAL92320
+           MOVE  ALDESCID-OUT     TO     DATODECIM.                     SAL92320
+           CALL  'GRINTTDE'       USING  AREA-GRGENTDE.                 SAL92320
+      *
+           MOVE  ALDESCID-OUT-TD  TO     TABLA-DECIM.                   SAL92320
+           PERFORM DECIMALIZAR    THRU   FIN-DECIMALIZAR                SAL92320
+               VARYING  INDICE                                          SAL92320
+                  FROM  1 BY 1                                          SAL92320
+                 UNTIL  INDICE > 16.                                    SAL92320
+      *                                                                 SAL92320
+      *    MOVE    RUTDES-BPIN(1:4) TO     W-PIN.                       PRJ0211439
+           MOVE    RUTDES-ISO-0(3:4) TO    W-PIN.                       PRJ0211439
+           DISPLAY 'CALCULO-OFFSET-PIN-CLARO. W-PIN:' W-PIN.
+           
+           PERFORM RESTAR-PIN     THRU   FIN-RESTAR-PIN                 SAL92320
+               VARYING  INDICE                                          SAL92320
+                  FROM  1 BY 1                                          SAL92320
+                 UNTIL  INDICE > 4.                                     SAL92320
+      *                                                                 SAL92320
+           MOVE    W-PIN          TO     RUTDES-OFFSET.                 SAL92320
+      *                                                            
+           DISPLAY 'CALCULO-OFFSET-PIN-CLARO. RUTDES-OFFSET:' 
+                                              RUTDES-OFFSET.
+      *
+      *
+      ******************************
+       FIN-CALCULO-OFFSET-PIN-CLARO.
+      ******************************
+           EXIT.
+      *
+      *
+      ***  Paso 1: 0249999FFFFFFFFF donde 9999 es el PIN                PRJ0144187
+      ***  Paso 2: 0000999999999999 donde 999999999999 son las          PRJ0144187
+      ***          posiciones 4 a 15 del PAN                            PRJ0144187
+      ***  Paso 3: XOR del paso 1 y del paso 2                          PRJ0144187
+      ***                                                               PRJ0144187
+      ******************                                                PRJ0144187
+       CALCULO-PIN-ISO0.                                                PRJ0144187
+      ******************                                                PRJ0144187
+      *                                                                 PRJ0144187
+      *                                                                 PRJ0144187
+           PERFORM     CALCULO-PIN      THRU    FIN-CALCULO-PIN.        PRJ0144187
+           MOVE        K2U04            TO      WK-DATA1-A.             PRJ0144187
+           MOVE        RUTDES-PIN       TO      WK-DATA1-B.             PRJ0144187
+           MOVE        K10XF            TO      WK-DATA1-C.             PRJ0144187
+           DISPLAY 'GRNBSDES. CALCULO-PIN-ISO0. WK-DATA1: ' WK-DATA1.   PRJ0144187
+           MOVE        K4U0             TO      WK-DATA2-A.             PRJ0144187
+           MOVE        RUTDES-PAN(4:12) TO      WK-DATA2-B.             PRJ0144187
+           DISPLAY 'GRNBSDES. CALCULO-PIN-ISO0. WK-DATA2: ' WK-DATA2.   PRJ0144187
+           MOVE        WK-DATA1         TO      WK-CHAR-16.             PRJ0144187
+           MOVE        K1U1             TO      WK-INDICE.              PRJ0144187
+           MOVE        K1U1             TO      WK-INDICE2.             PRJ0144187
+           PERFORM     COMPRIMIR        THRU    FIN-COMPRIMIR           PRJ0144187
+                                                8 TIMES.                PRJ0144187
+           MOVE        WK-CHAR-8        TO      WK-BLOQ1-CSS.           PRJ0144187
+      *                                                                 PRJ0144187
+           MOVE        WK-DATA2         TO      WK-CHAR-16.             PRJ0144187
+           MOVE        K1U1             TO      WK-INDICE.              PRJ0144187
+           MOVE        K1U1             TO      WK-INDICE2.             PRJ0144187
+           PERFORM     COMPRIMIR        THRU    FIN-COMPRIMIR           PRJ0144187
+                                                8 TIMES.                PRJ0144187
+           MOVE        WK-CHAR-8        TO      WK-BLOQ2-CSS.           PRJ0144187
+      *                                                                 PRJ0144187
+           PERFORM     HACER-XOR        THRU    FIN-HACER-XOR.          PRJ0144187
+           MOVE        WK-BLOQ2-CSS     TO      WK-CHAR-8.              PRJ0144187
+      *                                                                 PRJ0144187
+      *                                                                 PRJ0144187
+           MOVE        K1U1             TO      WK-INDICE.              PRJ0144187
+           MOVE        K1U1             TO      WK-INDICE2.             PRJ0144187
+           PERFORM     DESCOMPRIMIR     THRU    FIN-DESCOMPRIMIR        PRJ0144187
+                                                8 TIMES.                PRJ0144187
+           MOVE        WK-CHAR-16       TO      RUTDES-ISO-0.           PRJ0144187
+           DISPLAY 'GRNBSDES. CALCULO-PIN-ISO0. RUTDES-ISO-0: '         PRJ0144187
+                                                RUTDES-ISO-0.           PRJ0144187
+      *                                                                 PRJ0144187
+      *                                                                 PRJ0144187
+      **********************                                            PRJ0144187
+       FIN-CALCULO-PIN-ISO0.                                            PRJ0144187
+      **********************                                            PRJ0144187
+           EXIT.                                                        PRJ0144187
+      *                                                                 PRJ0211439
+      ***  Paso 1: PIN BLOCK                                            PRJ0211439
+      ***  Paso 2: 0000999999999999 donde 999999999999 son las          PRJ0211439
+      ***          posiciones 4 a 15 del PAN                            PRJ0211439
+      ***  Paso 3: XOR del paso 1 y del paso 2                          PRJ0211439
+      ***                                                               PRJ0211439
+      ***********                                                       PRJ0211439
+       VOY-A-XOR.                                                       PRJ0211439
+      ***********                                                       PRJ0211439
+      *                                                                 PRJ0211439
+      *                                                                 PRJ0211439
+           MOVE RUTDES-BPIN          TO      WK-DATA1.                  PRJ0211439
+           DISPLAY 'GRNBSDES. VOY-A-XOR. WK-DATA1: ' WK-DATA1.          PRJ0211439
+           MOVE        K4U0             TO      WK-DATA2-A.             PRJ0211439
+           DISPLAY 'GRNBSDES. RUTDES-PAN:' RUTDES-PAN.
+           MOVE       RUTDES-PAN(4:12)  TO      WK-DATA2-B.             PRJ0211439
+           DISPLAY 'GRNBSDES. VOY-A-XOR.  WK-DATA2: ' WK-DATA2.         PRJ0211439
+           MOVE        WK-DATA1         TO      WK-CHAR-16.             PRJ0211439
+           MOVE        K1U1             TO      WK-INDICE.              PRJ0211439
+           MOVE        K1U1             TO      WK-INDICE2.             PRJ0211439
+           PERFORM     COMPRIMIR        THRU    FIN-COMPRIMIR           PRJ0211439
+                                                8 TIMES.                PRJ0211439
+           MOVE        WK-CHAR-8        TO      WK-BLOQ1-CSS.           PRJ0211439
+      *                                                                 PRJ0211439
+           MOVE        WK-DATA2         TO      WK-CHAR-16.             PRJ0211439
+           MOVE        K1U1             TO      WK-INDICE.              PRJ0211439
+           MOVE        K1U1             TO      WK-INDICE2.             PRJ0211439
+           PERFORM     COMPRIMIR        THRU    FIN-COMPRIMIR           PRJ0211439
+                                                8 TIMES.                PRJ0211439
+           MOVE        WK-CHAR-8        TO      WK-BLOQ2-CSS.           PRJ0211439
+      *                                                                 PRJ0211439
+           PERFORM     HACER-XOR        THRU    FIN-HACER-XOR.          PRJ0211439
+           MOVE        WK-BLOQ2-CSS     TO      WK-CHAR-8.              PRJ0211439
+      *                                                                 PRJ0211439
+      *                                                                 PRJ0211439
+           MOVE        K1U1             TO      WK-INDICE.              PRJ0211439
+           MOVE        K1U1             TO      WK-INDICE2.             PRJ0211439
+           PERFORM     DESCOMPRIMIR     THRU    FIN-DESCOMPRIMIR        PRJ0211439
+                                                8 TIMES.                PRJ0211439
+           MOVE        WK-CHAR-16       TO      RUTDES-ISO-0.           PRJ0211439
+           DISPLAY 'GRNBSDES. VOY-A-XOR. RUTDES-ISO-0: '                PRJ0211439
+                                                RUTDES-ISO-0.           PRJ0211439
+      *                                                                 PRJ0211439
+      *                                                                 PRJ0211439
+      ***************                                                   PRJ0211439
+       FIN-VOY-A-XOR.                                                   PRJ0211439
+      ***************                                                   PRJ0211439
+           EXIT.                                                        PRJ0211439
+      *
+      *
+008530 COMPRIMIR.
+008540***********
+008550*
+           display "XPN-GRNBSDES-COMPRIMIR".
+
+008560     IF    WK-ELEM-CHAR-16 ( WK-INDICE ) NUMERIC
+008570     THEN  MOVE  WK-ELEM-CHAR-16 ( WK-INDICE) TO WK-MULT
+008580     ELSE  IF    WK-ELEM-CHAR-16 ( WK-INDICE ) = K1XA
+008590           THEN  MOVE  K2U10    TO  WK-MULT
+008600           ELSE  IF    WK-ELEM-CHAR-16 ( WK-INDICE ) = K1XB
+008610                 THEN  MOVE  K2U11    TO  WK-MULT
+008620                 ELSE  IF    WK-ELEM-CHAR-16 ( WK-INDICE ) = K1XC
+008630                       THEN  MOVE  K2U12    TO  WK-MULT
+008640*     <------------------------------------------------
+008650*     <------------------------------------------------
+008660*     <------------------------------------------------
+008670     ELSE  IF    WK-ELEM-CHAR-16 ( WK-INDICE ) = K1XD
+008680           THEN  MOVE  K2U13    TO  WK-MULT
+008690           ELSE  IF    WK-ELEM-CHAR-16 ( WK-INDICE ) = K1XE
+008700                 THEN  MOVE  K2U14   TO  WK-MULT
+008710                 ELSE  MOVE  K2U15   TO  WK-MULT.
+008720*
+008730     ADD  K1U1    TO  WK-INDICE.
+008740*
+008750     IF    WK-ELEM-CHAR-16 ( WK-INDICE ) NUMERIC
+008760     THEN  MOVE  WK-ELEM-CHAR-16 ( WK-INDICE) TO WK-SUM
+008770     ELSE  IF    WK-ELEM-CHAR-16 ( WK-INDICE ) = K1XA
+008780           THEN  MOVE  K2U10    TO  WK-SUM
+008790           ELSE  IF    WK-ELEM-CHAR-16 ( WK-INDICE ) = K1XB
+008800                 THEN  MOVE  K2U11    TO  WK-SUM
+008810                 ELSE  IF    WK-ELEM-CHAR-16 ( WK-INDICE ) = K1XC
+008820                       THEN  MOVE  K2U12    TO  WK-SUM
+008830*     <------------------------------------------------
+008840*     <------------------------------------------------
+008850*     <------------------------------------------------
+008860     ELSE  IF    WK-ELEM-CHAR-16 ( WK-INDICE ) = K1XD
+008870           THEN  MOVE  K2U13    TO  WK-SUM
+008880           ELSE  IF    WK-ELEM-CHAR-16 ( WK-INDICE ) = K1XE
+008890                 THEN  MOVE  K2U14   TO  WK-SUM
+008900                 ELSE  MOVE  K2U15   TO  WK-SUM.
+008910*
+008920     COMPUTE WK-BIN = K2U16 * WK-MULT + WK-SUM.
+008930     MOVE    WK-BIN-X     TO  WK-ELEM-CHARX-8 ( WK-INDICE2).
+008940     ADD     K1U1     TO WK-INDICE.
+008950     ADD     K1U1     TO WK-INDICE2.
+008960*
+008970 FIN-COMPRIMIR.
+008980***************
+008990     EXIT.
+009000*
+009010*
+009020*
+009030 DESCOMPRIMIR.
+009040**************
+009050*
+           display "XPN-GRNBSDES-DESCOMPRIMIR".
+
+009060     MOVE    WK-ELEM-CHAR-8  ( WK-INDICE )  TO  WK-BIN.
+009070     DIVIDE  WK-BIN   BY  K1B16  GIVING WK-DIV
+009080             REMAINDER WK-RESTO.
+009090     ADD   K1U1                      TO WK-DIV.
+009100     MOVE  WK-EL-TAB-CORR (WK-DIV)   TO
+009110                               WK-ELEM-CHAR-16 (WK-INDICE2).
+009120     ADD   K1U1                      TO WK-INDICE2.
+009130     ADD   K1U1                      TO WK-RESTO.
+009140     MOVE  WK-EL-TAB-CORR (WK-RESTO) TO
+009150                               WK-ELEM-CHAR-16 (WK-INDICE2).
+009160     ADD   K1U1                      TO WK-INDICE.
+009170     ADD   K1U1                      TO WK-INDICE2.
+009180*
+009190 FIN-DESCOMPRIMIR.
+009200******************
+009210     EXIT.
+009220*
+009230*    SE REALIZA UNA XOR A TRAVES DE LA RUTINA CBL_XOR
+009240*
+009250 HACER-XOR.
+009260***********
+009270*
+           display "XPN-GRNBSDES-HACER-XOR".
+
+009280     CALL 'CBL_XOR'   USING   WK-BLOQ1-CSS
+009290                              WK-BLOQ2-CSS
+009300                      BY VALUE 8.
+009310*
+009320 FIN-HACER-XOR.
+009330***************
+009340     EXIT.
+009350*
+009360*    MOVER A DATO AUXILIAR LOS NUMERICOS
+009370*
+009380 MOVER-NUM.
+009390***********
+009400*
+           display "XPN-GRNBSDES-MOVER-NUM".
+
+009410     IF    WK-ELEM-CHAR-16 ( WK-INDICE ) NUMERIC
+009420     THEN  MOVE WK-ELEM-CHAR-16 (WK-INDICE) TO
+009430                                 WK-ELEM-AUX(WK-INDICE2)
+009440           ADD  K1U1    TO  WK-INDICE2
+009450     ELSE  NEXT SENTENCE.
+009460*
+009470     ADD   K1U1         TO  WK-INDICE.
+009480*
+009490 FIN-MOVER-NUM.
+009500***************
+009510     EXIT.
+009520*
+009530*    MOVER A DATO AUXILIAR LOS ALFABETICOS
+009540*
+009550 MOVER-ALFA.
+009560************
+009570*
+           display "XPN-GRNBSDES-MOVER-ALFA".
+
+009580     IF    WK-ELEM-CHAR-16 ( WK-INDICE ) NOT NUMERIC
+009590     THEN  MOVE WK-ELEM-CHAR-16 (WK-INDICE) TO
+009600                                 WK-ELEM-AUX(WK-INDICE2)
+009610           ADD  K1U1    TO  WK-INDICE2
+009620     ELSE  NEXT SENTENCE.
+009630*
+009640     ADD   K1U1         TO  WK-INDICE.
+009650*
+009660 FIN-MOVER-ALFA.
+009670***************
+009680     EXIT.
+      *                                                                 CSSSGM
+      *                                                                 CSSSGM
+      * ** LEER-TABCLABIN.                                              SAL92320
+       LEER-TABINCLBIN.                                                 SAL92320
+      ****************                                                  CSSSGM
+      *                                                                 CSSSGM
+           MOVE  NTABTABINCLBIN          TO   INFO-TABLA.               SAL92320
+           MOVE  SPACES                  TO   CLAVE-TABINCLBIN.         SAL92320
+           MOVE  WK-PAN-BIN              TO   CLBIBIN.                  CSSSGM
+           MOVE  CLAVE-TABINCLBIN        TO   INFO-CLADATO.             SAL92320
+           MOVE  DLENTIDAD               TO   INFO-CLAINST.             CSSSGM
+           MOVE  K3U102                  TO   INFO-VLI.                 CSSSGM
+           MOVE  ZERO                    TO   INFO-CONT.                CSSSGM
+      *                                                                 CSSSGM
+           display "XPN-GRNBSDES-LEER-TABINCLBIN>" INFO-PDU "]".
+
+           PERFORM CALL-PDU              THRU FIN-CALL-PDU.             CSSSGM
+      *                                                                 CSSSGM
+JLCJLC     EXHIBIT NAMED 'LEER-TABINCLBIN' IBSTATUS.
+
+           display "XPN-GRNBSDES-LEER-TABINCLBIN<" INFO-PDU "]".
+
+           IF    DLBUEN-ACCESO                                          CSSSGM
+           THEN  MOVE  INFO-DATOS        TO   DATOS-TABINCLBIN          SAL92320
+           ELSE  IF    DLNOT-DATA                                       CSSSGM
+                 THEN  NEXT SENTENCE                                    CSSSGM
+                 ELSE  MOVE  MASC1       TO   DLDISPLA-BLOCK            CSSSGM
+                       MOVE  K1X2        TO   DLDISPLA-TIPERR           CSSSGM
+                       PERFORM DISPLAYAR THRU FIN-DISPLAYAR             CSSSGM
+                       MOVE  K4XERRORBD  TO   RUTDES-RESULT             CSSSGM
+                       GO TO FIN-RUTINA.                                CSSSGM
+      *                                                                 CSSSGM
+      * ** FIN-LEER-TABCLABIN.                                          SAL92320
+       FIN-LEER-TABINCLBIN.                                             SAL92320
+           EXIT.                                                        CSSSGM
+      *                                                                 SAL92320
+      *                                                                 SAL92320
+       LEER-TABINCLENT.                                                 SAL92320
+      *****************                                                 SAL92320
+      *                                                                 SAL92320
+           MOVE  NTABTABINCLENT          TO   INFO-TABLA.               SAL92320
+           MOVE  SPACES                  TO   CLAVE-TABINCLENT.         SAL92320
+           MOVE  DLPETTCODICAJA          TO   CLBEENTI.                 SAL92320
+           MOVE  CLAVE-TABINCLENT        TO   INFO-CLADATO.             SAL92320
+           MOVE  DLENTIDAD               TO   INFO-CLAINST.             SAL92320
+           MOVE  K3U102                  TO   INFO-VLI.                 SAL92320
+           MOVE  ZERO                    TO   INFO-CONT.                SAL92320
+      *                                                                 SAL92320
+           display "XPN-GRNBSDES-LEER-TABINCLENT>" INFO-PDU "]".
+
+           PERFORM CALL-PDU              THRU FIN-CALL-PDU.             SAL92320
+      *                                                                 SAL92320
+JLCJLC     EXHIBIT NAMED 'LEER-TABINCLENT' IBSTATUS.
+
+           display "XPN-GRNBSDES-LEER-TABINCLENT<" INFO-PDU "]".
+
+           IF    DLBUEN-ACCESO                                          SAL92320
+           THEN  MOVE  INFO-DATOS        TO   DATOS-TABINCLENT          SAL92320
+           ELSE  IF    DLNOT-DATA                                       SAL92320
+                 THEN  NEXT SENTENCE                                    SAL92320
+                 ELSE  MOVE  MASC2       TO   DLDISPLA-BLOCK            SAL92320
+                       MOVE  K1X2        TO   DLDISPLA-TIPERR           SAL92320
+                       PERFORM DISPLAYAR THRU FIN-DISPLAYAR             SAL92320
+                       MOVE  K4XERRORBD  TO   RUTDES-RESULT             SAL92320
+                       GO TO FIN-RUTINA.                                SAL92320
+      *                                                                 SAL92320
+       FIN-LEER-TABINCLENT.                                             SAL92320
+           EXIT.                                                        SAL92320
+      *
+       LEER-PARAM.                                                 
+      ************                                                  
+      *            
+           display "XPN-GRNBSDES-LEER-PARAM".
+                                                     
+           MOVE  NTABPARAMETROS          TO   INFO-TABLA.              
+           MOVE  AREAGOLF                TO   PART-AREA.                
+           MOVE  PART-AREA               TO   INFO-CLADATO.             SAL92320
+           MOVE  ZEROS                   TO   INFO-CLAINST.             CSSSGM
+           MOVE  K3U202                  TO   INFO-VLI.                 CSSSGM
+           MOVE  ZERO                    TO   INFO-CONT.                CSSSGM
+      *                                                                 CSSSGM
+           PERFORM CALL-PDU              THRU FIN-CALL-PDU.             CSSSGM
+      *                                                                 CSSSGM
+           IF    DLBUEN-ACCESO                                          CSSSGM
+           THEN  MOVE  INFO-DATOS        TO   DATOS-PARAMETROS          
+           ELSE  MOVE  MASC3             TO   DLDISPLA-BLOCK            
+                 MOVE  K1X2              TO   DLDISPLA-TIPERR           
+                 PERFORM DISPLAYAR       THRU FIN-DISPLAYAR             
+                 MOVE  K4XERRORBD        TO   RUTDES-RESULT            
+                 GO TO FIN-RUTINA.                                
+      *                                                                 
+       FIN-LEER-PARAM.                                             
+           EXIT.                                                        
+      *
+009690 CONDICION.
+      ***********
+      *
+JLCJLC     DISPLAY 'JLC-CONDICION: SQLCODE=' SQLCODE.
+009700 FIN-CONDICION.
+009710     EXIT.
+009720*
+           COPY "CALLPDU.LEP".                                          CSSSGM
+      *                                                                 CSSSGM
+           COPY "DISPLA.LEP".                                           CSSSGM
+009760*
+009770     COPY "STATOWH.LEP".
+009780**CONVERS*VERSION_NO*V-3.0.
+009790**CONVERS*LAST-ACTION*-VO*Wed Jun 18 19:25:50 1997
