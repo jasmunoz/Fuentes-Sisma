@@ -1,0 +1,339 @@
+opcion de llamar en conseguir_svm 3
+Dentro del filefun - tratar_fich
+Dentro filefun.cpp, abro conexion
+Entrando en conexion_BBDD  filefun 04122022v2.0
+abro conexion bd
+---------------------------
+tabla NPTIPCS 
+claveT 00 
+CodError 000 
+Dentro del filefun - tratar_fich
+Dentro filefun.cpp, abro conexion
+Entrando en conexion_BBDD  filefun 04122022v2.0
+abro conexion bd
+cursores llamadaProc2 claveT>00< tabla NPTPARS, opcion PRIMERO
+Contador >0< CodError >000< sqlca.sqlcode >0<
+Dentro del filefun - tratar_fich
+Dentro filefun.cpp, abro conexion
+Entrando en conexion_BBDD  filefun 04122022v2.0
+abro conexion bd
+cursores llamadaProc2 claveT>0000< tabla NPTPARS, opcion SIGUIENTE
+Contador >0< CodError >000< sqlca.sqlcode >0<
+Dentro del filefun - tratar_fich
+Dentro filefun.cpp, abro conexion
+Entrando en conexion_BBDD  filefun 04122022v2.0
+abro conexion bd
+cursores llamadaProc2 claveT>0201< tabla NPTPARS, opcion SIGUIENTE
+Contador >0< CodError >000< sqlca.sqlcode >0<
+Dentro del filefun - tratar_fich
+Dentro filefun.cpp, abro conexion
+Entrando en conexion_BBDD  filefun 04122022v2.0
+abro conexion bd
+cursores llamadaProc2 claveT>0501< tabla NPTPARS, opcion SIGUIENTE
+Contador >0< CodError >000< sqlca.sqlcode >0<
+Dentro del filefun - tratar_fich
+Dentro filefun.cpp, abro conexion
+Entrando en conexion_BBDD  filefun 04122022v2.0
+abro conexion bd
+cursores llamadaProc2 claveT>2002< tabla NPTPARS, opcion SIGUIENTE
+Contador >0< CodError >000< sqlca.sqlcode >0<
+rollback y cierro conexion bd
+Dentro del filefun - tratar_fich
+Dentro filefun.cpp, abro conexion
+Entrando en conexion_BBDD  filefun 04122022v2.0
+abro conexion bd
+cursores llamadaProc2 claveT>00< tabla NPTPARS, opcion PRIMERO
+Contador >0< CodError >000< sqlca.sqlcode >0<
+Dentro del filefun - tratar_fich
+Dentro filefun.cpp, abro conexion
+Entrando en conexion_BBDD  filefun 04122022v2.0
+abro conexion bd
+cursores llamadaProc2 claveT>0000< tabla NPTPARS, opcion SIGUIENTE
+Contador >0< CodError >000< sqlca.sqlcode >0<
+Dentro del filefun - tratar_fich
+Dentro filefun.cpp, abro conexion
+Entrando en conexion_BBDD  filefun 04122022v2.0
+abro conexion bd
+cursores llamadaProc2 claveT>0201< tabla NPTPARS, opcion SIGUIENTE
+Contador >0< CodError >000< sqlca.sqlcode >0<
+Dentro del filefun - tratar_fich
+Dentro filefun.cpp, abro conexion
+Entrando en conexion_BBDD  filefun 04122022v2.0
+abro conexion bd
+cursores llamadaProc2 claveT>0501< tabla NPTPARS, opcion SIGUIENTE
+Contador >0< CodError >000< sqlca.sqlcode >0<
+Dentro del filefun - tratar_fich
+Dentro filefun.cpp, abro conexion
+Entrando en conexion_BBDD  filefun 04122022v2.0
+abro conexion bd
+cursores llamadaProc2 claveT>2002< tabla NPTPARS, opcion SIGUIENTE
+Contador >0< CodError >000< sqlca.sqlcode >0<
+rollback y cierro conexion bd
+Dentro del filefun - tratar_fich
+Dentro filefun.cpp, abro conexion
+Entrando en conexion_BBDD  filefun 04122022v2.0
+abro conexion bd
+---------------------------
+tabla NPTPARA 
+claveT 00 
+CodError 000 
+opcion de llamar en conseguir_svm 3
+Dentro del filefun - tratar_fich
+Dentro filefun.cpp, abro conexion
+Entrando en conexion_BBDD  filefun 04122022v2.0
+abro conexion bd
+---------------------------
+tabla NPTIPCS 
+claveT 00 
+CodError 000 
+nombre al crear conecSVM SVAP
+---- Va a crear el area de memoria ----
+Error devuelto por shmget: 2
+Error devuelto por shmget: No such file or directory
+Retorna valor E_NOSVM: 1
+crear conecSVM err 1
+---- Va a crear el area de memoria ----
+Segmento asignado shmid -1754773604
+---- Termina de crear el area de memoria ----
+Dentro del filefun - tratar_fich
+Dentro filefun.cpp, abro conexion
+Entrando en conexion_BBDD  filefun 04122022v2.0
+abro conexion bd
+---------------------------
+tabla NPTCONF 
+claveT 00 
+CodError 000 
+*** Carga_subs.c - valor de SVM_PARS.panumses >007< 
+arranque.c crea_proc Cargando >rtrataan< en >0x7f49646e91a0<
+arranque.c carga_svm proceso rtrataan
+*** Carga_subs.c - valor de SVM_PARS.panumses >001< 
+arranque.c crea_proc Cargando >penvio02< en >0x7f49646e9340<
+arranque.c carga_svm proceso penvio02
+arranque.c crea_proc Cargando >precep02< en >0x7f49646e9410<
+arranque.c carga_svm proceso precep02
+*** Carga_subs.c - valor de SVM_PARS.panumses >008< 
+arranque.c crea_proc Cargando >penvio05< en >0x7f49646e95b0<
+arranque.c carga_svm proceso penvio05
+arranque.c crea_proc Cargando >pmanej05< en >0x7f49646e9680<
+arranque.c carga_svm proceso pmanej05
+arranque.c crea_proc Cargando >precep05< en >0x7f49646e9750<
+arranque.c carga_svm proceso precep05
+arranque.c crea_proc Cargando >ptimer05< en >0x7f49646e9820<
+arranque.c carga_svm proceso ptimer05
+arranque.c crea_proc Cargando >rdif0501< en >0x7f49646e98f0<
+arranque.c carga_svm proceso rdif0501
+*** Carga_subs.c - valor de SVM_PARS.panumses >713< 
+arranque.c crea_proc Cargando >cl2002en< en >0x7f49646e9a90<
+arranque.c carga_svm proceso cl2002en
+arranque.c crea_proc Cargando >cl2002re< en >0x7f49646e9b60<
+arranque.c carga_svm proceso cl2002re
+arranque.c crea_proc Cargando >penvio20< en >0x7f49646e9c30<
+arranque.c carga_svm proceso penvio20
+arranque.c crea_proc Cargando >precep20< en >0x7f49646e9d00<
+arranque.c carga_svm proceso precep20
+arranque.c crea_proc Cargando >ptimer20< en >0x7f49646e9dd0<
+arranque.c carga_svm proceso ptimer20
+arranque.c crea_proc Cargando >rdif2002< en >0x7f49646e9ea0<
+arranque.c carga_svm proceso rdif2002
+nombre al crear svmsock SVAS
+---- Va a crear el area de memoria ----
+Segmento asignado shmid -1754773616
+---- Termina de crear el area de memoria ----
+nombre al crear svmbine SVAB
+---- Va a crear el area de memoria ----
+Segmento asignado shmid -1754773608
+---- Termina de crear el area de memoria ----
+========fcarga_bines 
+Dentro del filefun - tratar_fich
+Dentro filefun.cpp, abro conexion
+Entrando en conexion_BBDD  filefun 04122022v2.0
+abro conexion bd
+LLamadaProc opcion PRIMERO,  tabla NPTBINE, clave 00
+BBDD OK
+carga_bine NPTBINE PRIMERO REGBINE 4338420000000000000999999999991544Visa debito              11N 050       0  ü
+en mm >0<
+carga_bin entrando ....
+despues de carga_bin 
+Dentro del filefun - tratar_fich
+Dentro filefun.cpp, abro conexion
+Entrando en conexion_BBDD  filefun 04122022v2.0
+abro conexion bd
+LLamadaProc opcion SIGUIENTE,  tabla NPTBINE, clave 43384200
+BBDD OK
+carga_bine NPTBINE SIGUIENTE REGBINE 4338420100000000000999999999991544Visa debito nuevo        11N 050       0  ü
+en mm >1<
+carga_bin entrando ....
+despues de carga_bin 
+Dentro del filefun - tratar_fich
+Dentro filefun.cpp, abro conexion
+Entrando en conexion_BBDD  filefun 04122022v2.0
+abro conexion bd
+LLamadaProc opcion SIGUIENTE,  tabla NPTBINE, clave 43384201
+BBDD OK
+carga_bine NPTBINE SIGUIENTE REGBINE 4338450000000000000999999999991544Visa classic             11N 050       0  ü
+en mm >2<
+carga_bin entrando ....
+despues de carga_bin 
+Dentro del filefun - tratar_fich
+Dentro filefun.cpp, abro conexion
+Entrando en conexion_BBDD  filefun 04122022v2.0
+abro conexion bd
+LLamadaProc opcion SIGUIENTE,  tabla NPTBINE, clave 43384500
+BBDD OK
+carga_bine NPTBINE SIGUIENTE REGBINE 9724020300000000000999999999991544Transferencias inmediatas11S 050       0  ü
+en mm >3<
+carga_bin entrando ....
+despues de carga_bin 
+Dentro del filefun - tratar_fich
+Dentro filefun.cpp, abro conexion
+Entrando en conexion_BBDD  filefun 04122022v2.0
+abro conexion bd
+LLamadaProc opcion SIGUIENTE,  tabla NPTBINE, clave 97240203
+error en el acceso LlamadaProc -1405
+CodError >101< sqlca.sqlcode >-1405< en LlamadaProc
+rollback y cierro conexion bd
+carga_bine NPTBINE SIGUIENTE REGBINE 9724020300000000000999999999991544Transferencias inmediatas11S 050       0  ü
+fecha calculada: _19012026_18
+Lanzo rtrataan 1
+lanzar_proc.c numero else - creo /sfabank/sisma/dat/trazas/rtrataan__19012026_18_1.traza
+error en el acceso LlamadaProc -1405
+CodError >101< sqlca.sqlcode >-1405< en LlamadaProc
+rollback y cierro conexion bd
+carga_bine NPTBINE SIGUIENTE REGBINE 9724020300000000000999999999991544Transferencias inmediatas11S 050       0  ü
+fecha calculada: _19012026_18
+Lanzo penvio02 1
+lanzar_proc.c numero else - creo /sfabank/sisma/dat/trazas/penvio02__19012026_18_1.traza
+error en el acceso LlamadaProc -1405
+CodError >101< sqlca.sqlcode >-1405< en LlamadaProc
+rollback y cierro conexion bd
+carga_bine NPTBINE SIGUIENTE REGBINE 9724020300000000000999999999991544Transferencias inmediatas11S 050       0  ü
+fecha calculada: _19012026_18
+Lanzo precep02 1
+lanzar_proc.c numero else - creo /sfabank/sisma/dat/trazas/precep02__19012026_18_1.traza
+error en el acceso LlamadaProc -1405
+CodError >101< sqlca.sqlcode >-1405< en LlamadaProc
+rollback y cierro conexion bd
+carga_bine NPTBINE SIGUIENTE REGBINE 9724020300000000000999999999991544Transferencias inmediatas11S 050       0  ü
+fecha calculada: _19012026_18
+Lanzo penvio05 1
+lanzar_proc.c numero else - creo /sfabank/sisma/dat/trazas/penvio05__19012026_18_1.traza
+error en el acceso LlamadaProc -1405
+CodError >101< sqlca.sqlcode >-1405< en LlamadaProc
+rollback y cierro conexion bd
+carga_bine NPTBINE SIGUIENTE REGBINE 9724020300000000000999999999991544Transferencias inmediatas11S 050       0  ü
+fecha calculada: _19012026_18
+Lanzo pmanej05 1
+lanzar_proc.c numero else - creo /sfabank/sisma/dat/trazas/pmanej05__19012026_18_1.traza
+error en el acceso LlamadaProc -1405
+CodError >101< sqlca.sqlcode >-1405< en LlamadaProc
+rollback y cierro conexion bd
+carga_bine NPTBINE SIGUIENTE REGBINE 9724020300000000000999999999991544Transferencias inmediatas11S 050       0  ü
+fecha calculada: _19012026_18
+Lanzo precep05 1
+lanzar_proc.c numero else - creo /sfabank/sisma/dat/trazas/precep05__19012026_18_1.traza
+error en el acceso LlamadaProc -1405
+CodError >101< sqlca.sqlcode >-1405< en LlamadaProc
+rollback y cierro conexion bd
+carga_bine NPTBINE SIGUIENTE REGBINE 9724020300000000000999999999991544Transferencias inmediatas11S 050       0  ü
+fecha calculada: _19012026_18
+Lanzo ptimer05 1
+lanzar_proc.c numero else - creo /sfabank/sisma/dat/trazas/ptimer05__19012026_18_1.traza
+error en el acceso LlamadaProc -1405
+CodError >101< sqlca.sqlcode >-1405< en LlamadaProc
+rollback y cierro conexion bd
+carga_bine NPTBINE SIGUIENTE REGBINE 9724020300000000000999999999991544Transferencias inmediatas11S 050       0  ü
+fecha calculada: _19012026_18
+Lanzo rdif0501 1
+lanzar_proc.c numero else - creo /sfabank/sisma/dat/trazas/rdif0501__19012026_18_1.traza
+error en el acceso LlamadaProc -1405
+CodError >101< sqlca.sqlcode >-1405< en LlamadaProc
+rollback y cierro conexion bd
+carga_bine NPTBINE SIGUIENTE REGBINE 9724020300000000000999999999991544Transferencias inmediatas11S 050       0  ü
+fecha calculada: _19012026_18
+Lanzo cl2002en 1
+lanzar_proc.c numero else - creo /sfabank/sisma/dat/trazas/cl2002en__19012026_18_1.traza
+error en el acceso LlamadaProc -1405
+CodError >101< sqlca.sqlcode >-1405< en LlamadaProc
+rollback y cierro conexion bd
+carga_bine NPTBINE SIGUIENTE REGBINE 9724020300000000000999999999991544Transferencias inmediatas11S 050       0  ü
+fecha calculada: _19012026_18
+Lanzo cl2002re 1
+lanzar_proc.c numero else - creo /sfabank/sisma/dat/trazas/cl2002re__19012026_18_1.traza
+error en el acceso LlamadaProc -1405
+CodError >101< sqlca.sqlcode >-1405< en LlamadaProc
+rollback y cierro conexion bd
+carga_bine NPTBINE SIGUIENTE REGBINE 9724020300000000000999999999991544Transferencias inmediatas11S 050       0  ü
+fecha calculada: _19012026_18
+Lanzo penvio20 1
+lanzar_proc.c numero else - creo /sfabank/sisma/dat/trazas/penvio20__19012026_18_1.traza
+error en el acceso LlamadaProc -1405
+CodError >101< sqlca.sqlcode >-1405< en LlamadaProc
+rollback y cierro conexion bd
+carga_bine NPTBINE SIGUIENTE REGBINE 9724020300000000000999999999991544Transferencias inmediatas11S 050       0  ü
+fecha calculada: _19012026_18
+Lanzo precep20 1
+lanzar_proc.c numero else - creo /sfabank/sisma/dat/trazas/precep20__19012026_18_1.traza
+error en el acceso LlamadaProc -1405
+CodError >101< sqlca.sqlcode >-1405< en LlamadaProc
+rollback y cierro conexion bd
+carga_bine NPTBINE SIGUIENTE REGBINE 9724020300000000000999999999991544Transferencias inmediatas11S 050       0  ü
+fecha calculada: _19012026_18
+Lanzo ptimer20 1
+lanzar_proc.c numero else - creo /sfabank/sisma/dat/trazas/ptimer20__19012026_18_1.traza
+error en el acceso LlamadaProc -1405
+CodError >101< sqlca.sqlcode >-1405< en LlamadaProc
+rollback y cierro conexion bd
+carga_bine NPTBINE SIGUIENTE REGBINE 9724020300000000000999999999991544Transferencias inmediatas11S 050       0  ü
+fecha calculada: _19012026_18
+Dentro del filefun - tratar_fich
+error en el acceso LlamadaProc -1405
+CodError >101< sqlca.sqlcode >-1405< en LlamadaProc
+rollback y cierro conexion bd
+carga_bine NPTBINE SIGUIENTE REGBINE 9724020300000000000999999999991544Transferencias inmediatas11S 050       0  ü
+fecha calculada: _19012026_18
+Lanzo rdif2002 1
+lanzar_proc.c numero else - creo /sfabank/sisma/dat/trazas/rdif2002__19012026_18_1.traza
+Dentro filefun.cpp, abro conexion
+Entrando en conexion_BBDD  filefun 04122022v2.0
+abro conexion bd
+LLamadaProc opcion DACTIVA,  tabla NPTCONE, clave 0001TODOS   I
+BBDD OK
+Esperamos a los hijos. 19/01/2026 18:31:51:212 
+Fin de espera        . 19/01/2026 18:32:01:216 
+busco encuentra_svm proceso rtrataan 
+busco encuentra_svm TIP_PROCES 50 
+busco encuentra_svm proceso penvio02 
+busco encuentra_svm TIP_PROCES 50 
+busco encuentra_svm proceso precep02 
+busco encuentra_svm TIP_PROCES 50 
+busco encuentra_svm proceso penvio05 
+busco encuentra_svm TIP_PROCES 50 
+busco encuentra_svm proceso pmanej05 
+busco encuentra_svm TIP_PROCES 50 
+busco encuentra_svm proceso precep05 
+busco encuentra_svm TIP_PROCES 50 
+busco encuentra_svm proceso ptimer05 
+busco encuentra_svm TIP_PROCES 50 
+busco encuentra_svm proceso rdif0501 
+busco encuentra_svm TIP_PROCES 50 
+busco encuentra_svm proceso cl2002en 
+busco encuentra_svm TIP_PROCES 50 
+busco encuentra_svm proceso cl2002re 
+busco encuentra_svm TIP_PROCES 50 
+busco encuentra_svm proceso penvio20 
+busco encuentra_svm TIP_PROCES 50 
+busco encuentra_svm proceso precep20 
+busco encuentra_svm TIP_PROCES 50 
+busco encuentra_svm proceso ptimer20 
+busco encuentra_svm TIP_PROCES 50 
+busco encuentra_svm proceso rdif2002 
+busco encuentra_svm TIP_PROCES 50 
+Dentro del filefun - tratar_fich
+Dentro filefun.cpp, abro conexion
+Entrando en conexion_BBDD  filefun 04122022v2.0
+abro conexion bd
+LLamadaProc opcion ACTIVA,  tabla NPTCONE, clave 0001TODOS   I
+BBDD OK
+BBDD OK
+Lanzo superviA 1
+lanzar_proc.c numero else - creo /sfabank/sisma/dat/trazas/superviA__19012026_18_1.traza

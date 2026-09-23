@@ -1,0 +1,74 @@
+000000*GRINTTDE  COBOL4             8
+000010*------------------------
+000020 PROGRAM-ID. GRINTTDE.
+000030*-----------------------------------------------------------*
+000040*                                                           *
+000050*                         GRINTTDE                          *
+000060*                         --------                          *
+000070*                                                           *
+000080*    DESCRIPCION GENERAL.  PROGRAMA QUE INVOCA A GRGENTDE.  *
+000090*                                                           *
+000100*    RUTINAS LLAMADAS:     GRGENTDE.                        *
+000110*                                                           *
+000120*    ANALISTA:             CARLOS RUIZ LAPE¥A.              *
+000130*                                                           *
+000140*    FECHA:                05-11-1996                       *
+000150*                                                           *
+000160*                                                           *
+000170*-----------------------------------------------------------*
+000180*
+000190 ENVIRONMENT DIVISION.
+000200*---------------------
+000210 CONFIGURATION SECTION.
+000220*
+000230*SOURCE-COMPUTER. NCR-VRX.
+000240*OBJECT-COMPUTER. NCR-VRX.
+000250*
+000260 SPECIAL-NAMES.
+000270     DECIMAL-POINT IS COMMA.
+000280*
+000290 DATA DIVISION.
+000300*--------------
+000310*
+000320 WORKING-STORAGE SECTION.
+000330*
+000340     COPY "STATORA.LED".
+000350     COPY "INFOBLOC.LED".
+000360*
+000370*
+000380*
+000390     EXEC SQL INCLUDE SQLCA          END-EXEC.
+000400     EXEC SQL BEGIN DECLARE SECTION  END-EXEC.
+000410     EXEC SQL END DECLARE SECTION    END-EXEC.
+000420 LINKAGE SECTION.
+000430*-----------------------------------------------------------*
+000440*                                                           *
+000450*                     Interfaz con GRGENTDE.                *
+000460*                     ----------------------                *
+000470*                                                           *
+000480*-----------------------------------------------------------*
+000490 01  AREA-GRGENTDE.
+000500     05  INDICE-CLAVE       PIC X(08). *> 2 bytes + Nulos.
+000510     05  ALDESCID-OUT       PIC X(17). *> 17 bytes + Nulo.
+000520*
+000530*-----------------------------------------------------------*
+000540*
+000550 PROCEDURE DIVISION USING AREA-GRGENTDE.
+000560*-----------------------------------------
+000570*
+000580 PROCESO.
+000590*--------
+000600     PERFORM LLAMAR-GXGENTDE THRU LLAMAR-GXGENTDE-FIN.
+000610 PROCESO-FIN.
+000620     EXIT PROGRAM.
+000630*
+000640 LLAMAR-GXGENTDE.
+000650*----------------
+000660     CALL 'GRGENTDE' USING by reference INDICE-CLAVE
+000670                           by reference ALDESCID-OUT.
+000680 LLAMAR-GXGENTDE-FIN.
+000690     EXIT.
+000700*
+000710     COPY "STATORA.LEP".
+000720**CONVERS*VERSION_NO*V-3.0.
+000730**CONVERS*LAST-ACTION*-VO*Mon Dec 16 14:37:31 1996

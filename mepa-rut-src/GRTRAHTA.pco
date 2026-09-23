@@ -1,0 +1,1303 @@
+       IDENTIFICATION DIVISION.
+       PROGRAM-ID. GRTRAHTA.
+      *---------------------
+      *
+      *    EXEC SQL
+      *    PROGRAM-ID GRTRAHTA
+      *    END-EXEC.
+      ******************************************************************
+      *                                                                *
+      *    --------------------                                        *
+      *    DESCRIPCION GENERAL:                                        *
+      *    --------------------                                        *
+      *                                                                *
+      *         RUTINA DE ACCESO A LOS ARCHIVOS HTAR Y HSIO            *
+      *                                                                *
+      *    RUTINAS LLAMADAS:                                           *
+      *                                                                *
+      *         GRCONDIC - RUTINA DE TRATAMIENTO DE CONDICIONES.       *
+      *         GRDISPLA - RUTINA DE DISPLAYS.                         *
+      *                                                                *
+      *    RUTINAS DE COPY:                                            *
+      *                                                                *
+      *         LRWHENEV    -  AREA DE DATOS DE WHENEVER.              *
+      *         LEPERRSQ    -  WHENEVER.                               *
+      *         LRDISPLA    -  AREA DE DATOS DE GRDISPLA.              *
+      *         LEPDISPL    -  AREA DE LLAMADA A GRDISPLA.             *
+      *         LRDTRAHTA   -  AREA DEL INTERFACE DE LLAMADA           *
+      *                        DE LA RUTINA.                           *
+      *                                                                *
+      *         LEDCONCOMUN -  AREA COMUN A LAS TRANSACCIONES.         *
+      *         LEDINFOBLOC -  CHEQUEO DE STATUS.                      *
+      *         LEDSAVEDATA -  AREA DE TRANSMISION DE DATOS.           *
+      *         LEDOUTPDATA -  AREA DE SALIDA.                         *
+      *         LEDWORKAREA -  AREA DE TRABAJO.                        *
+      *         LEDWORKCOMU -  AREA DE TRABAJO COMUN.                  *
+      *                                                                *
+      *    ARCHIVOS BASE DE DATOS:                                     *
+      *                                                                *
+      *         HTAR       HISTORICO DE OPERACIONES CONTABLES CON      *
+      *                    ACTIVADORES DE MEDIOS DE PAGO               *
+      *         HSIO       DATOS ADICIONALES DE MOVIMIENTOS CON        *
+      *                    TARJETA 4B                                  *
+      *                                                                *
+      *         AUTOR:  INFODESA (SANTIAGO GARRAN)                     *
+      *                                                                *
+      *         FECHA:  30/03/92                                       *
+      *         ACTUALIZ: 2001/14/01-L                                 *
+      * +--------------------------------------------------------------+
+      * [                        ------------                          ]
+      * [                       MODIFICACIONES                         ]
+      * [                        ------------                          ]
+      *
+      *  JOSEP FLORES - DICIEMBRE 2015                                  BUG22953
+      *                                                                 BUG22953
+      *  SE DEPURAN LOS CARACTERES DEL CAMPO HSIONCOM.                  BUG22953
+      *
+      *  INDRA - ABRIL 2020                                             PRJ0155777
+      *                                                                 PRJ0155777
+      *  MODIFICACIÓN PRJ0155777 .                                      PRJ0155777
+      * +--------------------------------------------------------------+
+      *
+      *
+       ENVIRONMENT DIVISION.
+       CONFIGURATION SECTION.
+      *
+       SPECIAL-NAMES.
+      *     SYMBOLIC CHARACTERS ARE HEXADECIMAL
+            DECIMAL-POINT IS COMMA.
+      *
+       DATA DIVISION.
+       WORKING-STORAGE SECTION.
+      *
+           COPY "STATORA.LED".
+      *
+      *
+      *    AREA UTILIZADA POR LA GRDISPLA QUE IMPRIME TANTOS BYTES
+      *    COMO SE LE DIGAN EN ESTE CAMPO.
+      *
+       01  DLDISPLA-SQLDUMP       PIC 9(9)       COMP-5  VALUE 500.
+      *
+      *    AREA DE INTERFACE DE DBSR.
+      *
+           EXEC SQL
+           INCLUDE SQLCA
+           END-EXEC.
+      *
+      *    ARCHIVOS DE LA BASE DE DATOS A UTILIZAR.
+      *
+           EXEC SQL BEGIN DECLARE SECTION END-EXEC.
+           EXEC SQL INCLUDE HTAR       END-EXEC.
+           EXEC SQL INCLUDE HSIO       END-EXEC.
+           EXEC SQL END DECLARE SECTION   END-EXEC.
+      *
+      *    CAMPOS DE TRABAJO.
+      *
+       01  W-HTAR-CLAV.
+           05  W-HTARFEEQ         PIC 9(8).
+           05  W-HTARESTA         PIC 9(9).
+           05  W-HTARTERM         PIC X(11).
+           05  W-HTARNUOP         PIC 9(5).
+      *
+       01  W-HSIO-CLAV.
+           05  W-HSIONCTA         PIC 9(18).
+           05  W-HSIOFEOP         PIC 9(8).
+           05  W-HSIOSQMC         PIC 9(6).
+      *
+       01  W-HSIO-CLA2.
+           05  W-HSIOCSIO         PIC X(16).
+       01  W-HSIO-CLA3.
+           05  W-HSIOREFE         PIC X(23).
+      *
+       01  WK-HTARNCTA            PIC 9(18).
+       01  WK-HTARFEOP            PIC 9(8).
+       01  WK-HTARSQMC            PIC 9(6).
+      *
+       01  WK-HSIONCTA            PIC 9(18).
+       01  WK-HSIOFEOP            PIC 9(8).
+       01  WK-HSIOSQMC            PIC 9(6).
+      *
+      *
+      *    MASCARAS.
+      *
+       01  W-MASCARA.
+           05  W-MASC-TEXTO1      PIC X(8).
+           05  FILLER             PIC X(1).
+           05  W-MASC-CODIGO1     PIC 9(18).
+           05  FILLER             PIC X(1).
+           05  W-MASC-TEXTO2      PIC X(8).
+           05  FILLER             PIC X(1).
+           05  W-MASC-CODIGO2     PIC 9(8).
+           05  FILLER             PIC X(1).
+           05  W-MASC-TEXTO3      PIC X(8).
+           05  FILLER             PIC X(1).
+           05  W-MASC-CODIGO3     PIC 9(6).
+           05  FILLER             PIC X(1).
+           05  W-MASC-TEXTO4      PIC X(8).
+           05  FILLER             PIC X(1).
+           05  W-MASC-CODIGO4     PIC 9(18).
+           05  FILLER             PIC X(1).
+           05  W-MASC-TEXTO5      PIC X(8).
+           05  FILLER             PIC X(1).
+           05  W-MASC-CODIGO5     PIC 9(8).
+           05  FILLER             PIC X(1).
+           05  W-MASC-TEXTO6      PIC X(8).
+           05  FILLER             PIC X(1).
+           05  W-MASC-CODIGO6     PIC 9(6).
+      *
+       01  WK-MASC-HSIO.
+           05  FILLER             PIC X(30)
+                   VALUE 'REG.ESTA EN HSIO Y NO EN HTAR.'.
+           05  FILLER             PIC X(6)       VALUE ' NCTA:'.
+           05  WK-MASC-HSIO-NCTA  PIC 9(18).
+           05  FILLER             PIC X(6)       VALUE ' FEOP:'.
+           05  WK-MASC-HSIO-FEOP  PIC 9(8).
+           05  FILLER             PIC X(6)       VALUE ' SQMC:'.
+           05  WK-MASC-HSIO-SQMC  PIC 9(6).
+      *
+           COPY "ISPLA.LRD"  .
+      *
+           COPY "GRDCAISO.LRD".                                         BUG22953
+      *
+      *
+      *NCR-CONSTANT-STORAGE SECTION.
+      ******************************
+      *
+      *
+       01  CONDICIONES.
+           05  CONDN021           PIC X(4)       VALUE 'N021'.
+           05  CONDN001           PIC X(4)       VALUE 'N001'.
+           05  CONDN003           PIC X(4)       VALUE 'N003'.          BPY80038
+           05  CONDN022           PIC X(4)       VALUE 'N022'.
+           05  CONDN004           PIC X(4)       VALUE 'N004'.
+           05  CONDN013           PIC X(4)       VALUE 'N013'.
+           05  CONDN023           PIC X(4)       VALUE 'N023'.
+           05  CONDN024           PIC X(4)       VALUE 'N024'.
+      *
+       01  VARIOS.
+           05  CODIGOTX           PIC X(6)       VALUE '------'.
+           05  AREAGOLF           PIC X(1)       VALUE 'T'.
+           05  NOMBREPG           PIC X(8)       VALUE 'GRTRAHTA'.
+      *
+       01  CONSTANTES.
+           05  K1X0               PIC X(1)       VALUE '0'.
+           05  K1X1               PIC X(1)       VALUE '1'.
+           05  K1X3               PIC X(1)       VALUE '3'.
+           05  K2XOK              PIC X(2)       VALUE 'OK'.
+           05  K1U0               PIC 9(1)       VALUE 0.
+           05  K1U1               PIC 9(1)       VALUE 1.
+           05  K4XHTAR            PIC X(4)       VALUE 'HTAR'.
+           05  K4XHSIO            PIC X(4)       VALUE 'HSIO'.
+           05  K8XHTARFEEQ        PIC X(8)       VALUE 'HTARFEEQ'.
+           05  K8XHTARESTA        PIC X(8)       VALUE 'HTARESTA'.
+           05  K8XHTARTERM        PIC X(8)       VALUE 'HTARTERM'.
+           05  K8XHTARNUOP        PIC X(8)       VALUE 'HTARNUOP'.
+           05  K8XHTARNCTA        PIC X(8)       VALUE 'HTARNCTA'.
+           05  K8XHTARFEOP        PIC X(8)       VALUE 'HTARFEOP'.
+           05  K8XHTARSQMC        PIC X(8)       VALUE 'HTARSQMC'.
+           05  K8XHSIONCTA        PIC X(8)       VALUE 'HSIONCTA'.
+           05  K8XHSIOFEOP        PIC X(8)       VALUE 'HSIOFEOP'.
+           05  K8XHSIOSQMC        PIC X(8)       VALUE 'HSIOSQMC'.
+           05  K8XHSIOREFE        PIC X(8)       VALUE 'HSIOREFE'.
+           05  K8XHSIOCSIO        PIC X(8)       VALUE 'HSIOCSIO'.
+           05  K11XDESCONOC       PIC X(11)      VALUE 'DESCONOCIDO'.
+      *
+       LINKAGE SECTION.
+      *
+       01  INPUT-AREA             PIC X(800).
+      *
+      *
+           COPY "INFOBLOC.LED"  .
+      *
+           COPY "SAVEDATA.LED"  .
+           COPY "OUTPDATA.LED"  .
+      *
+           COPY "WORKAREA.LED"  .
+           COPY "WORKCOMU.LED"  .
+      *
+       01  AREA-RUT-GRTRAHTA.
+           COPY "TRAHT.LRD"  .
+      *
+      *
+       PROCEDURE DIVISION  USING  DLMT-INFO-BLOCK
+                                  INPUT-AREA
+                                  DLMT-WORK-AREA
+                                  DLMT-OUTPUT-AREA
+                                  DLMT-SAVE-DATA
+                                  AREA-RUT-GRTRAHTA.
+      *
+      *
+      *
+       RUTINA.
+      ********
+      *
+           display "GRTRAHTA V20200420>".
+
+           MOVE CONDN001          TO   DLCOND-ELSE.
+      *
+           PERFORM VAL-ENTRADA    THRU FIN-VAL-ENTRADA.
+      *
+           PERFORM PROCESO        THRU FIN-PROCESO.
+      *
+       FIN-RUTINA.
+           EXIT PROGRAM.
+      *
+      *
+      *
+       VAL-ENTRADA.
+      *************
+      *
+           IF    TRAHTA-V
+           THEN  NEXT SENTENCE
+           ELSE  MOVE CONDN004         TO   DLCOND-NUM
+                 MOVE SPACES           TO   DLCOND-DATOS
+                 PERFORM CONDICION     THRU FIN-CONDICION.
+      *
+           IF    HIST-V
+           THEN  NEXT SENTENCE
+           ELSE  MOVE CONDN013         TO   DLCOND-NUM
+                 MOVE SPACES           TO   DLCOND-DATOS
+                 PERFORM CONDICION     THRU FIN-CONDICION.
+      *
+           IF    ARCH-HTHS
+           THEN  IF    LEER-POR-REFE
+                 OR    LEER-SEC-SIO
+                 OR    INSERTAR
+                 OR    LEER-PRIM
+                 THEN  NEXT SENTENCE
+                 ELSE  MOVE  CONDN023    TO   DLCOND-NUM
+                       MOVE  SPACES      TO   DLCOND-DATOS
+                       PERFORM CONDICION THRU FIN-CONDICION
+           ELSE  IF    ARCH-HSIO
+                 THEN  IF    LEER-PRIM
+                       OR    LEER-SEC-SIO
+                       OR    LEER-POR-REFE
+                       OR    LEER-BLOQUEO
+                       OR    MODIFICAR
+                       THEN  NEXT SENTENCE
+                       ELSE  MOVE  CONDN023    TO   DLCOND-NUM
+                             MOVE  SPACES      TO   DLCOND-DATOS
+                             PERFORM CONDICION THRU FIN-CONDICION
+                 ELSE  NEXT SENTENCE.
+      *
+       FIN-VAL-ENTRADA.
+           EXIT.
+      *
+      *
+      *
+       PROCESO.
+      *********
+      *
+           IF    LEER-BLOQUEO
+           THEN  IF    ARCH-HTAR
+                 THEN  PERFORM LECT-LK-HTAR THRU FIN-LECT-LK-HTAR
+                 ELSE  PERFORM LECT-LK-HSIO THRU FIN-LECT-LK-HSIO
+           ELSE  NEXT SENTENCE.
+      *
+           IF    LEER-NOBLOQ
+           THEN  IF    ARCH-HTAR
+                 THEN  PERFORM LECT-UN-HTAR THRU FIN-LECT-UN-HTAR
+                 ELSE  PERFORM LECT-UN-HSIO THRU FIN-LECT-UN-HSIO
+           ELSE  NEXT SENTENCE.
+      *
+           IF    LEER-PRIM
+           THEN  PERFORM LECT-PRIMARIA      THRU FIN-LECT-PRIMARIA
+           ELSE  NEXT SENTENCE.
+      *
+           IF    MODIFICAR
+           THEN  IF    ARCH-HTAR
+                 THEN  PERFORM MODI-HTAR THRU FIN-MODI-HTAR
+                 ELSE  PERFORM MODI-HSIO THRU FIN-MODI-HSIO
+           ELSE  NEXT SENTENCE.
+      *
+           IF    INSERTAR
+           THEN  PERFORM INSERCION          THRU FIN-INSERCION
+           ELSE  NEXT SENTENCE.
+      *
+           IF    LEER-SEC-SIO
+           THEN  PERFORM LECTURA-SEC-HSIO   THRU FIN-LECTURA-SEC-HSIO
+           ELSE  NEXT SENTENCE.
+      *
+           IF    LEER-POR-REFE
+           THEN  PERFORM LECTURA-REFERENCIA THRU FIN-LECTURA-REFERENCIA
+           ELSE  NEXT SENTENCE.
+      *
+       FIN-PROCESO.
+           EXIT.
+      *
+      *
+      *
+       LECT-LK-HTAR.
+      **************
+      *
+           MOVE HTAR-FEEQ         TO HTARFEEQ.
+           MOVE HTAR-ESTA         TO HTARESTA.
+           MOVE HTAR-TERM         TO HTARTERM.
+      *
+           IF    HTARTERM = SPACES
+           THEN  MOVE K11XDESCONOC TO HTARTERM
+           ELSE  NEXT SENTENCE.
+      *
+           MOVE HTAR-NUOP         TO HTARNUOP.
+      *
+           MOVE 'OK'              TO DLINFO-STATUS.
+           MOVE ZEROS             TO DLCOND-NF.
+           MOVE K4XHTAR           TO DLCOND-ARCH.
+           MOVE WK-SELECT         TO WK-INSTRUC.
+           MOVE WK-LOCK           TO WK-BLOQUEO.
+           MOVE K4XHTAR           TO WK-ARCHIVO.
+           MOVE K8XHTARFEEQ       TO WK-TEXTO1.
+           MOVE HTARFEEQ          TO W-HTARFEEQ.
+           MOVE W-HTARFEEQ        TO WK-CODIGO1.
+           MOVE K8XHTARESTA       TO WK-TEXTO2.
+           MOVE HTARESTA          TO W-HTARESTA.
+           MOVE W-HTARESTA        TO WK-CODIGO2.
+           MOVE K8XHTARTERM       TO WK-TEXTO3.
+           MOVE HTARTERM          TO WK-CODIGO3.
+           MOVE K8XHTARNUOP       TO WK-TEXTO4.
+           MOVE HTARNUOP          TO W-HTARNUOP.
+           MOVE W-HTARNUOP        TO WK-CODIGO4.
+           MOVE WK-DISARCH        TO DLDISPLA-BLOCK.
+      *
+           EXEC SQL
+             SELECT
+               HTARNCTA,  HTARFEOP,  HTARSQMC,  HTARNTAR,  HTARFEEQ,
+               HTARESTA,  HTARTERM,  HTARNUOP,  HTARTIEN,  HTARNTER,
+               HTARSECO,  HTARENGO,  HTARHOEQ,  HTARCOOP,  HTARCORE,
+               HTARESOP,  HTARCAUR,  HTARCOIN,  HTARSESC,  HTARORIG,
+               HTARIMPO,  HTAREMIS,  HTARNAUT,  HTARCOPA,  HTARCOMO,
+               HTARIMDI,  HTARNSEO,  HTARIMOO,  HTARNAUO,  HTARFOPO,
+               HTARCOAC,  HTARCOAN,  HTARCOCC,  HTARCORC,  HTARCOIC,
+               HTAROPSO,  HTAROPPR,  HTARINFA,  HTARONOF,  HTARMERC,
+               HTARREDE,  HTARCMOP,  HTARICOT,  HTARICOM,
+               HTARCAAP                                                 BUG16136
+             INTO
+              :HTARNCTA, :HTARFEOP, :HTARSQMC, :HTARNTAR, :HTARFEEQ,
+              :HTARESTA, :HTARTERM, :HTARNUOP, :HTARTIEN, :HTARNTER,
+              :HTARSECO, :HTARENGO, :HTARHOEQ, :HTARCOOP, :HTARCORE,
+              :HTARESOP, :HTARCAUR, :HTARCOIN, :HTARSESC, :HTARORIG,
+              :HTARIMPO, :HTAREMIS, :HTARNAUT, :HTARCOPA, :HTARCOMO,
+              :HTARIMDI, :HTARNSEO, :HTARIMOO, :HTARNAUO, :HTARFOPO,
+              :HTARCOAC, :HTARCOAN, :HTARCOCC, :HTARCORC, :HTARCOIC,
+              :HTAROPSO, :HTAROPPR, :HTARINFA, :HTARONOF, :HTARMERC,
+              :HTARREDE, :HTARCMOP, :HTARICOT, :HTARICOM,
+              :HTARCAAP                                                 BUG16136
+             FROM HTAR
+                  WHERE ( HTARFEEQ = :HTARFEEQ )
+                        AND ( HTARESTA = :HTARESTA )
+                        AND ( HTARTERM = :HTARTERM )
+                        AND ( HTARNUOP = :HTARNUOP )
+           FOR UPDATE
+           END-EXEC.
+      *
+           PERFORM CAMB-STAT-ORA  THRU FIN-CAMB-STAT-ORA.
+      *
+           IF    DLNOT-DATA
+           THEN  NEXT SENTENCE
+           ELSE  PERFORM REG-HTAR-A-TRAHTA-HTAR
+                    THRU FIN-REG-HTAR-A-TRAHTA-HTAR.
+      *
+       FIN-LECT-LK-HTAR.
+           EXIT.
+      *
+      *
+      *
+       LECT-UN-HTAR.
+      **************
+      *
+           MOVE HTAR-FEEQ         TO HTARFEEQ.
+           MOVE HTAR-ESTA         TO HTARESTA.
+           MOVE HTAR-TERM         TO HTARTERM.
+      *
+           IF    HTARTERM = SPACES
+           THEN  MOVE K11XDESCONOC TO HTARTERM
+           ELSE  NEXT SENTENCE.
+      *
+           MOVE HTAR-NUOP         TO HTARNUOP.
+           MOVE 'OK'              TO DLINFO-STATUS.
+           MOVE ZEROS             TO DLCOND-NF.
+           MOVE K4XHTAR           TO DLCOND-ARCH.
+           MOVE WK-SELECT         TO WK-INSTRUC.
+           MOVE WK-UNLOCK         TO WK-BLOQUEO.
+           MOVE K4XHTAR           TO WK-ARCHIVO.
+           MOVE K8XHTARFEEQ       TO WK-TEXTO1.
+           MOVE HTARFEEQ          TO WK-CODIGO1.
+           MOVE K8XHTARESTA       TO WK-TEXTO2.
+           MOVE HTARESTA          TO WK-CODIGO2.
+           MOVE K8XHTARTERM       TO WK-TEXTO3.
+           MOVE HTARTERM          TO WK-CODIGO3.
+           MOVE K8XHTARNUOP       TO WK-TEXTO4.
+           MOVE HTARNUOP          TO WK-CODIGO4.
+           MOVE WK-DISARCH        TO DLDISPLA-BLOCK.
+      *
+           EXEC SQL
+             SELECT
+               HTARNCTA,  HTARFEOP,  HTARSQMC,  HTARNTAR,  HTARFEEQ,
+               HTARESTA,  HTARTERM,  HTARNUOP,  HTARTIEN,  HTARNTER,
+               HTARSECO,  HTARENGO,  HTARHOEQ,  HTARCOOP,  HTARCORE,
+               HTARESOP,  HTARCAUR,  HTARCOIN,  HTARSESC,  HTARORIG,
+               HTARIMPO,  HTAREMIS,  HTARNAUT,  HTARCOPA,  HTARCOMO,
+               HTARIMDI,  HTARNSEO,  HTARIMOO,  HTARNAUO,  HTARFOPO,
+               HTARCOAC,  HTARCOAN,  HTARCOCC,  HTARCORC,  HTARCOIC,
+               HTAROPSO,  HTAROPPR,  HTARINFA,  HTARONOF,  HTARMERC,
+               HTARREDE,  HTARCMOP,  HTARICOT,  HTARICOM,
+               HTARCAAP                                                 BUG16136
+             INTO
+              :HTARNCTA, :HTARFEOP, :HTARSQMC, :HTARNTAR, :HTARFEEQ,
+              :HTARESTA, :HTARTERM, :HTARNUOP, :HTARTIEN, :HTARNTER,
+              :HTARSECO, :HTARENGO, :HTARHOEQ, :HTARCOOP, :HTARCORE,
+              :HTARESOP, :HTARCAUR, :HTARCOIN, :HTARSESC, :HTARORIG,
+              :HTARIMPO, :HTAREMIS, :HTARNAUT, :HTARCOPA, :HTARCOMO,
+              :HTARIMDI, :HTARNSEO, :HTARIMOO, :HTARNAUO, :HTARFOPO,
+              :HTARCOAC, :HTARCOAN, :HTARCOCC, :HTARCORC, :HTARCOIC,
+              :HTAROPSO, :HTAROPPR, :HTARINFA, :HTARONOF, :HTARMERC,
+              :HTARREDE, :HTARCMOP, :HTARICOT, :HTARICOM,
+              :HTARCAAP                                                 BUG16136
+             FROM HTAR
+             WHERE ( HTARFEEQ = :HTARFEEQ )
+                    AND ( HTARESTA = :HTARESTA )
+                    AND  ( HTARTERM = :HTARTERM )
+                    AND  ( HTARNUOP = :HTARNUOP )
+           END-EXEC.
+      *
+           PERFORM CAMB-STAT-ORA  THRU FIN-CAMB-STAT-ORA.
+      *
+           IF    DLNOT-DATA
+           THEN  NEXT SENTENCE
+           ELSE  PERFORM REG-HTAR-A-TRAHTA-HTAR
+                    THRU FIN-REG-HTAR-A-TRAHTA-HTAR.
+      *
+       FIN-LECT-UN-HTAR.
+           EXIT.
+      *
+       LECT-LK-HSIO.
+      **************
+      *
+           MOVE  HSIO-NCTA    TO  HSIONCTA.
+      *
+           MOVE  HSIO-FEOP    TO  HSIOFEOP.
+           MOVE  HSIO-SQMC    TO  HSIOSQMC.
+      *
+           MOVE  K2XOK        TO  DLINFO-STATUS.
+           MOVE  ZERO         TO  DLCOND-NF.
+           MOVE  K4XHSIO      TO  DLCOND-ARCH.
+      *
+           MOVE  WK-SELECT    TO  WK-INSTRUC.
+           MOVE  WK-UNLOCK    TO  WK-BLOQUEO.
+           MOVE  K4XHSIO      TO  WK-ARCHIVO.
+           MOVE  K8XHSIONCTA  TO  WK-TEXTO1.
+           MOVE  HSIONCTA     TO  WK-HSIONCTA.
+           MOVE  WK-HSIONCTA  TO  WK-CODIGO1.
+           MOVE  K8XHSIOFEOP  TO  WK-TEXTO2.
+           MOVE  HSIOFEOP     TO  WK-HSIOFEOP.
+           MOVE  WK-HSIOFEOP  TO  WK-CODIGO2.
+           MOVE  K8XHSIOSQMC  TO  WK-TEXTO3.
+           MOVE  HSIOSQMC     TO  WK-HSIOSQMC.
+           MOVE  WK-HSIOSQMC  TO  WK-CODIGO3.
+           MOVE  WK-DISARCH   TO  DLDISPLA-BLOCK.
+      *
+           EXEC SQL
+            SELECT
+              HSIONCTA, HSIOFEOP, HSIOSQMC, HSIOCSIO, HSIOREFE,
+              HSIOSSIO, HSIOESOP, HSIONCOM, HSIOLCOM, HSIOPCOM,
+              HSIOTRED, HSIODRED, HSIONUBA
+            , HSIONRED                                                  BUG21031
+            , HSIOCAVV                                                  PRJ0155777
+            INTO
+              :HSIONCTA, :HSIOFEOP, :HSIOSQMC, :HSIOCSIO, :HSIOREFE,
+              :HSIOSSIO, :HSIOESOP, :HSIONCOM, :HSIOLCOM, :HSIOPCOM,
+              :HSIOTRED, :HSIODRED, :HSIONUBA
+            , :HSIONRED                                                 BUG21031
+            , :HSIOCAVV                                                 PRJ0155777
+            FROM HSIO
+            WHERE ( HSIONCTA = :HSIONCTA )
+                     AND ( HSIOFEOP = :HSIOFEOP )
+                     AND ( HSIOSQMC = :HSIOSQMC )
+           FOR UPDATE
+           END-EXEC.
+      *
+           PERFORM CAMB-STAT-ORA THRU FIN-CAMB-STAT-ORA.
+      *
+           DISPLAY 'LECT-LK-HSIO-HSIOCAVV : ' HSIOCAVV                  PRJ0155777
+      *     
+           IF    DLBUEN-ACCESO
+           THEN  PERFORM REG-HSIO-A-TRAHTA-HSIO
+                    THRU FIN-REG-HSIO-A-TRAHTA-HSIO
+           ELSE  NEXT SENTENCE.
+      *
+       FIN-LECT-LK-HSIO.
+           EXIT.
+      *
+      *
+       LECT-UN-HSIO.
+      **************
+      *
+           MOVE  HSIO-NCTA    TO  HSIONCTA.
+      *
+           MOVE  HSIO-FEOP    TO  HSIOFEOP.
+           MOVE  HSIO-SQMC    TO  HSIOSQMC.
+      *
+           MOVE  K2XOK        TO  DLINFO-STATUS.
+           MOVE  ZERO         TO  DLCOND-NF.
+           MOVE  K4XHSIO      TO  DLCOND-ARCH.
+      *
+           MOVE  WK-SELECT    TO  WK-INSTRUC.
+           MOVE  WK-UNLOCK    TO  WK-BLOQUEO.
+           MOVE  K4XHSIO      TO  WK-ARCHIVO.
+           MOVE  K8XHSIONCTA  TO  WK-TEXTO1.
+           MOVE  HSIONCTA     TO  WK-HSIONCTA.
+           MOVE  WK-HSIONCTA  TO  WK-CODIGO1.
+           MOVE  K8XHSIOFEOP  TO  WK-TEXTO2.
+           MOVE  HSIOFEOP     TO  WK-HSIOFEOP.
+           MOVE  WK-HSIOFEOP  TO  WK-CODIGO2.
+           MOVE  K8XHSIOSQMC  TO  WK-TEXTO3.
+           MOVE  HSIOSQMC     TO  WK-HSIOSQMC.
+           MOVE  WK-HSIOSQMC  TO  WK-CODIGO3.
+           MOVE  WK-DISARCH   TO  DLDISPLA-BLOCK.
+      *
+           EXEC SQL
+            SELECT
+              HSIONCTA, HSIOFEOP, HSIOSQMC, HSIOCSIO, HSIOREFE,
+              HSIOSSIO, HSIOESOP, HSIONCOM, HSIOLCOM, HSIOPCOM,
+              HSIOTRED, HSIODRED, HSIONUBA
+            , HSIONRED                                                  BUG21031
+            , HSIOCAVV                                                  PRJ0155777
+            INTO
+              :HSIONCTA, :HSIOFEOP, :HSIOSQMC, :HSIOCSIO, :HSIOREFE,
+              :HSIOSSIO, :HSIOESOP, :HSIONCOM, :HSIOLCOM, :HSIOPCOM,
+              :HSIOTRED, :HSIODRED, :HSIONUBA
+            , :HSIONRED                                                 BUG21031
+            , :HSIOCAVV                                                 PRJ0155777
+            FROM HSIO
+            WHERE ( HSIONCTA = :HSIONCTA )
+                     AND ( HSIOFEOP = :HSIOFEOP )
+                     AND ( HSIOSQMC = :HSIOSQMC )
+           END-EXEC.
+      *
+           PERFORM CAMB-STAT-ORA THRU FIN-CAMB-STAT-ORA.
+      *
+           DISPLAY 'LECT-UN-HSIO-HSIOCAVV : ' HSIOCAVV                  PRJ0155777
+      *                
+           IF    DLBUEN-ACCESO
+           THEN  PERFORM REG-HSIO-A-TRAHTA-HSIO
+                    THRU FIN-REG-HSIO-A-TRAHTA-HSIO
+           ELSE  NEXT SENTENCE.
+      *
+       FIN-LECT-UN-HSIO.
+           EXIT.
+      *
+       LECT-PRIMARIA.
+      ***************
+      *
+           EVALUATE TRUE
+               WHEN ARCH-HTAR
+                 PERFORM LECT-PRI-HTAR      THRU FIN-LECT-PRI-HTAR
+               WHEN ARCH-HSIO
+                 PERFORM LECT-PRI-HSIO      THRU FIN-LECT-PRI-HSIO
+               WHEN ARCH-HTHS
+                 IF    ( HSIO-NCTA = HTAR-NCTA ) AND
+                       ( HSIO-FEOP = HTAR-FEOP ) AND
+                       ( HSIO-SQMC = HTAR-SQMC )
+                 THEN  PERFORM LECT-PRI-HTAR
+                          THRU FIN-LECT-PRI-HTAR
+                       PERFORM LECT-PRI-HSIO
+                          THRU FIN-LECT-PRI-HSIO
+                 ELSE  MOVE CONDN021    TO DLCOND-NUM
+                       MOVE SPACES      TO DLCOND-DATOS
+                       MOVE SPACES      TO W-MASCARA
+                       MOVE K8XHSIONCTA TO W-MASC-TEXTO1
+                       MOVE HSIO-NCTA   TO W-MASC-CODIGO1
+                       MOVE K8XHSIOFEOP TO W-MASC-TEXTO2
+                       MOVE HSIO-FEOP   TO W-MASC-CODIGO2
+                       MOVE K8XHSIOSQMC TO W-MASC-TEXTO3
+                       MOVE HSIO-SQMC   TO W-MASC-CODIGO3
+                       MOVE K8XHTARNCTA TO W-MASC-TEXTO4
+                       MOVE HTAR-NCTA   TO W-MASC-CODIGO4
+                       MOVE K8XHTARFEOP TO W-MASC-TEXTO5
+                       MOVE HTAR-FEOP   TO W-MASC-CODIGO5
+                       MOVE K8XHTARSQMC TO W-MASC-TEXTO6
+                       MOVE HTAR-SQMC   TO W-MASC-CODIGO6
+                       MOVE W-MASCARA   TO DLDISPLA-BLOCK
+                       PERFORM DISPLAYAR    THRU FIN-DISPLAYAR
+                       PERFORM CONDICION    THRU FIN-CONDICION
+               WHEN OTHER
+                    NEXT SENTENCE
+           END-EVALUATE.
+      *
+      **** IF    ARCH-HTAR
+      **** ELSE  IF    ARCH-HSIO
+      ****       THEN  PERFORM LECT-PRI-HSIO THRU FIN-LECT-PRI-HSIO
+      ****       ELSE  IF    ARCH-HTHS
+      ****             THEN
+      **** THEN  PERFORM LECT-PRI-HTAR      THRU FIN-LECT-PRI-HTAR
+      ****       THEN  PERFORM LECT-PRI-HSIO THRU FIN-LECT-PRI-HSIO
+      *
+       FIN-LECT-PRIMARIA.
+           EXIT.
+      *
+      *
+      *
+       LECT-PRI-HTAR.
+      ***************
+      *
+           MOVE HTAR-NCTA         TO HTARNCTA.
+           MOVE HTAR-FEOP         TO HTARFEOP.
+           MOVE HTAR-SQMC         TO HTARSQMC.
+      *
+           MOVE 'OK'              TO DLINFO-STATUS.
+           MOVE ZEROS             TO DLCOND-NF.
+           MOVE K4XHTAR           TO DLCOND-ARCH.
+           MOVE WK-SELECT         TO WK-INSTRUC.
+           MOVE WK-LOCK           TO WK-BLOQUEO.
+           MOVE K4XHTAR           TO WK-ARCHIVO.
+           MOVE K8XHTARNCTA       TO WK-TEXTO1.
+           MOVE HTARNCTA          TO WK-CODIGO1.
+           MOVE K8XHTARFEOP       TO WK-TEXTO2.
+           MOVE HTARFEOP          TO WK-CODIGO2.
+           MOVE K8XHTARSQMC       TO WK-TEXTO2.
+           MOVE HTARSQMC          TO WK-CODIGO2.
+           MOVE WK-DISARCH        TO DLDISPLA-BLOCK.
+      *
+           EXEC SQL
+             SELECT
+               HTARNCTA,  HTARFEOP,  HTARSQMC,  HTARNTAR,  HTARFEEQ,
+               HTARESTA,  HTARTERM,  HTARNUOP,  HTARTIEN,  HTARNTER,
+               HTARSECO,  HTARENGO,  HTARHOEQ,  HTARCOOP,  HTARCORE,
+               HTARESOP,  HTARCAUR,  HTARCOIN,  HTARSESC,  HTARORIG,
+               HTARIMPO,  HTAREMIS,  HTARNAUT,  HTARCOPA,  HTARCOMO,
+               HTARIMDI,  HTARNSEO,  HTARIMOO,  HTARNAUO,  HTARFOPO,
+               HTARCOAC,  HTARCOAN,  HTARCOCC,  HTARCORC,  HTARCOIC,
+               HTAROPSO,  HTAROPPR,  HTARINFA,  HTARONOF,  HTARMERC,
+               HTARREDE,  HTARCMOP,  HTARICOT,  HTARICOM,
+               HTARCAAP                                                 BUG16136
+             INTO
+               :HTARNCTA, :HTARFEOP, :HTARSQMC, :HTARNTAR, :HTARFEEQ,
+               :HTARESTA, :HTARTERM, :HTARNUOP, :HTARTIEN, :HTARNTER,
+               :HTARSECO, :HTARENGO, :HTARHOEQ, :HTARCOOP, :HTARCORE,
+               :HTARESOP, :HTARCAUR, :HTARCOIN, :HTARSESC, :HTARORIG,
+               :HTARIMPO, :HTAREMIS, :HTARNAUT, :HTARCOPA, :HTARCOMO,
+               :HTARIMDI, :HTARNSEO, :HTARIMOO, :HTARNAUO, :HTARFOPO,
+               :HTARCOAC, :HTARCOAN, :HTARCOCC, :HTARCORC, :HTARCOIC,
+               :HTAROPSO, :HTAROPPR, :HTARINFA, :HTARONOF, :HTARMERC,
+               :HTARREDE, :HTARCMOP, :HTARICOT, :HTARICOM,
+               :HTARCAAP                                                BUG16136
+             FROM HTAR
+             WHERE ( HTARNCTA = :HTARNCTA )
+                   AND  ( HTARFEOP = :HTARFEOP )
+                   AND  ( HTARSQMC = :HTARSQMC )
+           FOR UPDATE
+           END-EXEC.
+      *
+           PERFORM CAMB-STAT-ORA THRU FIN-CAMB-STAT-ORA.
+      *
+           IF    DLNOT-DATA
+           THEN  NEXT SENTENCE
+           ELSE  PERFORM REG-HTAR-A-TRAHTA-HTAR
+                    THRU FIN-REG-HTAR-A-TRAHTA-HTAR.
+      *
+       FIN-LECT-PRI-HTAR.
+           EXIT.
+      *
+      *
+       LECT-PRI-HSIO.
+      ***************
+      *
+           MOVE  HSIO-NCTA    TO  HSIONCTA.
+           MOVE  HSIO-FEOP    TO  HSIOFEOP.
+           MOVE  HSIO-SQMC    TO  HSIOSQMC.
+      *
+           MOVE  K2XOK        TO  DLINFO-STATUS.
+           MOVE  ZERO         TO  DLCOND-NF.
+           MOVE  K4XHSIO      TO  DLCOND-ARCH.
+      *
+           MOVE  WK-SELECT    TO  WK-INSTRUC.
+           MOVE  WK-UNLOCK    TO  WK-BLOQUEO.
+           MOVE  K4XHSIO      TO  WK-ARCHIVO.
+           MOVE  K8XHSIONCTA  TO  WK-TEXTO1.
+           MOVE  HSIONCTA     TO  WK-HSIONCTA.
+           MOVE  WK-HSIONCTA  TO  WK-CODIGO1.
+           MOVE  K8XHSIOFEOP  TO  WK-TEXTO2.
+           MOVE  HSIOFEOP     TO  WK-HSIOFEOP.
+           MOVE  WK-HSIOFEOP  TO  WK-CODIGO2.
+           MOVE  K8XHSIOSQMC  TO  WK-TEXTO3.
+           MOVE  HSIOSQMC     TO  WK-HSIOSQMC.
+           MOVE  WK-HSIOSQMC  TO  WK-CODIGO3.
+           MOVE  WK-DISARCH   TO  DLDISPLA-BLOCK.
+      *
+           EXEC SQL
+            SELECT
+              HSIONCTA, HSIOFEOP, HSIOSQMC, HSIOCSIO, HSIOREFE,
+              HSIOSSIO, HSIOESOP, HSIONCOM, HSIOLCOM, HSIOPCOM,
+              HSIOTRED, HSIODRED, HSIONUBA
+            , HSIONRED                                                  BUG21031
+            , HSIOCAVV                                                  PRJ0155777            
+            INTO
+              :HSIONCTA, :HSIOFEOP, :HSIOSQMC, :HSIOCSIO, :HSIOREFE,
+              :HSIOSSIO, :HSIOESOP, :HSIONCOM, :HSIOLCOM, :HSIOPCOM,
+              :HSIOTRED, :HSIODRED, :HSIONUBA
+            , :HSIONRED                                                 BUG21031
+            , :HSIOCAVV                                                 PRJ0155777            
+            FROM HSIO
+                   WHERE ( HSIONCTA = :HSIONCTA )
+                         AND ( HSIOFEOP = :HSIOFEOP )
+                         AND ( HSIOSQMC = :HSIOSQMC )
+           FOR UPDATE
+           END-EXEC.
+           PERFORM CAMB-STAT-ORA     THRU FIN-CAMB-STAT-ORA.
+      *
+           DISPLAY 'LECT-PRI-HSIO-HSIOCAVV : ' HSIOCAVV                 PRJ0155777
+      *     
+           IF    DLBUEN-ACCESO
+           THEN  PERFORM REG-HSIO-A-TRAHTA-HSIO
+                    THRU FIN-REG-HSIO-A-TRAHTA-HSIO
+           ELSE  NEXT SENTENCE.
+      *
+       FIN-LECT-PRI-HSIO.
+           EXIT.
+      *
+       MODI-HTAR.
+      ***********
+      *
+           PERFORM TRAHTA-HTAR-A-REG-HTAR
+                   THRU FIN-TRAHTA-HTAR-A-REG-HTAR.
+      *
+           MOVE 'OK'        TO DLINFO-STATUS.
+           MOVE CONDN022    TO DLCOND-NF.
+           MOVE K4XHTAR     TO DLCOND-ARCH.
+           MOVE WK-UPDATE   TO WK-INSTRUC.
+           MOVE K4XHTAR     TO WK-ARCHIVO.
+           MOVE K8XHTARFEEQ TO WK-TEXTO1.
+           MOVE HTARFEEQ    TO WK-CODIGO1.
+           MOVE HTARFEEQ    TO W-HTARFEEQ.
+           MOVE K8XHTARESTA TO WK-TEXTO2.
+           MOVE HTARESTA    TO WK-CODIGO2.
+           MOVE HTARESTA    TO W-HTARESTA.
+           MOVE K8XHTARTERM TO WK-TEXTO3.
+           MOVE HTARTERM    TO WK-CODIGO3.
+           MOVE HTARTERM    TO W-HTARTERM.
+           MOVE K8XHTARNUOP TO WK-TEXTO4.
+           MOVE HTARNUOP    TO WK-CODIGO4.
+           MOVE HTARNUOP    TO W-HTARNUOP.
+           MOVE W-HTAR-CLAV TO DLCOND-DATOS.
+           MOVE WK-DISARCH  TO DLDISPLA-BLOCK.
+      *
+           EXEC SQL
+             UPDATE HTAR
+                 SET
+                      HTARTIEN = :HTARTIEN,
+                      HTARNTER = :HTARNTER,
+                      HTARSECO = :HTARSECO,
+                      HTARENGO = :HTARENGO,
+                      HTARHOEQ = :HTARHOEQ,
+                      HTARCOOP = :HTARCOOP,
+                      HTARCORE = :HTARCORE,
+                      HTARESOP = :HTARESOP,
+                      HTARCAUR = :HTARCAUR,
+                      HTARCOIN = :HTARCOIN,
+                      HTARSESC = :HTARSESC,
+                      HTARORIG = :HTARORIG,
+                      HTARIMPO = :HTARIMPO,
+                      HTAREMIS = :HTAREMIS,
+                      HTARNAUT = :HTARNAUT,
+                      HTARCOPA = :HTARCOPA,
+                      HTARCOMO = :HTARCOMO,
+                      HTARIMDI = :HTARIMDI,
+                      HTARNSEO = :HTARNSEO,
+                      HTARIMOO = :HTARIMOO,
+                      HTARNAUO = :HTARNAUO,
+                      HTARFOPO = :HTARFOPO,
+                      HTARCOAC = :HTARCOAC,
+                      HTARCOAN = :HTARCOAN,
+                      HTARCOCC = :HTARCOCC,
+                      HTARCORC = :HTARCORC,
+                      HTARCOIC = :HTARCOIC,
+                      HTAROPSO = :HTAROPSO,
+                      HTAROPPR = :HTAROPPR,
+                      HTARINFA = :HTARINFA,
+                      HTARONOF = :HTARONOF,
+                      HTARMERC = :HTARMERC,
+                      HTARREDE = :HTARREDE,
+                      HTARCMOP = :HTARCMOP,
+                      HTARICOT = :HTARICOT,
+                      HTARICOM = :HTARICOM,
+                      HTARCAAP = :HTARCAAP                              BUG16136
+                 WHERE
+                      ( HTARNCTA = :HTARNCTA ) AND
+                      ( HTARFEOP = :HTARFEOP ) AND
+                      ( HTARSQMC = :HTARSQMC )
+           END-EXEC.
+           PERFORM CAMB-STAT-ORA THRU FIN-CAMB-STAT-ORA.
+      *
+       FIN-MODI-HTAR.
+           EXIT.
+      *
+      *
+       MODI-HSIO.
+      ***********
+      *
+           PERFORM TRAHTA-HSIO-A-REG-HSIO
+              THRU FIN-TRAHTA-HSIO-A-REG-HSIO.
+      *
+           MOVE  'OK'         TO  DLINFO-STATUS.
+           MOVE  CONDN022     TO  DLCOND-NF.
+           MOVE  K4XHSIO      TO  DLCOND-ARCH.
+           MOVE  WK-UPDATE    TO  WK-INSTRUC.
+           MOVE  K4XHSIO      TO  WK-ARCHIVO.
+      *
+           MOVE  K8XHSIONCTA  TO  WK-TEXTO1.
+           MOVE  HSIONCTA     TO  WK-HSIONCTA.
+           MOVE  WK-HSIONCTA  TO  WK-CODIGO1.
+           MOVE  K8XHSIOFEOP  TO  WK-TEXTO2.
+           MOVE  HSIOFEOP     TO  WK-HSIOFEOP.
+           MOVE  WK-HSIOFEOP  TO  WK-CODIGO2.
+           MOVE  K8XHSIOSQMC  TO  WK-TEXTO3.
+           MOVE  HSIOSQMC     TO  WK-HSIOSQMC.
+           MOVE  WK-HSIOSQMC  TO  WK-CODIGO3.
+           MOVE  WK-DISARCH   TO  DLDISPLA-BLOCK.
+      *
+           display "BUG23933-GRTRAHTA-MODI-HSIO["                       BUG23933
+                   "NCTA |" HSIONCTA                                    BUG23933
+                   "FEOP |" HSIOFEOP                                    BUG23933
+                   "SQMC |" HSIOSQMC                                    BUG23933
+                   "NUBA |" HSIONUBA                                    BUG23933
+                   "NRED |" HSIONRED "]".                               BUG23933
+           DISPLAY 'HSIOCAVV-PRJ0155777-MODI-HSIO : ' HSIOCAVV          PRJ0155777
+      *      
+           EXEC SQL
+             UPDATE HSIO
+                 SET
+                      HSIOCSIO = :HSIOCSIO,
+                      HSIOREFE = :HSIOREFE,
+                      HSIOSSIO = :HSIOSSIO,
+                      HSIOESOP = :HSIOESOP,
+                      HSIONCOM = :HSIONCOM,
+                      HSIOLCOM = :HSIOLCOM,
+                      HSIOPCOM = :HSIOPCOM,
+                      HSIOTRED = :HSIOTRED,
+                      HSIODRED = :HSIODRED,
+                      HSIONUBA = :HSIONUBA
+                     ,HSIONRED = :HSIONRED                              BUG21031
+                     ,HSIOCAVV = :HSIOCAVV                              PRJ0155777
+                 WHERE
+                      ( HSIONCTA = :HSIONCTA )
+                      AND ( HSIOFEOP = :HSIOFEOP )
+                      AND( HSIOSQMC = :HSIOSQMC )
+           END-EXEC.
+      *
+           PERFORM CAMB-STAT-ORA THRU FIN-CAMB-STAT-ORA.
+      *
+       FIN-MODI-HSIO.
+           EXIT.
+      *
+       INSERCION.
+      ***********
+      *
+           IF    ARCH-HTAR
+           THEN  PERFORM INSE-HTAR     THRU FIN-INSE-HTAR
+           ELSE  NEXT SENTENCE.
+      *
+           IF    ARCH-HTHS
+           THEN  IF    ( HSIO-NCTA = HTAR-NCTA ) AND
+                       ( HSIO-FEOP = HTAR-FEOP ) AND
+                       ( HSIO-SQMC = HTAR-SQMC )
+                 THEN  PERFORM INSE-HSIO
+                          THRU FIN-INSE-HSIO
+                      DISPLAY 'GRTRAHTA INSERCION MEDIO-MEDIO'
+                       PERFORM INSE-HTAR
+                          THRU FIN-INSE-HTAR
+                 ELSE  MOVE CONDN021    TO DLCOND-NUM
+                       MOVE SPACES      TO DLCOND-DATOS
+                       MOVE SPACES      TO W-MASCARA
+                       MOVE K8XHSIONCTA TO W-MASC-TEXTO1
+                       MOVE HSIO-NCTA   TO W-MASC-CODIGO1
+                       MOVE K8XHSIOFEOP TO W-MASC-TEXTO2
+                       MOVE HSIO-FEOP   TO W-MASC-CODIGO2
+                       MOVE K8XHSIOSQMC TO W-MASC-TEXTO3
+                       MOVE HSIO-SQMC   TO W-MASC-CODIGO3
+                       MOVE K8XHTARNCTA TO W-MASC-TEXTO4
+                       MOVE HTAR-NCTA   TO W-MASC-CODIGO4
+                       MOVE K8XHTARFEOP TO W-MASC-TEXTO5
+                       MOVE HTAR-FEOP   TO W-MASC-CODIGO5
+                       MOVE K8XHTARSQMC TO W-MASC-TEXTO6
+                       MOVE HTAR-SQMC   TO W-MASC-CODIGO6
+                       MOVE W-MASCARA   TO DLDISPLA-BLOCK
+                       PERFORM DISPLAYAR
+                          THRU FIN-DISPLAYAR
+                       PERFORM CONDICION
+                          THRU FIN-CONDICION
+           ELSE  NEXT SENTENCE.
+      *
+       FIN-INSERCION.
+           EXIT.
+      *
+       INSE-HTAR.
+      ***********
+      *
+           PERFORM TRAHTA-HTAR-A-REG-HTAR
+                   THRU FIN-TRAHTA-HTAR-A-REG-HTAR.
+           DISPLAY 'GRTRAHTA INSE-HTAR HTARSQMC:' HTARSQMC.
+      *
+           MOVE 'OK'        TO DLINFO-STATUS.
+           MOVE CONDN024    TO DLCOND-DP.
+           MOVE K4XHTAR     TO DLCOND-ARCH.
+           MOVE WK-INSERT   TO WK-INSTRUC.
+           MOVE K4XHTAR     TO WK-ARCHIVO.
+           MOVE K8XHTARFEEQ TO WK-TEXTO1.
+           MOVE HTARFEEQ    TO WK-CODIGO1.
+           MOVE HTARFEEQ    TO W-HTARFEEQ.
+           MOVE K8XHTARESTA TO WK-TEXTO2.
+           MOVE HTARESTA    TO WK-CODIGO2.
+           MOVE HTARESTA    TO W-HTARESTA.
+           MOVE K8XHTARTERM TO WK-TEXTO3.
+           MOVE HTARTERM    TO WK-CODIGO3.
+           MOVE HTARTERM    TO W-HTARTERM.
+           MOVE K8XHTARNUOP TO WK-TEXTO4.
+           MOVE HTARNUOP    TO WK-CODIGO4.
+           MOVE HTARNUOP    TO W-HTARNUOP.
+           MOVE W-HTAR-CLAV TO DLCOND-DATOS.
+           MOVE WK-DISARCH  TO DLDISPLA-BLOCK.
+      *
+           EXEC SQL
+             INSERT INTO HTAR  (
+               HTARNCTA,  HTARFEOP,  HTARSQMC,  HTARNTAR,  HTARFEEQ,
+               HTARESTA,  HTARTERM,  HTARNUOP,  HTARTIEN,  HTARNTER,
+               HTARSECO,  HTARENGO,  HTARHOEQ,  HTARCOOP,  HTARCORE,
+               HTARESOP,  HTARCAUR,  HTARCOIN,  HTARSESC,  HTARORIG,
+               HTARIMPO,  HTAREMIS,  HTARNAUT,  HTARCOPA,  HTARCOMO,
+               HTARIMDI,  HTARNSEO,  HTARIMOO,  HTARNAUO,  HTARFOPO,
+               HTARCOAC,  HTARCOAN,  HTARCOCC,  HTARCORC,  HTARCOIC,
+               HTAROPSO,  HTAROPPR,  HTARINFA,  HTARONOF,  HTARMERC,
+               HTARREDE,  HTARCMOP,  HTARICOT,  HTARICOM,
+               HTARCAAP  )                                              BUG16136
+             VALUES (
+              :HTARNCTA, :HTARFEOP, :HTARSQMC, :HTARNTAR, :HTARFEEQ,
+              :HTARESTA, :HTARTERM, :HTARNUOP, :HTARTIEN, :HTARNTER,
+              :HTARSECO, :HTARENGO, :HTARHOEQ, :HTARCOOP, :HTARCORE,
+              :HTARESOP, :HTARCAUR, :HTARCOIN, :HTARSESC, :HTARORIG,
+              :HTARIMPO, :HTAREMIS, :HTARNAUT, :HTARCOPA, :HTARCOMO,
+              :HTARIMDI, :HTARNSEO, :HTARIMOO, :HTARNAUO, :HTARFOPO,
+              :HTARCOAC, :HTARCOAN, :HTARCOCC, :HTARCORC, :HTARCOIC,
+              :HTAROPSO, :HTAROPPR, :HTARINFA, :HTARONOF, :HTARMERC,
+              :HTARREDE, :HTARCMOP, :HTARICOT, :HTARICOM,
+              :HTARCAAP                                                 BUG16136
+                                           )
+           END-EXEC.
+           PERFORM CAMB-STAT-ORA THRU FIN-CAMB-STAT-ORA.
+      *
+       FIN-INSE-HTAR.
+           EXIT.
+      *
+      *
+       INSE-HSIO.
+      ***********
+      *
+           PERFORM TRAHTA-HSIO-A-REG-HSIO
+                   THRU FIN-TRAHTA-HSIO-A-REG-HSIO.
+      *
+           MOVE 'OK'        TO DLINFO-STATUS.
+           MOVE ZERO        TO DLCOND-DP.
+           MOVE K4XHSIO     TO DLCOND-ARCH.
+           MOVE WK-INSERT   TO WK-INSTRUC.
+           MOVE K4XHSIO     TO WK-ARCHIVO.
+           MOVE K8XHSIONCTA TO WK-TEXTO1.
+           MOVE HSIONCTA    TO WK-CODIGO1.
+           MOVE K8XHSIOFEOP TO WK-TEXTO2.
+           MOVE HSIOFEOP    TO WK-CODIGO2.
+           MOVE K8XHSIOSQMC TO WK-TEXTO3.
+           MOVE HSIOSQMC    TO WK-CODIGO3.
+           MOVE W-HSIO-CLAV TO DLCOND-DATOS.
+           MOVE WK-DISARCH  TO DLDISPLA-BLOCK.
+      *      
+           display "BUG23933-GRTRAHTA-INSE-HSIO["                       BUG23933
+                   "NCTA |" HSIONCTA                                    BUG23933
+                   "FEOP |" HSIOFEOP                                    BUG23933
+                   "SQMC |" HSIOSQMC                                    BUG23933
+                   "NUBA |" HSIONUBA                                    BUG23933
+                   "NRED |" HSIONRED "]".                               BUG23933
+           DISPLAY 'HSIOCAVV-PRJ0155777 INSE-HSIO: ' HSIOCAVV           PRJ0155777
+      *      
+           EXEC SQL
+             INSERT INTO HSIO VALUES (
+               :HSIONCTA, :HSIOFEOP, :HSIOSQMC, :HSIOCSIO, :HSIOREFE,
+               :HSIOSSIO, :HSIOESOP, :HSIONCOM, :HSIOLCOM, :HSIOPCOM,
+               :HSIOTRED, :HSIODRED, :HSIONUBA
+             , :HSIONRED                                                BUG21031
+             , :HSIOCAVV                                                PRJ0155777
+                                )
+           END-EXEC.
+      *
+           PERFORM CAMB-STAT-ORA THRU FIN-CAMB-STAT-ORA.
+      *
+       FIN-INSE-HSIO.
+           EXIT.
+      *
+       LECTURA-SEC-HSIO.
+      ******************
+      *
+           IF    ARCH-HSIO
+                 OR  ARCH-HTHS
+           THEN  MOVE  HSIO-CSIO           TO   HSIOCSIO
+                 PERFORM LEER-UNLOCK-SEC-HSIO
+                    THRU FIN-LEER-UNLOCK-SEC-HSIO
+           ELSE  NEXT SENTENCE.
+      *
+           IF    ARCH-HTHS
+                 AND   DLBUEN-ACCESO
+           THEN  MOVE  HSIONCTA            TO   HTARNCTA
+                 MOVE  HSIOFEOP            TO   HTARFEOP
+                 MOVE  HSIOSQMC            TO   HTARSQMC
+                 PERFORM LEER-UNLOCK-PRIM-HTAR
+                    THRU FIN-LEER-UNLOCK-PRIM-HTAR
+                 IF    DLNOT-DATA
+                 THEN  MOVE  HSIONCTA      TO   WK-MASC-HSIO-NCTA
+                       MOVE  HSIOFEOP      TO   WK-MASC-HSIO-FEOP
+                       MOVE  HSIOSQMC      TO   WK-MASC-HSIO-SQMC
+                       MOVE  WK-MASC-HSIO  TO   DLDISPLA-BLOCK
+                       MOVE  K1X3          TO   DLDISPLA-TIPERR
+                       PERFORM DISPLAYAR   THRU FIN-DISPLAYAR
+                       MOVE  CONDN003      TO   DLCOND-NUM
+                       PERFORM CONDICION   THRU FIN-CONDICION
+                 ELSE  NEXT SENTENCE
+           ELSE  NEXT SENTENCE.
+      *
+       FIN-LECTURA-SEC-HSIO.
+           EXIT.
+      *
+       LEER-UNLOCK-SEC-HSIO.
+      **********************
+      *
+           MOVE  K2XOK        TO  DLINFO-STATUS.
+           MOVE  ZERO         TO  DLCOND-NF.
+           MOVE  K4XHSIO      TO  DLCOND-ARCH.
+      *
+           MOVE  WK-SELECT    TO  WK-INSTRUC.
+           MOVE  WK-UNLOCK    TO  WK-BLOQUEO.
+           MOVE  K4XHSIO      TO  WK-ARCHIVO.
+           MOVE  K8XHSIOCSIO  TO  WK-TEXTO1.
+           MOVE  HSIOCSIO     TO  WK-CODIGO1.
+           MOVE  WK-DISARCH   TO  DLDISPLA-BLOCK.
+      *
+           EXEC SQL
+               SELECT * INTO
+               :HSIONCTA, :HSIOFEOP, :HSIOSQMC, :HSIOCSIO, :HSIOREFE,
+               :HSIOSSIO, :HSIOESOP, :HSIONCOM, :HSIOLCOM, :HSIOPCOM,
+               :HSIOTRED, :HSIODRED, :HSIONUBA
+             , :HSIONRED                                                BUG21031
+             , :HSIOCAVV                                                PRJ0155777
+              FROM HSIO
+                   WHERE  HSIOCSIO = :HSIOCSIO
+           END-EXEC.
+      *
+           PERFORM CAMB-STAT-ORA THRU FIN-CAMB-STAT-ORA.
+      *
+           DISPLAY 'HSIOCAVV-LEER-UNLOCK-SEC-HSIO : '  HSIOCAVV         PRJ0155777
+      *     
+           IF    DLBUEN-ACCESO
+           THEN  PERFORM REG-HSIO-A-TRAHTA-HSIO
+                    THRU FIN-REG-HSIO-A-TRAHTA-HSIO
+           ELSE  NEXT SENTENCE.
+      *
+       FIN-LEER-UNLOCK-SEC-HSIO.
+           EXIT.
+
+       LECTURA-REFERENCIA.
+      ********************
+      *
+           IF    ARCH-HSIO
+                 OR  ARCH-HTHS
+           THEN  MOVE  HSIO-REFE           TO   HSIOREFE
+                 PERFORM LEER-UNLOCK-TER-HSIO
+                    THRU FIN-LEER-UNLOCK-TER-HSIO
+           ELSE  NEXT SENTENCE.
+      *
+           IF    ARCH-HTHS
+                 AND   DLBUEN-ACCESO
+           THEN  MOVE  HSIONCTA            TO   HTARNCTA
+                 MOVE  HSIOFEOP            TO   HTARFEOP
+                 MOVE  HSIOSQMC            TO   HTARSQMC
+                 PERFORM LEER-UNLOCK-PRIM-HTAR
+                    THRU FIN-LEER-UNLOCK-PRIM-HTAR
+                 IF    DLNOT-DATA
+                 THEN  MOVE  HSIONCTA      TO   WK-MASC-HSIO-NCTA
+                       MOVE  HSIOFEOP      TO   WK-MASC-HSIO-FEOP
+                       MOVE  HSIOSQMC      TO   WK-MASC-HSIO-SQMC
+                       MOVE  WK-MASC-HSIO  TO   DLDISPLA-BLOCK
+                       MOVE  K1X3          TO   DLDISPLA-TIPERR
+                       PERFORM DISPLAYAR   THRU FIN-DISPLAYAR
+                       MOVE  CONDN003      TO   DLCOND-NUM
+                       PERFORM CONDICION   THRU FIN-CONDICION
+                 ELSE  NEXT SENTENCE
+           ELSE  NEXT SENTENCE.
+      *
+       FIN-LECTURA-REFERENCIA.
+           EXIT.
+      *
+      *
+      *
+       LEER-UNLOCK-TER-HSIO.
+      **********************
+      *
+           MOVE  K2XOK        TO  DLINFO-STATUS.
+           MOVE  ZERO         TO  DLCOND-NF.
+           MOVE  K4XHSIO      TO  DLCOND-ARCH.
+      *
+           MOVE  WK-SELECT    TO  WK-INSTRUC.
+           MOVE  WK-UNLOCK    TO  WK-BLOQUEO.
+           MOVE  K4XHSIO      TO  WK-ARCHIVO.
+           MOVE  K8XHSIOREFE  TO  WK-TEXTO1.
+           MOVE  HSIOREFE     TO  WK-CODIGO1.
+           MOVE  WK-DISARCH   TO  DLDISPLA-BLOCK.
+      *
+           EXEC SQL
+               SELECT * INTO
+               :HSIONCTA, :HSIOFEOP, :HSIOSQMC, :HSIOCSIO, :HSIOREFE,
+               :HSIOSSIO, :HSIOESOP, :HSIONCOM, :HSIOLCOM, :HSIOPCOM,
+               :HSIOTRED, :HSIODRED, :HSIONUBA
+             , :HSIONRED                                                BUG21031
+             , :HSIOCAVV                                                PRJ0155777
+              FROM HSIO
+                   WHERE  HSIOREFE = :HSIOREFE
+           END-EXEC.
+      *
+           PERFORM CAMB-STAT-ORA THRU FIN-CAMB-STAT-ORA.
+      *
+           DISPLAY 'HSIOCAVV-LEER-UNLOCK-TER-HSIO : '  HSIOCAVV         PRJ0155777
+      *  
+           IF    DLBUEN-ACCESO
+           THEN  PERFORM REG-HSIO-A-TRAHTA-HSIO
+                    THRU FIN-REG-HSIO-A-TRAHTA-HSIO
+           ELSE  NEXT SENTENCE.
+      *
+       FIN-LEER-UNLOCK-TER-HSIO.
+           EXIT.
+      *
+      *
+       LEER-UNLOCK-PRIM-HTAR.
+      ***********************
+      *
+           MOVE  K2XOK        TO  DLINFO-STATUS.
+           MOVE  ZERO         TO  DLCOND-NF.
+           MOVE  K4XHTAR      TO  DLCOND-ARCH.
+      *
+           MOVE  WK-SELECT    TO  WK-INSTRUC.
+           MOVE  WK-UNLOCK    TO  WK-BLOQUEO.
+           MOVE  K4XHTAR      TO  WK-ARCHIVO.
+           MOVE  K8XHTARNCTA  TO  WK-TEXTO1.
+           MOVE  HTARNCTA     TO  WK-HTARNCTA.
+           MOVE  WK-HTARNCTA  TO  WK-CODIGO1.
+           MOVE  K8XHTARFEOP  TO  WK-TEXTO2.
+           MOVE  HTARFEOP     TO  WK-HTARFEOP.
+           MOVE  WK-HTARFEOP  TO  WK-CODIGO2.
+           MOVE  K8XHTARSQMC  TO  WK-TEXTO3.
+           MOVE  HTARSQMC     TO  WK-HTARSQMC.
+           MOVE  WK-HTARSQMC  TO  WK-CODIGO3.
+           MOVE  WK-DISARCH   TO  DLDISPLA-BLOCK.
+      *
+           EXEC SQL
+             SELECT    * INTO
+              :HTARNCTA, :HTARFEOP, :HTARSQMC, :HTARNTAR, :HTARFEEQ,
+              :HTARESTA, :HTARTERM, :HTARNUOP, :HTARTIEN, :HTARNTER,
+              :HTARSECO, :HTARENGO, :HTARHOEQ, :HTARCOOP, :HTARCORE,
+              :HTARESOP, :HTARCAUR, :HTARCOIN, :HTARSESC, :HTARORIG,
+              :HTARIMPO, :HTAREMIS, :HTARNAUT, :HTARCOPA, :HTARCOMO,
+              :HTARIMDI, :HTARNSEO, :HTARIMOO, :HTARNAUO, :HTARFOPO,
+              :HTARCOAC, :HTARCOAN, :HTARCOCC, :HTARCORC, :HTARCOIC,
+              :HTAROPSO, :HTAROPPR, :HTARINFA, :HTARONOF, :HTARMERC,
+              :HTARREDE, :HTARCMOP, :HTARICOT, :HTARICOM,
+              :HTARCAAP                                                 BUG16136
+            FROM HTAR
+                 WHERE ( HTARNCTA = :HTARNCTA )
+                        AND ( HTARFEOP = :HTARFEOP )
+                        AND ( HTARSQMC = :HTARSQMC )
+           END-EXEC.
+      *
+           PERFORM CAMB-STAT-ORA THRU FIN-CAMB-STAT-ORA.
+      *
+           IF    DLBUEN-ACCESO
+           THEN  PERFORM REG-HTAR-A-TRAHTA-HTAR
+                 THRU FIN-REG-HTAR-A-TRAHTA-HTAR
+           ELSE  NEXT SENTENCE.
+      *
+       FIN-LEER-UNLOCK-PRIM-HTAR.
+           EXIT.
+      *
+       REG-HTAR-A-TRAHTA-HTAR.
+      ************************
+      *
+           MOVE  HTAR              TO  TRAHTA-HTAR.
+      *
+       FIN-REG-HTAR-A-TRAHTA-HTAR.
+           EXIT.
+      *
+      *
+      *
+       TRAHTA-HTAR-A-REG-HTAR.
+      ************************
+      *
+           MOVE TRAHTA-HTAR        TO  HTAR.
+      *
+           IF    HTARTERM = SPACES
+           THEN  MOVE K11XDESCONOC TO HTARTERM
+           ELSE  NEXT SENTENCE.
+      *
+       FIN-TRAHTA-HTAR-A-REG-HTAR.
+           EXIT.
+      *
+      *
+       REG-HSIO-A-TRAHTA-HSIO.
+      ************************
+      *
+           MOVE HSIO        TO TRAHTA-HSIO.
+      *
+           INITIALIZE AREA-GRDCAISO                                     BUG22953
+           MOVE    HSIO-NCOM         TO      DCAISO-TEXT-IN.            BUG22953
+           CALL   'GRDCAISO'         USING   AREA-GRDCAISO.             BUG22953
+           MOVE    DCAISO-TEXT-OUT   TO      HSIO-NCOM.                 BUG22953
+      *          
+       FIN-REG-HSIO-A-TRAHTA-HSIO.
+           EXIT.
+      *
+      *
+      *
+       TRAHTA-HSIO-A-REG-HSIO.
+      ************************
+      *
+           MOVE TRAHTA-HSIO TO HSIO.
+      *
+           INITIALIZE AREA-GRDCAISO                                     BUG22953
+           MOVE    HSIONCOM          TO      DCAISO-TEXT-IN.            BUG22953
+           CALL   'GRDCAISO'         USING   AREA-GRDCAISO.             BUG22953
+           MOVE    DCAISO-TEXT-OUT   TO      HSIONCOM.                  BUG22953
+      *          
+      *
+       FIN-TRAHTA-HSIO-A-REG-HSIO.
+           EXIT.
+      *
+       CONDICION.
+      ***********
+      *
+           CALL 'GRCONDIC'  USING  DLMT-INFO-BLOCK
+                                   DLAREA-TX.
+           IF    DLVOID
+           THEN  GO TO FIN-RUTINA
+           ELSE  NEXT SENTENCE.
+      *
+       FIN-CONDICION.
+           EXIT.
+      *
+      *
+      *
+      *******************************
+      *    WHENEVER                 *
+      *******************************
+           COPY "ERRS1.LEP"  .
+      *
+      *
+      *
+      *******************************
+      *    RUTINA PARA DISPLAYAR    *
+      *******************************
+           COPY "DISPLA.LEP"  .
+           COPY "STATOWH.LEP".
+      *
+      *************************** FIN FUENTE **********************

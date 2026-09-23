@@ -1,0 +1,47 @@
+      ******************************************************************
+      *
+      * GRUPO PAR-MPXCIFR(PMPXCIFR) LONGITUD(296)
+      *
+      * PARAMETROS DEL PROGRAMA MPXCIFR
+      *
+      ******************************************************************
+       01  PMPXCIFR.
+           02 MPXCIFR                 PIC X(8)
+                                        VALUE 'GRCIFRAR'.
+              88 PROGRAMA-VALIDO        VALUE 'GRCIFRAR'.
+           02 EMPXCIFR.
+             04 CPRCSO                  PIC XX
+                                        VALUE SPACES.
+              88 TRUNCAMIENTO           VALUE '01'.
+              88 EXPANSION              VALUE '02'.
+             04 NUEMPRCE                PIC X(4)   VALUE SPACES.
+             04 TXTCFRDO                PIC X(16)  VALUE SPACES.
+             04 TXTPLNO                 PIC X(16)  VALUE SPACES.
+           02 SMPXCIFR.
+             04 TRTRNO                  PIC X(100)
+                                        VALUE 'ERROR EN LLAMADA'.
+             04 CRTRNO                  PIC XX
+                                        VALUE '99'.
+              88 OK-MPXCIFR             VALUE '01'.
+              88 ERROR-IMPREVISTO       VALUE '02'.
+              88 ERROR-PREVISTO         VALUE '03'.
+              88 ERROR-PREVISTO-ROLLBACK
+                                        VALUE '04'.
+             04 CRSPSTA                 PIC XX
+                                        VALUE SPACES.
+              88 CORRECTO               VALUE '01'.
+              88 MARCA-TIPO-NO-EXISTE   VALUE '02'.
+              88 DATOS-ENTRADA-INCOMPLETOS
+                                        VALUE '03'.
+              88 ERROR-DB2              VALUE '04'.
+              88 EMPRESA-EXTERNA-NO-EXISTE
+                                        VALUE '05'.
+              88 CARACTER-ERRONEO       VALUE '06'.
+             04 CSQLCODE                PIC -99999
+                                        VALUE ZEROS.
+             04 NUMNSJE                 PIC X(8)
+                                        VALUE SPACES.
+             04 TXTCFRDO                PIC X(16)
+                                        VALUE SPACES.
+             04 TXTPLNO                PIC X(16)
+                                        VALUE SPACES.

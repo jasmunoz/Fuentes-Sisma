@@ -1,0 +1,410 @@
+echo "########################## compilo servicios ####################"
+alias echo='echo -e'
+
+################################
+# directorio
+################################
+
+echo "PWD" `pwd`
+DIR=""
+export DIR
+DIR=`pwd | cut -c 1-15`
+echo "DIR1" $DIR
+export DIR
+
+if [[ $DIR = "/sf/preprod/sf" ]]
+then  echo "PREPROD"
+      DIR="/sf/preprod/sf"
+       export preprod=2
+else 
+      echo "SF"
+      DIR="/sf"
+      export preprod=1
+fi 
+echo "preprod" $preprod
+echo "DIR2" $DIR
+
+MP_SISMA=$DIR/sisma
+export MP_SISMA
+
+echo "MP_SISMA" $MP_SISMA
+
+MP_MEPA=$DIR/mepa
+export MP_MEPA
+echo "MP_MEPA" $MP_MEPA
+
+DIRECTORIO=$DIR/tux/include
+export DIRECTORIO
+echo "DIRECTORIO" $DIRECTORIO
+
+#cada objeto se monta con su fuente y la libreria generica
+
+#$MP_MEPA/rut/obj/filefun.o:$MP_MEPA/rut/src/filefun.cpp
+
+  #precompilar
+  echo "dentro del if .cpp" 
+  proc   code=ansi_c include=\($ORACLE_HOME/precomp/public/,-I$MP_SISMA/includes,$DIRECTORIO\) iname=$MP_MEPA/rut/src/filefun.cpp oname=$MP_MEPA/rut/src/filefun.c DYNAMIC=ANSI define=__x86_64__
+  if [ $? -ne 0 ] ; then
+     exit 1
+  else
+    echo "precompilado" 
+  fi
+
+  #compilar
+
+   cc -c -g -m64 -Werror -Wimplicit-function-declaration -lssl -lcrypto -I$DIRECTORIO $MP_MEPA/rut/src/filefun.c -fPIC 
+
+   if [ $? -ne 0 ] ; then
+        echo "Error objeto"
+        exit 1
+   else
+     echo "compilado src"
+     
+     
+    cp filefun.o $MP_MEPA/rut/obj/filefun.o
+    chmod 777 $MP_MEPA/rut/obj/$1.o
+     
+    mv filefun.o $MP_SISMA/obj
+	chmod 777 $MP_SISMA/obj/filefun.o
+    fi
+
+
+$MP_MEPA/rut/obj/conexhsm.o:$MP_MEPA/rut/src/conexhsm.c
+	cc -m64 -c -g -DHIGH_LOW -DFSTRING -DSUN_OS -DUNIX -DTRAZA=20 -std=gnu99 -I$DIRECTORIO -I$MP_SISMA/includes -D_REENTRANT -lssl -lcrypto -fPIC -Werror -I$ORACLE_HOME/precomp/public -Wimplicit-function-declaration $MP_MEPA/rut/src/conexhsm.c
+	cp conexhsm.o $MP_MEPA/rut/obj
+    mv conexhsm.o $MP_SISMA/obj
+	chmod 777 $MP_SISMA/obj/conexhsm.o
+
+
+$MP_SISMA/obj/crearsvm.o:$MP_SISMA/libc/crearsvm.c
+	cc -m64 -c -g -DHIGH_LOW -DFSTRING -DSUN_OS -DUNIX -DTRAZA=20 -std=gnu99 -I$MP_SISMA/includes -D_REENTRANT -lssl -lcrypto -fPIC -Werror -I$ORACLE_HOME/precomp/public -Wimplicit-function-declaration $MP_SISMA/libc/crearsvm.c
+	mv crearsvm.o $MP_SISMA/obj
+	chmod 777 $MP_SISMA/obj/crearsvm.o
+    
+$MP_SISMA/obj/abort_arr.o: $MP_SISMA/libc/abort_arr.c 
+	cc -m64 -c -g -DHIGH_LOW -DFSTRING -DSUN_OS -DUNIX -DTRAZA=20 -std=gnu99 -I$MP_SISMA/includes -D_REENTRANT -lssl -lcrypto -fPIC -Werror -I$ORACLE_HOME/precomp/public -Wimplicit-function-declaration $MP_SISMA/libc/abort_arr.c
+	mv abort_arr.o $MP_SISMA/obj
+	chmod 777 $MP_SISMA/obj/abort_arr.o
+
+$MP_SISMA/obj/amplia_q.o: $MP_SISMA/libc/amplia_q.c 
+	cc -m64 -c -g -DHIGH_LOW -DFSTRING -DSUN_OS -DUNIX -DTRAZA=20 -std=gnu99 -I$MP_SISMA/includes -D_REENTRANT -lssl -lcrypto -fPIC -Werror -I$ORACLE_HOME/precomp/public -Wimplicit-function-declaration $MP_SISMA/libc/amplia_q.c
+	mv amplia_q.o $MP_SISMA/obj
+	chmod 777 $MP_SISMA/obj/amplia_q.o
+
+$MP_SISMA/obj/busca_en_svm.o: $MP_SISMA/libc/busca_en_svm.c 
+	cc -m64 -c -g -DHIGH_LOW -DFSTRING -DSUN_OS -DUNIX -DTRAZA=20 -std=gnu99 -I$MP_SISMA/includes -D_REENTRANT -lssl -lcrypto -fPIC -Werror -I$ORACLE_HOME/precomp/public -Wimplicit-function-declaration $MP_SISMA/libc/busca_en_svm.c
+	mv busca_en_svm.o $MP_SISMA/obj
+	chmod 777 $MP_SISMA/obj/busca_en_svm.o
+
+$MP_SISMA/obj/busca_proc_svm.o: $MP_SISMA/libc/busca_proc_svm.c 
+	cc -m64 -c -g -DHIGH_LOW -DFSTRING -DSUN_OS -DUNIX -DTRAZA=20 -std=gnu99 -I$MP_SISMA/includes -D_REENTRANT -lssl -lcrypto -fPIC -Werror -I$ORACLE_HOME/precomp/public -Wimplicit-function-declaration $MP_SISMA/libc/busca_proc_svm.c
+	mv busca_proc_svm.o $MP_SISMA/obj
+	chmod 777 $MP_SISMA/obj/busca_proc_svm.o
+
+$MP_SISMA/obj/busca_proc_svm_na.o: $MP_SISMA/libc/busca_proc_svm_na.c 
+	cc -m64 -c -g -DHIGH_LOW -DFSTRING -DSUN_OS -DUNIX -DTRAZA=20 -std=gnu99 -I$MP_SISMA/includes -D_REENTRANT -lssl -lcrypto -fPIC -Werror -I$ORACLE_HOME/precomp/public -Wimplicit-function-declaration $MP_SISMA/libc/busca_proc_svm_na.c
+	mv busca_proc_svm_na.o $MP_SISMA/obj
+	chmod 777 $MP_SISMA/obj/busca_proc_svm_na.o
+
+$MP_SISMA/obj/carga_bines.o: $MP_SISMA/libc/carga_bines.c 
+	cc -m64 -c -g -DHIGH_LOW -DFSTRING -DSUN_OS -DUNIX -DTRAZA=20 -std=gnu99 -I$MP_SISMA/includes -D_REENTRANT -lssl -lcrypto -fPIC -Werror -I$ORACLE_HOME/precomp/public -Wimplicit-function-declaration $MP_SISMA/libc/carga_bines.c
+	mv carga_bines.o $MP_SISMA/obj
+	chmod 777 $MP_SISMA/obj/carga_bines.o 
+
+$MP_SISMA/obj/carga_sock.o: $MP_SISMA/libc/carga_sock.c 
+	cc -m64 -c -g -DHIGH_LOW -DFSTRING -DSUN_OS -DUNIX -DTRAZA=20 -std=gnu99 -I$MP_SISMA/includes -D_REENTRANT -lssl -lcrypto -fPIC -Werror -I$ORACLE_HOME/precomp/public -Wimplicit-function-declaration $MP_SISMA/libc/carga_sock.c
+	mv carga_sock.o $MP_SISMA/obj
+	chmod 777 $MP_SISMA/obj/carga_sock.o
+
+$MP_SISMA/obj/carga_subs.o: $MP_SISMA/libc/carga_subs.c 
+	cc -m64 -c -g -DHIGH_LOW -DFSTRING -DSUN_OS -DUNIX -DTRAZA=20 -std=gnu99 -I$MP_SISMA/includes -D_REENTRANT -lssl -lcrypto -fPIC -Werror -I$ORACLE_HOME/precomp/public -Wimplicit-function-declaration $MP_SISMA/libc/carga_subs.c
+	mv carga_subs.o $MP_SISMA/obj
+	chmod 777 $MP_SISMA/obj/carga_subs.o
+
+$MP_SISMA/obj/centlong.o: $MP_SISMA/libc/centlong.c
+	cc -m64 -c -g -DHIGH_LOW -DFSTRING -DSUN_OS -DUNIX -DTRAZA=20 -std=gnu99 -I$MP_SISMA/includes -D_REENTRANT -lssl -lcrypto -fPIC -Werror -I$ORACLE_HOME/precomp/public -Wimplicit-function-declaration $MP_SISMA/libc/centlong.c
+	mv centlong.o $MP_SISMA/obj
+	chmod 777 $MP_SISMA/obj/centlong.o 
+
+$MP_SISMA/obj/comun_q.o: $MP_SISMA/libc/comun_q.c
+	cc -m64 -c -g -DHIGH_LOW -DFSTRING -DSUN_OS -DUNIX -DTRAZA=20 -std=gnu99 -I$MP_SISMA/includes -D_REENTRANT -lssl -lcrypto -fPIC -Werror -I$ORACLE_HOME/precomp/public -Wimplicit-function-declaration $MP_SISMA/libc/comun_q.c
+	mv comun_q.o $MP_SISMA/obj
+	chmod 777 $MP_SISMA/obj/comun_q.o
+
+$MP_SISMA/obj/comunip.o: $MP_SISMA/libc/comunip.c
+	cc -m64 -c -g -DHIGH_LOW -DFSTRING -DSUN_OS -DUNIX -DTRAZA=20 -std=gnu99 -I$MP_SISMA/includes -D_REENTRANT -lssl -lcrypto -fPIC -Werror -I$ORACLE_HOME/precomp/public -Wimplicit-function-declaration $MP_SISMA/libc/comunip.c
+	mv comunip.o $MP_SISMA/obj
+	chmod 777 $MP_SISMA/obj/comunip.o
+
+$MP_SISMA/obj/Cola_cobol.o: $MP_SISMA/libc/Cola_cobol.c
+	cc -m64 -c -g -DHIGH_LOW -DFSTRING -DSUN_OS -DUNIX -DTRAZA=20 -std=gnu99 -I$MP_SISMA/includes -D_REENTRANT -lssl -lcrypto -fPIC -Werror -I$ORACLE_HOME/precomp/public -Wimplicit-function-declaration $MP_SISMA/libc/Cola_cobol.c
+	mv Cola_cobol.o $MP_SISMA/obj
+	chmod 777 $MP_SISMA/obj/Cola_cobol.o
+
+$MP_SISMA/obj/conseguir_svm.o: $MP_SISMA/libc/conseguir_svm.c
+	cc -m64 -c -g -DHIGH_LOW -DFSTRING -DSUN_OS -DUNIX -DTRAZA=20 -std=gnu99 -I$MP_SISMA/includes -D_REENTRANT -lssl -lcrypto -fPIC -Werror -I$ORACLE_HOME/precomp/public -Wimplicit-function-declaration $MP_SISMA/libc/conseguir_svm.c
+	mv conseguir_svm.o $MP_SISMA/obj
+	chmod 777 $MP_SISMA/obj/conseguir_svm.o
+
+$MP_SISMA/obj/cuenta_reso.o: $MP_SISMA/libc/cuenta_reso.c 
+	cc -m64 -c -g -DHIGH_LOW -DFSTRING -DSUN_OS -DUNIX -DTRAZA=20 -std=gnu99 -I$MP_SISMA/includes -D_REENTRANT -lssl -lcrypto -fPIC -Werror -I$ORACLE_HOME/precomp/public -Wimplicit-function-declaration $MP_SISMA/libc/cuenta_reso.c
+	mv cuenta_reso.o $MP_SISMA/obj
+	chmod 777 $MP_SISMA/obj//cuenta_reso.o
+
+$MP_SISMA/obj/damecola.o: $MP_SISMA/libc/damecola.c
+	cc -m64 -c -g -DHIGH_LOW -DFSTRING -DSUN_OS -DUNIX -DTRAZA=20 -std=gnu99 -I$MP_SISMA/includes -D_REENTRANT -lssl -lcrypto -fPIC -Werror -I$ORACLE_HOME/precomp/public -Wimplicit-function-declaration $MP_SISMA/libc/damecola.c
+	mv damecola.o $MP_SISMA/obj
+	chmod 777 $MP_SISMA/obj/damecola.o
+
+$MP_SISMA/obj/dame_llave.o: $MP_SISMA/libc/dame_llave.c
+	cc -m64 -c -g -DHIGH_LOW -DFSTRING -DSUN_OS -DUNIX -DTRAZA=20 -std=gnu99 -I$MP_SISMA/includes -D_REENTRANT -lssl -lcrypto -fPIC -Werror -I$ORACLE_HOME/precomp/public -Wimplicit-function-declaration $MP_SISMA/libc/dame_llave.c
+	mv dame_llave.o $MP_SISMA/obj
+	chmod 777 $MP_SISMA/obj/dame_llave.o
+
+$MP_SISMA/obj/dame_seg.o: $MP_SISMA/libc/dame_seg.c
+	cc -m64 -c -g -DHIGH_LOW -DFSTRING -DSUN_OS -DUNIX -DTRAZA=20 -std=gnu99 -I$MP_SISMA/includes -D_REENTRANT -lssl -lcrypto -fPIC -Werror -I$ORACLE_HOME/precomp/public -Wimplicit-function-declaration $MP_SISMA/libc/dame_seg.c
+	mv dame_seg.o $MP_SISMA/obj
+	chmod 777 $MP_SISMA/obj/dame_seg.o
+
+$MP_SISMA/obj/desconec_svm.o: $MP_SISMA/libc/desconec_svm.c
+	cc -m64 -c -g -DHIGH_LOW -DFSTRING -DSUN_OS -DUNIX -DTRAZA=20 -std=gnu99 -I$MP_SISMA/includes -D_REENTRANT -lssl -lcrypto -fPIC -Werror -I$ORACLE_HOME/precomp/public -Wimplicit-function-declaration $MP_SISMA/libc/desconec_svm.c
+	mv desconec_svm.o $MP_SISMA/obj
+	chmod 777 $MP_SISMA/obj/desconec_svm.o
+
+$MP_SISMA/obj/dtoa.o: $MP_SISMA/libc/dtoa.c
+	cc -m64 -c -g -DHIGH_LOW -DFSTRING -DSUN_OS -DUNIX -DTRAZA=20 -std=gnu99 -I$MP_SISMA/includes -D_REENTRANT -lssl -lcrypto -fPIC -Werror -I$ORACLE_HOME/precomp/public -Wimplicit-function-declaration $MP_SISMA/libc/dtoa.c
+	mv dtoa.o $MP_SISMA/obj
+	chmod 777 $MP_SISMA/obj/dtoa.o
+
+$MP_SISMA/obj/encu_svm.o: $MP_SISMA/libc/encu_svm.c
+	cc -m64 -c -g -DHIGH_LOW -DFSTRING -DSUN_OS -DUNIX -DTRAZA=20 -std=gnu99 -I$MP_SISMA/includes -D_REENTRANT -lssl -lcrypto -fPIC -Werror -I$ORACLE_HOME/precomp/public -Wimplicit-function-declaration $MP_SISMA/libc/encu_svm.c
+	mv encu_svm.o $MP_SISMA/obj
+	chmod 777 $MP_SISMA/obj/encu_svm.o
+
+$MP_SISMA/obj/envia_fin_cola.o: $MP_SISMA/libc/envia_fin_cola.c
+	cc -m64 -c -g -DHIGH_LOW -DFSTRING -DSUN_OS -DUNIX -DTRAZA=20 -std=gnu99 -I$MP_SISMA/includes -D_REENTRANT -lssl -lcrypto -fPIC -Werror -I$ORACLE_HOME/precomp/public -Wimplicit-function-declaration $MP_SISMA/libc/envia_fin_cola.c
+	mv envia_fin_cola.o $MP_SISMA/obj
+	chmod 777 $MP_SISMA/obj/envia_fin_cola.o
+
+$MP_SISMA/obj/fconvres.o: $MP_SISMA/libc/fconvres.c
+	cc -m64 -c -g -DHIGH_LOW -DFSTRING -DSUN_OS -DUNIX -DTRAZA=20 -std=gnu99 -I$MP_SISMA/includes -D_REENTRANT -lssl -lcrypto -fPIC -Werror -I$ORACLE_HOME/precomp/public -Wimplicit-function-declaration $MP_SISMA/libc/fconvres.c
+	mv fconvres.o $MP_SISMA/obj
+	chmod 777 $MP_SISMA/obj/fconvres.o
+
+$MP_SISMA/obj/fechorsys.o: $MP_SISMA/libc/fechorsys.c
+	cc -m64 -c -g -DHIGH_LOW -DFSTRING -DSUN_OS -DUNIX -DTRAZA=20 -std=gnu99 -I$MP_SISMA/includes -D_REENTRANT -lssl -lcrypto -fPIC -Werror -I$ORACLE_HOME/precomp/public -Wimplicit-function-declaration $MP_SISMA/libc/fechorsys.c
+	mv fechorsys.o $MP_SISMA/obj
+	chmod 777 $MP_SISMA/obj/fechorsys.o
+
+$MP_SISMA/obj/fempapin.o: $MP_SISMA/libc/fempapin.c
+	cc -m64 -c -g -DHIGH_LOW -DFSTRING -DSUN_OS -DUNIX -DTRAZA=20 -std=gnu99 -I$MP_SISMA/includes -D_REENTRANT -lssl -lcrypto -fPIC -Werror -I$ORACLE_HOME/precomp/public -Wimplicit-function-declaration $MP_SISMA/libc/fempapin.c
+	mv fempapin.o $MP_SISMA/obj
+	chmod 777 $MP_SISMA/obj/fempapin.o
+
+$MP_SISMA/obj/fempaque.o: $MP_SISMA/libc/fempaque.c
+	cc -m64 -c -g -DHIGH_LOW -DFSTRING -DSUN_OS -DUNIX -DTRAZA=20 -std=gnu99 -I$MP_SISMA/includes -D_REENTRANT -lssl -lcrypto -fPIC -Werror -I$ORACLE_HOME/precomp/public -Wimplicit-function-declaration $MP_SISMA/libc/fempaque.c
+	mv fempaque.o $MP_SISMA/obj
+	chmod 777 $MP_SISMA/obj/fempaque.o
+
+$MP_SISMA/obj/fexplotabit.o: $MP_SISMA/libc/fexplotabit.c
+	cc -m64 -c -g -DHIGH_LOW -DFSTRING -DSUN_OS -DUNIX -DTRAZA=20 -std=gnu99 -I$MP_SISMA/includes -D_REENTRANT -lssl -lcrypto -fPIC -Werror -I$ORACLE_HOME/precomp/public -Wimplicit-function-declaration $MP_SISMA/libc/fexplotabit.c
+	mv fexplotabit.o $MP_SISMA/obj
+	chmod 777 $MP_SISMA/obj/fexplotabit.o
+
+$MP_SISMA/obj/fgrabinc_sec.o: $MP_SISMA/libc/fgrabinc_sec.c
+	cc -m64 -c -g -DHIGH_LOW -DFSTRING -DSUN_OS -DUNIX -DTRAZA=20 -std=gnu99 -I$MP_SISMA/includes -D_REENTRANT -lssl -lcrypto -fPIC -Werror -I$ORACLE_HOME/precomp/public -Wimplicit-function-declaration $MP_SISMA/libc/fgrabinc_sec.c
+	mv fgrabinc_sec.o $MP_SISMA/obj
+	chmod 777 $MP_SISMA/obj/fgrabinc_sec.o
+
+$MP_SISMA/obj/finaliza.o: $MP_SISMA/libc/finaliza.c
+	cc -m64 -c -g -DHIGH_LOW -DFSTRING -DSUN_OS -DUNIX -DTRAZA=20 -std=gnu99 -I$MP_SISMA/includes -D_REENTRANT -lssl -lcrypto -fPIC -Werror -I$ORACLE_HOME/precomp/public -Wimplicit-function-declaration $MP_SISMA/libc/finaliza.c
+	mv finaliza.o $MP_SISMA/obj
+	chmod 777 $MP_SISMA/obj/finaliza.o
+
+$MP_SISMA/obj/fnumope.o: $MP_SISMA/libc/fnumope.c
+	cc -m64 -c -g -DHIGH_LOW -DFSTRING -DSUN_OS -DUNIX -DTRAZA=20 -std=gnu99 -I$MP_SISMA/includes -D_REENTRANT -lssl -lcrypto -fPIC -Werror -I$ORACLE_HOME/precomp/public -Wimplicit-function-declaration $MP_SISMA/libc/fnumope.c
+	mv fnumope.o $MP_SISMA/obj
+	chmod 777 $MP_SISMA/obj/fnumope.o
+
+$MP_SISMA/obj/hex_dump.o: $MP_SISMA/libc/hex_dump.c
+	cc -m64 -c -g -DHIGH_LOW -DFSTRING -DSUN_OS -DUNIX -DTRAZA=20 -std=gnu99 -I$MP_SISMA/includes -D_REENTRANT -lssl -lcrypto -fPIC -Werror -I$ORACLE_HOME/precomp/public -Wimplicit-function-declaration $MP_SISMA/libc/hex_dump.c
+	mv hex_dump.o $MP_SISMA/obj
+	chmod 777 $MP_SISMA/obj/hex_dump.o
+
+$MP_SISMA/obj/inicfori.o: $MP_SISMA/libc/inicfori.c
+	cc -m64 -c -g -DHIGH_LOW -DFSTRING -DSUN_OS -DUNIX -DTRAZA=20 -std=gnu99 -I$MP_SISMA/includes -D_REENTRANT -lssl -lcrypto -fPIC -Werror -I$ORACLE_HOME/precomp/public -Wimplicit-function-declaration $MP_SISMA/libc/inicfori.c
+	mv inicfori.o $MP_SISMA/obj
+	chmod 777 $MP_SISMA/obj/inicfori.o
+
+$MP_SISMA/obj/itoa.o: $MP_SISMA/libc/itoa.c
+	cc -m64 -c -g -DHIGH_LOW -DFSTRING -DSUN_OS -DUNIX -DTRAZA=20 -std=gnu99 -I$MP_SISMA/includes -D_REENTRANT -lssl -lcrypto -fPIC -Werror -I$ORACLE_HOME/precomp/public -Wimplicit-function-declaration $MP_SISMA/libc/itoa.c
+	mv itoa.o $MP_SISMA/obj
+	chmod 777 $MP_SISMA/obj/itoa.o
+
+$MP_SISMA/obj/itoa_ux.o: $MP_SISMA/libc/itoa_ux.c
+	cc -m64 -c -g -DHIGH_LOW -DFSTRING -DSUN_OS -DUNIX -DTRAZA=20 -std=gnu99 -I$MP_SISMA/includes -D_REENTRANT -lssl -lcrypto -fPIC -Werror -I$ORACLE_HOME/precomp/public -Wimplicit-function-declaration $MP_SISMA/libc/itoa_ux.c
+	mv itoa_ux.o $MP_SISMA/obj
+	chmod 777 $MP_SISMA/obj/itoa_ux.o
+
+$MP_SISMA/obj/lanzar_proc.o: $MP_SISMA/libc/lanzar_proc.c
+	cc -m64 -c -g -DHIGH_LOW -DFSTRING -DSUN_OS -DUNIX -DTRAZA=20 -std=gnu99 -I$MP_SISMA/includes -D_REENTRANT -lssl -lcrypto -fPIC -Werror -I$ORACLE_HOME/precomp/public -Wimplicit-function-declaration $MP_SISMA/libc/lanzar_proc.c
+	mv lanzar_proc.o $MP_SISMA/obj
+	chmod 777 $MP_SISMA/obj/lanzar_proc.o
+
+$MP_SISMA/obj/mntcla.o: $MP_SISMA/libc/mntcla.c
+	cc -m64 -c -g -DHIGH_LOW -DFSTRING -DSUN_OS -DUNIX -DTRAZA=20 -std=gnu99 -I$MP_SISMA/includes -D_REENTRANT -lssl -lcrypto -fPIC -Werror -I$ORACLE_HOME/precomp/public -Wimplicit-function-declaration $MP_SISMA/libc/mntcla.c
+	mv mntcla.o $MP_SISMA/obj
+	chmod 777 $MP_SISMA/obj/mntcla.o
+
+$MP_SISMA/obj/milelong.o: $MP_SISMA/libc/milelong.c
+	cc -m64 -c -g -DHIGH_LOW -DFSTRING -DSUN_OS -DUNIX -DTRAZA=20 -std=gnu99 -I$MP_SISMA/includes -D_REENTRANT -lssl -lcrypto -fPIC -Werror -I$ORACLE_HOME/precomp/public -Wimplicit-function-declaration $MP_SISMA/libc/milelong.c
+	mv milelong.o $MP_SISMA/obj
+	chmod 777 $MP_SISMA/obj/milelong.o
+
+$MP_SISMA/obj/numerico.o: $MP_SISMA/libc/numerico.c
+	cc -m64 -c -g -DHIGH_LOW -DFSTRING -DSUN_OS -DUNIX -DTRAZA=20 -std=gnu99 -I$MP_SISMA/includes -D_REENTRANT -lssl -lcrypto -fPIC -Werror -I$ORACLE_HOME/precomp/public -Wimplicit-function-declaration $MP_SISMA/libc/numerico.c
+	mv numerico.o $MP_SISMA/obj
+	chmod 777 $MP_SISMA/obj/numerico.o
+
+$MP_SISMA/obj/pad.o: $MP_SISMA/libc/pad.c
+	cc -m64 -c -g -DHIGH_LOW -DFSTRING -DSUN_OS -DUNIX -DTRAZA=20 -std=gnu99 -I$MP_SISMA/includes -D_REENTRANT -lssl -lcrypto -fPIC -Werror -I$ORACLE_HOME/precomp/public -Wimplicit-function-declaration $MP_SISMA/libc/pad.c
+	mv pad.o $MP_SISMA/obj
+	chmod 777 $MP_SISMA/obj/pad.o
+
+$MP_SISMA/obj/sigue.o: $MP_SISMA/libc/sigue.c
+	cc -m64 -c -g -DHIGH_LOW -DFSTRING -DSUN_OS -DUNIX -DTRAZA=20 -std=gnu99 -I$MP_SISMA/includes -D_REENTRANT -lssl -lcrypto -fPIC -Werror -I$ORACLE_HOME/precomp/public -Wimplicit-function-declaration $MP_SISMA/libc/sigue.c
+	mv sigue.o $MP_SISMA/obj
+	chmod 777 $MP_SISMA/obj/sigue.o
+
+$MP_SISMA/obj/spaces.o: $MP_SISMA/libc/spaces.c
+	cc -m64 -c -g -DHIGH_LOW -DFSTRING -DSUN_OS -DUNIX -DTRAZA=20 -std=gnu99 -I$MP_SISMA/includes -D_REENTRANT -lssl -lcrypto -fPIC -Werror -I$ORACLE_HOME/precomp/public -Wimplicit-function-declaration $MP_SISMA/libc/spaces.c
+	mv spaces.o $MP_SISMA/obj
+	chmod 777 $MP_SISMA/obj/spaces.o
+
+$MP_SISMA/obj/trim.o: $MP_SISMA/libc/trim.c
+	cc -m64 -c -g -DHIGH_LOW -DFSTRING -DSUN_OS -DUNIX -DTRAZA=20 -std=gnu99 -I$MP_SISMA/includes -D_REENTRANT -lssl -lcrypto -fPIC -Werror -I$ORACLE_HOME/precomp/public -Wimplicit-function-declaration $MP_SISMA/libc/trim.c
+	mv trim.o $MP_SISMA/obj
+	chmod 777 $MP_SISMA/obj/trim.o
+
+$MP_SISMA/obj/verfi.o: $MP_SISMA/libc/verfi.c
+	cc -m64 -c -g -DHIGH_LOW -DFSTRING -DSUN_OS -DUNIX -DTRAZA=20 -std=gnu99 -I$MP_SISMA/includes -D_REENTRANT -lssl -lcrypto -fPIC -Werror -I$ORACLE_HOME/precomp/public -Wimplicit-function-declaration $MP_SISMA/libc/verfi.c
+	mv verfi.o $MP_SISMA/obj
+	chmod 777 $MP_SISMA/obj/verfi.o
+
+$MP_SISMA/zeroes.o: $MP_SISMA/libc/zeroes.c
+	cc -m64 -c -g -DHIGH_LOW -DFSTRING -DSUN_OS -DUNIX -DTRAZA=20 -std=gnu99 -I$MP_SISMA/includes -D_REENTRANT -lssl -lcrypto -fPIC -Werror -I$ORACLE_HOME/precomp/public -Wimplicit-function-declaration $MP_SISMA/libc/zeroes.c
+	mv zeroes.o $MP_SISMA/obj
+	chmod 777 $MP_SISMA/obj/zeroes.o
+
+$MP_SISMA/obj/trazasLog.o: $MP_SISMA/libc/trazasLog.c
+	cc -m64 -c -g -DHIGH_LOW -DFSTRING -DSUN_OS -DUNIX -DTRAZA=20 -std=gnu99 -I$MP_SISMA/includes -D_REENTRANT -lssl -lcrypto -fPIC -Werror -I$ORACLE_HOME/precomp/public -Wimplicit-function-declaration  $MP_SISMA/libc/trazasLog.c
+	mv trazasLog.o $MP_SISMA/obj
+	chmod 777 $MP_SISMA/obj/trazasLog.o
+
+
+#Incoporar los objetos por orden alfabetico del directorio libc
+$MP_SISMA/obj/libsisma.a:$MP_SISMA/obj/crearsvm.o \
+    $MP_SISMA/obj/conexhsm.o \
+    $MP_SISMA/obj/filefun.o \
+    $MP_SISMA/obj/abort_arr.o \
+	$MP_SISMA/obj/amplia_q.o \
+	$MP_SISMA/obj/busca_en_svm.o \
+	$MP_SISMA/obj/busca_proc_svm.o \
+	$MP_SISMA/obj/busca_proc_svm_na.o \
+	$MP_SISMA/obj/carga_bines.o \
+	$MP_SISMA/obj/carga_sock.o \
+	$MP_SISMA/obj/carga_subs.o \
+	$MP_SISMA/obj/centlong.o \
+	$MP_SISMA/obj/comun_q.o \
+	$MP_SISMA/obj/comunip.o \
+	$MP_SISMA/obj/Cola_cobol.o \
+	$MP_SISMA/obj/crearsvm.o \
+	$MP_SISMA/obj/cuenta_reso.o \
+	$MP_SISMA/obj/damecola.o \
+	$MP_SISMA/obj/dame_llave.o\
+	$MP_SISMA/obj/dame_seg.o\
+	$MP_SISMA/obj/desconec_svm.o \
+	$MP_SISMA/obj/dtoa.o \
+	$MP_SISMA/obj/encu_svm.o \
+	$MP_SISMA/obj/envia_fin_cola.o \
+	$MP_SISMA/obj/fconvres.o \
+	$MP_SISMA/obj/fechorsys.o \
+	$MP_SISMA/obj/fempapin.o \
+	$MP_SISMA/obj/fempaque.o \
+	$MP_SISMA/obj/fexplotabit.o \
+	$MP_SISMA/obj/fgrabinc_sec.o \
+	$MP_SISMA/obj/finaliza.o \
+	$MP_SISMA/obj/fnumope.o \
+	$MP_SISMA/obj/hex_dump.o \
+	$MP_SISMA/obj/inicfori.o \
+	$MP_SISMA/obj/itoa.o \
+	$MP_SISMA/obj/itoa_ux.o \
+	$MP_SISMA/obj/lanzar_proc.o \
+	$MP_SISMA/obj/milelong.o \
+	$MP_SISMA/obj/mntcla.o \
+	$MP_SISMA/obj/numerico.o \
+	$MP_SISMA/obj/pad.o \
+	$MP_SISMA/obj/sigue.o \
+	$MP_SISMA/obj/spaces.o \
+	$MP_SISMA/obj/trazasLog.o \
+	$MP_SISMA/obj/trim.o \
+	$MP_SISMA/obj/verfi.o \
+	$MP_SISMA/obj/zeroes.o 
+
+##	$MP_SISMA/obj/conseguir_svm.o \
+
+	rm -f /tmp/libsisma.a $MP_SISMA/obj/libsisma.a
+
+	ar -r /tmp/libsisma.a $MP_SISMA/obj/crearsvm.o
+    ar -r /tmp/libsisma.a $MP_SISMA/obj/conexhsm.o
+    ar -r /tmp/libsisma.a $MP_SISMA/obj/filefun.o 
+	ar -r /tmp/libsisma.a $MP_SISMA/obj/abort_arr.o
+	ar -r /tmp/libsisma.a $MP_SISMA/obj/amplia_q.o
+	ar -r /tmp/libsisma.a $MP_SISMA/obj/busca_en_svm.o
+	ar -r /tmp/libsisma.a $MP_SISMA/obj/busca_proc_svm.o
+	ar -r /tmp/libsisma.a $MP_SISMA/obj/busca_proc_svm_na.o
+	ar -r /tmp/libsisma.a $MP_SISMA/obj/carga_bines.o
+	ar -r /tmp/libsisma.a $MP_SISMA/obj/carga_sock.o
+	ar -r /tmp/libsisma.a $MP_SISMA/obj/carga_subs.o
+	ar -r /tmp/libsisma.a $MP_SISMA/obj/centlong.o
+	ar -r /tmp/libsisma.a $MP_SISMA/obj/comun_q.o
+	ar -r /tmp/libsisma.a $MP_SISMA/obj/comunip.o
+	ar -r /tmp/libsisma.a $MP_SISMA/obj/Cola_cobol.o
+	ar -r /tmp/libsisma.a $MP_SISMA/obj/crearsvm.o
+	ar -r /tmp/libsisma.a $MP_SISMA/obj/cuenta_reso.o
+	ar -r /tmp/libsisma.a $MP_SISMA/obj/damecola.o
+	ar -r /tmp/libsisma.a $MP_SISMA/obj/dame_llave.o
+	ar -r /tmp/libsisma.a $MP_SISMA/obj/dame_seg.o
+	ar -r /tmp/libsisma.a $MP_SISMA/obj/desconec_svm.o
+	ar -r /tmp/libsisma.a $MP_SISMA/obj/dtoa.o
+	ar -r /tmp/libsisma.a $MP_SISMA/obj/encu_svm.o
+	ar -r /tmp/libsisma.a $MP_SISMA/obj/envia_fin_cola.o
+	ar -r /tmp/libsisma.a $MP_SISMA/obj/fconvres.o
+	ar -r /tmp/libsisma.a $MP_SISMA/obj/fechorsys.o
+	ar -r /tmp/libsisma.a $MP_SISMA/obj/fempapin.o
+	ar -r /tmp/libsisma.a $MP_SISMA/obj/fempaque.o
+	ar -r /tmp/libsisma.a $MP_SISMA/obj/fexplotabit.o
+	ar -r /tmp/libsisma.a $MP_SISMA/obj/fgrabinc_sec.o
+	ar -r /tmp/libsisma.a $MP_SISMA/obj/finaliza.o
+	ar -r /tmp/libsisma.a $MP_SISMA/obj/fnumope.o
+	ar -r /tmp/libsisma.a $MP_SISMA/obj/hex_dump.o
+	ar -r /tmp/libsisma.a $MP_SISMA/obj/inicfori.o
+	ar -r /tmp/libsisma.a $MP_SISMA/obj/itoa.o
+	ar -r /tmp/libsisma.a $MP_SISMA/obj/itoa_ux.o
+	ar -r /tmp/libsisma.a $MP_SISMA/obj/lanzar_proc.o
+	ar -r /tmp/libsisma.a $MP_SISMA/obj/milelong.o
+	ar -r /tmp/libsisma.a $MP_SISMA/obj/mntcla.o
+	ar -r /tmp/libsisma.a $MP_SISMA/obj/numerico.o
+	ar -r /tmp/libsisma.a $MP_SISMA/obj/pad.o
+	ar -r /tmp/libsisma.a $MP_SISMA/obj/sigue.o
+	ar -r /tmp/libsisma.a $MP_SISMA/obj/spaces.o
+	ar -r /tmp/libsisma.a $MP_SISMA/obj/trazasLog.o
+	ar -r /tmp/libsisma.a $MP_SISMA/obj/trim.o
+	ar -r /tmp/libsisma.a $MP_SISMA/obj/verfi.o
+	ar -r /tmp/libsisma.a $MP_SISMA/obj/zeroes.o    
+    ar -r /tmp/libsisma.a $MP_SISMA/obj/conseguir_svm.o
+   
+#ponemos lorder y tsort para que se ordene la libreria y sea mas rápido encontrar los archivos
+    cp /tmp/libsisma.a $MP_SISMA/obj/ 
+	chmod 777 $MP_SISMA/obj/
+ 	rm -f /tmp/libsisma.a

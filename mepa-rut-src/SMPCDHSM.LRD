@@ -1,0 +1,49 @@
+      ******************************************************************
+      *
+      * GRUPO PAR-MPX0058(SMPCDHSM)
+      *
+      *
+      ******************************************************************
+        01 SMPCDHSM.
+      * VARIABLES
+          05 COM-ENTIDAD-P.
+             10 COM-ENTIDAD       PIC X(04) VALUE SPACES.
+             10 FILLER            PIC X VALUE X'00'.
+          05 COM-SOCKET-P.
+             10 COM-SOCKET        PIC X(20) VALUE SPACES.
+             10 FILLER            PIC X VALUE X'00'.
+          05 COM-ENTRADA-P.
+             10 COM-ENTRADA       PIC X(1500)  VALUE SPACES.
+             10 FILLER            PIC X VALUE X'00'.
+          05 COM-SALIDA-P.
+             10 COM-SALIDA        PIC X(3000)  VALUE SPACES.
+             10 FILLER            PIC X VALUE X'00'.
+          05 COM-LONG-P.
+             10 COM-LONG          PIC X(04) VALUE SPACES.
+             10 FILLER            PIC X VALUE X'00'.
+          05 COM-OPCION-P.
+             10 COM-OPCION        PIC X(50) VALUE SPACES.
+             10 FILLER            PIC X VALUE X'00'.
+          05 COM-CLAVES-P1.
+             10 COM-CLAVE-1       PIC X(150) VALUE SPACES.
+             10 FILLER            PIC X VALUE X'00'.
+          05 COM-CLAVES-P2.
+             10 COM-CLAVE-2       PIC X(150) VALUE SPACES.
+             10 FILLER            PIC X VALUE X'00'.
+          05 COM-TIMEOUT-P.
+             10 COM-TIMEOUT       PIC X(04) VALUE SPACES.
+             10 FILLER            PIC X VALUE X'00'.
+          05 COM-SUBISTEMA-P.
+             10 COM-SUBSISTEMA    PIC X(04) VALUE SPACES.
+             10 FILLER            PIC X VALUE X'00'.
+          05 COM-BIN-P.
+             10 COM-BIN           PIC X(06) VALUE SPACES.
+             10 FILLER            PIC X VALUE X'00'.			 
+          05 COM-CODRESP-P.
+             10 COM-CODRESP       PIC X(02) VALUE SPACES.
+                88 COM-CORRECTO                  VALUE '01'.
+                88 COM-ERR-DATOS-ENTRADA         VALUE '02'.
+                88 COM-ERR-COMUNICACION          VALUE '03'.
+                88 COM-ERROR-HSM                 VALUE '04'.
+             10 FILLER            PIC X VALUE X'00'.
+          05 REPCOL               PIC X(02) VALUE SPACES.

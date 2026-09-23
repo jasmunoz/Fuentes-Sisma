@@ -1,0 +1,314 @@
+      ******************************************************************
+      * NOMBRE DE LA APLICACION : MEDIOS DE PAGO                       *
+      *                                                                *
+      * PROGRAMA....:GRCIFRAR                                          *
+      * PROGRAMADOR.:INDRA                                             *
+      * DESCRIPCION:                                                   *
+      * RUTINA DE TRUNCAMIENTO                                         *
+      *                                                                *
+      * RUTINAS DE TRATAMIENTO DE ERRORES:                             *
+      *                                                                *
+      * TABLAS.............: SIAM_IDEN                                 *
+      *                                                                *
+      * COPYS..............:PMPXCIFR                                   *
+      *                                                                *
+      * RUTINAS...........: --                                         *
+      *                                                                *
+      ******************************************************************
+      *
+       IDENTIFICATION DIVISION.
+       PROGRAM-ID.    GRCIFRAR.
+
+       AUTHOR.        INDRA.
+       DATE-WRITTEN.  MAYO-2019.
+       SECURITY.      RUTINA DE TRUNCAMIENTO.
+
+       ENVIRONMENT DIVISION.
+       CONFIGURATION SECTION.
+       SPECIAL-NAMES.
+               DECIMAL-POINT IS COMMA.
+       INPUT-OUTPUT SECTION.
+
+       FILE-CONTROL.
+       I-O-CONTROL.
+       DATA DIVISION.
+
+       FILE SECTION.
+
+       WORKING-STORAGE SECTION.
+
+      *-----------------------------------------------------------------
+      *                         ZONA DB2
+      *-----------------------------------------------------------------
+           EXEC SQL
+                INCLUDE SIAM_DHSM
+           END-EXEC.
+           EXEC SQL
+                INCLUDE SQLCA
+           END-EXEC.
+
+           EXEC SQL
+                INCLUDE ORACA
+           END-EXEC.
+
+      *-----------------------------------------------------------------
+      *                  VARIABLES DE TRABAJO
+      *-----------------------------------------------------------------
+       01 WS-DATO                                PIC X(17).
+       01 FILLER REDEFINES WS-DATO.
+          03 FILLER OCCURS 17 TIMES.
+             05  DATO-ALFA                       PIC X(001).
+             05  DATO-NUME REDEFINES DATO-ALFA    PIC 9(001).
+
+       01 WS-VARIABLES.
+          05 WS-LONG                PIC 9(02).
+          05 WS-I                   PIC 9(02) VALUE 1.
+
+        COPY "SMPCDHSM.LRD".
+
+       01 CT-CONSTANTES.
+
+          05 CT-1               PIC 9(01) VALUE 1.
+        
+      *-----------------------------------------------------------------
+      *                  COPYS
+      *-----------------------------------------------------------------
+      * CIFRADO DESCIFRADO
+        COPY "PMPXHSM0.LRD".
+
+
+       LINKAGE SECTION.
+      *-----------------------------------------------------------------
+        COPY "PMPXCIFR.LRD".
+
+      ***********************************************
+       PROCEDURE DIVISION USING PMPXCIFR.
+      ***********************************************
+           PERFORM 2000-INICIALIZAR-ENTORNO
+           PERFORM 4000-PROCESO
+           PERFORM 8000-FIN
+           .
+      *
+      ******************************************************************
+      *  2000-INICIALIZAR-ENTORNO                                      *
+      * SE INICIALIZA EL ENTORNO DE TRABAJO                            *
+      ******************************************************************
+       2000-INICIALIZAR-ENTORNO.
+      *-------------------------
+
+           INITIALIZE     SMPXCIFR  REPLACING
+                          ALPHANUMERIC BY SPACES
+                               NUMERIC BY ZEROES
+
+      *    INITIALIZE WS-VARIABLES
+
+           SET OK-MPXCIFR TO TRUE
+           SET CORRECTO OF CRSPSTA OF SMPXCIFR TO TRUE
+           .
+      *
+      ******************************************************************
+      *  4000-PROCESO                                                  *
+      * SE REALIZA EL PROCESO DEL PROGRAMA                             *
+      ******************************************************************
+       4000-PROCESO.
+      *-------------
+
+           PERFORM 4100-VALIDA-DATOS-ENTRADA
+           PERFORM 4200-ACCEDER-HSM
+           PERFORM 4400-TRUNCAR
+
+           .
+           
+      *
+      ******************************************************************
+      *  4100-VALIDA-DATOS-ENTRADA                                     *
+      * SE VALIDAN LOS DATOS DE ENTRADA                                *
+      ******************************************************************
+       4100-VALIDA-DATOS-ENTRADA.
+      *--------------------------
+           
+
+           IF (TRUNCAMIENTO OF EMPXCIFR
+            OR EXPANSION    OF EMPXCIFR)
+               CONTINUE
+           ELSE
+              DISPLAY "error codigo"
+              PERFORM 9510-ENVIAR-MENSAJE-SMPE0146
+           END-IF
+
+           IF TRUNCAMIENTO OF EMPXCIFR
+      *       PERFORM 4110-VALIDAR-TARJETA-TRUNC
+              CONTINUE
+           END-IF
+
+           IF EXPANSION    OF EMPXCIFR
+      *       PERFORM 4120-VALIDAR-TARJETA-EXP
+              CONTINUE
+           END-IF
+
+           IF (NUEMPRCE OF EMPXCIFR EQUAL SPACES) OR
+              ((TRUNCAMIENTO OF EMPXCIFR) AND
+               (TXTCFRDO        OF EMPXCIFR EQUAL SPACES OR LOW-VALUES))
+                OR
+              ((EXPANSION    OF EMPXCIFR) AND
+               (TXTPLNO        OF EMPXCIFR EQUAL SPACES OR LOW-VALUES))
+               
+              DISPLAY "error datos"
+              PERFORM 9520-ENVIAR-MENSAJE-SMPE0468
+           END-IF
+           .
+      *
+      ******************************************************************
+      *  4200-ACCEDER-HSM                                              *
+      *ACCEDER A LA TABLA                                              *
+      ******************************************************************
+       4200-ACCEDER-HSM.
+      *-----------------
+
+      ** hay que recuperar primero de SIAM_DHSM los datos de conexion con
+      ** el HSM, y luego mandarlos, para que no se conecte dentro
+           MOVE NUEMPRCE OF EMPXCIFR    TO COD_ENT
+            EXEC SQL
+              SELECT
+                      TMP   
+                     ,CAB   
+                     ,NUM_IP
+                     ,PRT   
+                     ,PRD   
+              INTO
+                      :SIAM_DHSM.TMP   
+                     ,:SIAM_DHSM.CAB   
+                     ,:SIAM_DHSM.NUM_IP
+                     ,:SIAM_DHSM.PRT   
+                     ,:SIAM_DHSM.PRD   
+              FROM SIAM_DHSM
+               WHERE COD_ENT = :SIAM_DHSM.COD_ENT
+           END-EXEC
+
+           IF SQLCODE NOT EQUAL ZEROES
+           DISPLAY 'SQLCODE SIAM_DHSM ' SQLCODE
+               SET ERROR-IMPREVISTO OF SMPXCIFR   TO TRUE
+                 SET ERROR-DB2        OF SMPXCIFR   TO TRUE
+                 MOVE SQLCODE         TO CSQLCODE OF SMPXCIFR
+                 MOVE SPACES          TO NUMNSJE  OF SMPXCIFR
+                 MOVE 'MPXCIFR: ERROR ACCESO SIAM_DHSM '
+                                      TO TRTRNO   OF SMPXCIFR
+                  GOBACK
+           END-IF
+           .
+
+      ******************************************************************
+      *  -TRUNCAR-                                                     *
+      *TRUNCAR EL DATO CON EL HSM                                      *
+      ******************************************************************
+       4400-TRUNCAR. 
+      *-----------------
+      
+           INITIALIZE SMPXHSM0
+
+           SET TODO        OF EMPXHSM0       TO TRUE
+                                             
+           MOVE '0'                          TO TVALOR OF EMPXHSM0(1:1)
+           
+           IF  TRUNCAMIENTO OF EMPXCIFR
+             SET CIFRADO-DATO-TRAD OF EMPXHSM0    TO TRUE
+             MOVE TXTCFRDO OF EMPXCIFR            TO WS-DATO
+             PERFORM 4600-CALCULAR-LONG
+             MOVE TXTCFRDO OF EMPXCIFR  TO TVALOR OF EMPXHSM0(2:WS-LONG)
+           END-IF
+
+           IF EXPANSION OF EMPXCIFR
+             SET DESCIFRADO-DATO-TRAD OF EMPXHSM0 TO TRUE
+             MOVE TXTPLNO OF EMPXCIFR             TO WS-DATO
+             PERFORM 4600-CALCULAR-LONG
+             MOVE TXTPLNO OF EMPXCIFR TO TVALOR OF EMPXHSM0(2:WS-LONG)
+           END-IF
+
+           MOVE NUEMPRCE OF EMPXCIFR    TO NUEMPRCE OF EMPXHSM0
+           MOVE '0000'                  TO CDESTINO OF EMPXHSM0
+
+           MOVE WS-LONG                 TO NULONGVA OF EMPXHSM0
+           MOVE 'PIN_IDEMIA'            TO COMANDO OF EMPXHSM0
+
+           CALL "GRCONHSM" USING PMPXHSM0
+
+           EVALUATE TRUE
+              WHEN OK-SMPXHSM0
+                 IF TRUNCAMIENTO OF EMPXCIFR
+                    MOVE SPACES               TO TXTPLNO OF SMPXCIFR                
+                    MOVE TVALOR-S OF SMPXHSM0 TO TXTPLNO OF SMPXCIFR
+                 END-IF
+
+                 IF EXPANSION OF EMPXCIFR
+                    MOVE SPACES               TO TXTCFRDO OF SMPXCIFR                
+                    MOVE TVALOR-S OF SMPXHSM0 TO TXTCFRDO OF SMPXCIFR
+                 END-IF
+              WHEN OTHER
+                display 'error SMPXHSM0 entrada : ' EMPXHSM0
+                display 'error SMPXHSM0 salida  : ' SMPXCIFR                
+                MOVE TRTRNO   OF PMPXHSM0     TO TRTRNO   OF SMPXCIFR
+                MOVE CRSPSTA  OF PMPXHSM0     TO CRSPSTA  OF SMPXCIFR
+                MOVE NUMNSJE  OF PMPXHSM0     TO NUMNSJE  OF SMPXCIFR
+                MOVE ZEROS                    TO CSQLCODE OF SMPXCIFR
+                SET   ERROR-PREVISTO OF CRTRNO OF SMPXCIFR TO TRUE
+                PERFORM 5000-ENVIAR-PRMTRS-SALIDA
+           END-EVALUATE
+           .
+
+      
+      ******************************************************************
+       4600-CALCULAR-LONG.       
+      *---------------------    
+      
+           MOVE CT-1 TO WS-I
+           MOVE ZEROS TO WS-LONG
+           PERFORM VARYING WS-I FROM 1 BY 1 UNTIL
+                   DATO-ALFA(WS-I) = SPACES OR LOW-VALUES OR WS-I > 17
+               COMPUTE WS-LONG = WS-LONG + CT-1
+           END-PERFORM
+           COMPUTE WS-LONG=WS-LONG +CT-1
+           .
+      *
+      ******************************************************************
+      * 5000-ENVIAR-PRMTRS-SALIDA
+      ******************************************************************
+       5000-ENVIAR-PRMTRS-SALIDA.
+      *--------------------------
+
+           GOBACK
+           .
+      *
+      ******************************************************************
+      *  8000-FIN                                                      *
+      ******************************************************************
+       8000-FIN.
+      *---------
+
+           SET OK-MPXCIFR OF CRTRNO  OF SMPXCIFR    TO TRUE
+           SET CORRECTO   OF CRSPSTA OF SMPXCIFR    TO TRUE
+
+           PERFORM 5000-ENVIAR-PRMTRS-SALIDA
+           .
+      *
+      ******************************************************************
+      * CODIGO DE PROCESO NO VALIDO
+      ******************************************************************
+       9510-ENVIAR-MENSAJE-SMPE0146.
+      *--------------------------
+
+           MOVE "000146"                    TO NUMNSJE OF SMPXCIFR
+           SET   ERROR-PREVISTO OF CRTRNO   OF SMPXCIFR TO TRUE
+           SET   DATOS-ENTRADA-INCOMPLETOS  OF SMPXCIFR TO TRUE
+           PERFORM 5000-ENVIAR-PRMTRS-SALIDA
+           .
+      *
+      ******************************************************************
+      * DATOS DE ENTRADA SIN INFORMAR
+      ******************************************************************
+       9520-ENVIAR-MENSAJE-SMPE0468.
+
+           MOVE  "000468"                   TO NUMNSJE OF SMPXCIFR
+           SET   ERROR-PREVISTO OF CRTRNO   OF SMPXCIFR TO TRUE
+           SET   DATOS-ENTRADA-INCOMPLETOS  OF SMPXCIFR TO TRUE
+           PERFORM 5000-ENVIAR-PRMTRS-SALIDA
+           .

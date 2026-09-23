@@ -1,0 +1,2483 @@
+#include <string.h>
+#include <stdlib.h>
+#include <stdio.h>
+//PRJ0247167 - Revisado ampliación P48 - cambiado de 2279 a 4000
+//PRJ288711 - Adaptación tratamineto diferidos erroneos
+/*definicion de funciones */
+int InsertarL(void* registro);
+void QuitarCaracteres(char* cadena, int longi);
+
+/*añadido para PRICE*/ 
+int InsertarC(void* registro);
+int InsertarD(void* registro);
+int InsertarDF(void* registro);
+int InsertarDE(void* registro); //PRJ288711
+int InsertarRH(void* registro, long longi, char * valorSale); //PRJ0258542 - Fase 3
+int ActualizaClaves(void* registro); //PRJ0258542
+int ActualizaHSM(void* registro); //PRJ0258542
+int tratar_unodos(char * opcion, char * clave, char * claves); //PRJ0258542
+/*añadido para PRICE*/
+int InsertarGT(void* registro, long longi, char * valorSale); //PRJ0385382
+/* Cabeceras de SQL Communication Area, para control de errores, etc. */
+exec sql include sqlca;
+
+#include "utilidades.h" 
+
+typedef struct NPSERRD //PRJ288711
+ {
+ 	char			eraccion[1];		//  Accion para procedimiento, E = Error, B = Buena
+  char      ersubsis[2];    //  Subsistema               (clave)
+  char      ersubapl[2];    //  Subaplicacion            (clave)
+  char      ernumope[6];    //  Numero de operacion      (clave)
+  char			ernumerr[4];		// Numero de error que devuelve SF
+} NPSERRD;
+
+
+/*variables auxiliares*/
+/***-------   campos de uso general     ----------***/
+char  cad_verif[10];
+
+
+/*añadido para PRICE*/
+/***---------------   tablas de datos trms y aplicacion  -----------------***/
+typedef struct formato_tabla_trms
+{
+ char  trms_emis[3];        /* Código del emisor */
+ char  trms_idtm[5];        /* Código de mensaje PRICE */
+ char  trms_copr[7];        /* Código de proceso PRICE */
+ char  trms_idtv[5];        /* Código de mensaje PRICE de vuelta*/
+ char  trms_idsi[5];        /* Código de mensaje SIO */
+ char  trms_cosi[7];        /* Código de proceso SIO */
+ char	 trms_oper[2];				/* Tipo de operativa B = Bizum, T = Tarjeta */ //PRJ0387060
+}      formato_tabla_trms;
+
+formato_tabla_trms   tabla_trms [500]; 
+
+/***---------------   tablas de datos iso y aplicacion  -----------------***/
+typedef struct formato_tabla_iso
+{
+char   tipo_fs;
+int    long_fs;
+int    max_fs;
+char   mac_fs;
+}      formato_tabla_iso;
+
+formato_tabla_iso   tabla_iso [128];
+
+typedef struct formato_tabla_apl
+{
+char   tipo_fc;
+int    long_fc;
+int    max_fc;
+int    off_fc;
+}      formato_tabla_apl;
+
+formato_tabla_apl   tabla_apl [128];
+
+
+typedef struct formato_tabla_bim
+{
+char   tipo_bm[4];
+char   sent_bm;
+char   perv_bm;
+char   bim1_bm[192];
+char   bim2_bm[192];
+}      formato_tabla_bim;
+
+formato_tabla_bim   tabla_bim [100];
+
+/***--------------------- tabla de tabla de operaciones --------------------------**/
+typedef struct dtbop ttbop;
+struct dtbop
+{
+   char     clave [18];
+   char     funcion[20];
+   ttbop    *siguiente;
+};
+
+ttbop *ptb;
+ttbop *ptb_primero;
+
+/*añadido para PRICE*/
+
+//RAQUEL añadido para unificar configuracion y colas para arranque por bbdd
+
+/***---------------   tablas de datos ipcs  -----------------***/
+typedef struct formato_tabla_ipcs
+{
+char  ipcs_indi[3];	
+char  ipcs_nsvm[8];
+char  ipcs_nomb[5];
+char  ipcs_clav[2];
+int   ipcs_tama;
+}      formato_tabla_ipcs;
+
+formato_tabla_ipcs   tabla_ipcs [50]; 
+
+
+/***---------------   tablas de datos configuracion  -----------------***/
+typedef struct formato_tabla_conf
+{
+ char conf_indi[3];	/* codigo 00 siempre para cargar toda la tabla con procedimiento CARGA*/
+ char conf_cdsu[5];   /* subistema-subaplicaicon */
+ char conf_dsej[9];  /* nombre con que se levanta el proceso */
+ char conf_para[21]; /* El maximo permitido es 20 */
+ char conf_cola[5];     /* nombre de la cola o SVM */
+ char conf_tipp[2];        /* Como parar el proceso: Q=cola, S=svm, N=no parar */
+ int  conf_nmpr;      /* Numero de posiciones reservadas en svm para proceso, cuantos tenemos que inicializar*/
+ int  conf_capr;      /* Numero de copias a arrancar automaticamente */
+ char conf_csal[5];  /* Cola de salida para cuando el pamnej no es parte de SISMA */
+}      formato_tabla_conf;
+
+formato_tabla_conf   tabla_conf [50]; 
+
+/***---------------   tablas de datos para  -----------------***/
+typedef struct formato_tabla_para
+{
+  char ps_indice[3];  
+  char ps_csb000[5];                                                  
+  char ps_noment[21];                                                 
+  char ps_numope[7];                                                  
+  char ps_nument[3];                                                  
+  char ps_hcamse[7];                                                  
+  char ps_feinse[9];                                                  
+  char ps_hoinse[7];                                                  
+  char ps_modocs[2];                                                  
+  char ps_timesp[7];                                                 
+  char ps_numcross[11];                                               
+  char ps_cerrando[2];                                                 
+  char ps_resolu[3];   
+  char ps_monito[3];   
+  char ps_cotrms[3];  
+  char ps_idered[2];  
+  char ps_cltrat[9];  
+  char ps_clenvi[5];  
+  char ps_clrece[9];                                                                    
+  char ps_clvhsm[51];
+	char ps_clzmka[51];  //PRJ0258542
+	char ps_clzmki[51];  //PRJ0258542
+	char ps_clzika[51];  //PRJ0258542
+	char ps_clziki[51];  //PRJ0258542
+	char ps_clzpka[51];  //PRJ0258542
+	char ps_clzpki[51];  //PRJ0258542
+	char ps_clzaka[51];  //PRJ0258542
+	char ps_clzaki[51];  //PRJ0258542
+	char ps_clzeka[51];  //PRJ0258542
+	char ps_clzeki[51];  //PRJ0258542
+  char ps_clclap[51];  //PRJ0258542
+  char ps_clblop[51];  //PRJ0258542
+} formato_tabla_para;
+
+formato_tabla_para   tabla_para [2];
+
+
+/* Declaracion de variables .huesped", que seran utilizadas en sentencias SQL */
+EXEC SQL BEGIN DECLARE SECTION; 
+
+   char *Vent;
+   char *Vent2;
+   char opcionT[20];
+   char numope[7];
+   //PRJ0247167 se cambia para que quepa el formato interno nuevo entero
+   //char formatoI[2280]; // ATENCIÓN - dejar este campo y asteriscar el inferior si se tiene que probar Preautorizaciones
+   char formatoI[4000]; 
+   char fecha0[9]; char hora00[7]; char lonumpan[20]; char locomerc[16]; char loclavpr[36];
+   char loimporte[13]; char losesion[4]; char loeseven[2]; char loesanul[2]; char lofecses[7];
+   char subsisF[3]; char subapl[3];
+   char catieabs[11]; char catieesp[11];
+   char tabla[8];
+   char claveT[200];
+   char CodError[4];
+   char usuario1[30];
+   char registro2[3000];
+   char auxpan[20];
+   SQL_CURSOR  registro3 ;
+   char formatoDE[14]; //PRJ288711 - estructura para llamar al procedimiento
+   char accion[1]; //PRJ288711 - opcion de llamada al procedimiento
+   char errorn[4]; //PRJ288711 - opcion de llamada al procedimiento
+   
+	char entradaU[100]; //PRJ0258542
+	char salidaU[301]; //PRJ0258542
+	char i_comando1[50]; //PRJ0258542
+	char i_comando2[50]; //PRJ0258542
+	char s_clv1[150]; //PRJ0258542
+	char s_clv2[150]; //PRJ0258542
+	
+	char cadenaEntrada1[17]; //PRJ0258542 - Fase 3 - Cambio 11052026 - aumenta a 17
+	char cadenaEntrada2[451]; //PRJ0258542
+	char Entidad[5]; //PRJ0258542
+	char Valor[3]; //PRJ0258542
+	char Accion[2]; //PRJ0258542
+	char Cadenaerr[101]; //PRJ0258542
+	char identifica[5]; //PRJ0258542 - Fase 3
+	char valore[11]; //PRJ0258542 - Fase 3
+	char registroe[4001]; //PRJ0258542 - Fase 3
+	char estado[3]; //PRJ0258542 - Fase 3
+	char IPentra[2]; //PRJ0258542 - Fase 3
+	char valors[11]; //PRJ0258542 - Fase 3
+   
+	char clavegt[10]; //PRJ0385382
+	char indicadorgt[2]; //PRJ0385382
+	char infcidcifivgt[33]; //PRJ0385382
+	char infcidmsgchavecgt[5]; //PRJ0385382
+	char infcidcifmsggt[129]; //PRJ0385382 de 65 a 129
+	char sigdatsigtypgt[3]; //PRJ0385382
+	char sigdatsiggt[17]; //PRJ0385382
+	char descrierrgt[33]; //PRJ0385382
+
+  struct {
+    char            idsubsis[3];
+    char            idsubapl[3];
+    char            idcomando[51]; //CAMBIAR A 50 CUANDO CAMBIE LA TABLA
+    char            idclave1[151];
+    char            idclave2[151];
+ }estrucIDEN;
+ 
+/* añadido para PRICE*/
+  struct {
+  char   trmsemis[3];
+  char   trmsidtm[5];
+  char   trmscopr[7];
+  char   trmsidtv[5];
+  char   trmsidsi[5];
+  char   trmscosi[7];
+  }estrucTRMS;
+
+  struct {
+  char   donumiso[4];
+  char   dopictur[2];
+  char   dolongit[5];
+  char   dolonmax[4];
+  char   dousomac[2];
+  }estrucDISO;
+ struct {
+  char   a2numiso[4];
+  char   a2pictur[2];
+  char   a2longit[5];
+  char   a2lonmax[5];
+  char   a2offset[5];
+  }estrucDAP2;
+ struct {
+  char   bmtipmen[5];
+  char   bmsentra[2];
+  char   bmpervia[2];
+  char   bmbima01[193];
+  char   bmbima02[193];
+  }estrucBIMA;
+  struct {
+    char tbtabla0[3];
+    char tbclave0[13];
+    char tbfuncis[21];
+    char tbcodent[5];
+  }estrucTBOP;
+  struct {
+    char            pasubsis[3];
+    char            pasubapl[3];
+    char            panomsub[21];
+    char            pasemaf1[2];
+    char            pasemaf2[2];
+    char            paestado[3];
+    char            patrepet[7];
+    char            patrerep[7];
+    char            patresnf[7];
+    char            panumrea[2];
+    char            pafecses[7];
+    char            panumses[4];
+    char            paconcil[2];
+    char            panip[16];
+    char            paportnume[6];
+    char            pacidesti[14];
+    char            paciadqui[14];
+    char            paenvoff[2];
+    char            paenvtst[2];
+    char            patisub[2];
+    char            paidred[5];
+ }estrucPARS;
+  struct{
+  char      lonumope[7];
+  char      lofecha0[9];
+  char      lohora00[7];
+  char      lonumpan[20];
+  char      locomerc[16];
+  char      loclavpr[36];
+  char      loeseven[2];
+  char      loesanul[2];
+  char      loimporte[13];
+  char      losesion[4];
+  char      lofecses[7];
+  //PRJ0247167 se cambia tamaño 4000
+  //char      loforitn[2280]; // ATENCIÓN - dejar este campo y asteriscar el inferior si se tiene que probar Preautorizaciones
+  char      loforitn[4000]; 
+ }estrucLOGO;
+ struct{
+  char      canumope[7];
+  char      catieabs[11];
+  char      catieesp[11];
+  //PRJ0247167 se cambia tamaño 4000
+  //char      caforitn[2280];   // ATENCIÓN - dejar este campo y asteriscar el inferior si se tiene que probar Preautorizaciones
+  char      caforitn[4000]; 
+}estrucCASA;
+ struct{
+  char      disubsis[3];   
+  char      disubapl[3];   
+  char      difecha0[9];   
+  char      dihora00[7];   
+  char      dinumope[7];    
+  //PRJ0247167 se cambia tamaño 4000
+  //char      diforitn[2280]; // ATENCIÓN - dejar este campo y asteriscar el inferior si se tiene que probar Preautorizaciones
+  char      diforitn[4000];
+  //char      diclavpr[36]; -- Quitada desde hace tiempo
+ }estrucDIFE;
+ 
+/* añadido para PRICE*/
+
+//RAQUEL añadido para arrancar entidades por bbdd
+//unificamos el arranque de configuracion y colas
+/* añadido para PRICE*/
+  struct {
+   char  ipcsindi[3];
+   char  ipcsnsvm[8];
+   char  ipcsnomb[5];
+   char  ipcsclav[2];
+   int   ipcstama;
+  }estrucIPCS;
+
+  struct {
+  char confindi[3];
+  char confcdsu[5]; 
+  char confdsej[9];
+  char confpara[21];
+  char confcola[5]; 
+  char conftipp[2];    
+  int  confnmpr;     
+  int  confcapr;    
+  char confcsal[5];   
+  }estrucCONF;
+																	 
+  struct {       
+  char psindice[3];  
+  char pscsb000[5];                                                  
+  char psnoment[21];                                                 
+  char psnumope[7];                                                  
+  char psnument[3];                                                  
+  char pshcamse[7];                                                  
+  char psfeinse[9];                                                  
+  char pshoinse[7];                                                  
+  char psmodocs[2];                                                  
+  char pstimesp[7];                                                 
+  char psnumcross[11];                                               
+  char pscerrando[2];                                                 
+  char psresolu[3];   
+  char psmonito[3];   
+  char pscotrms[3];  
+  char psidered[2];  
+  char pscltrat[9];  
+  char psclenvi[5];  
+  char psclrece[9];                                                                    
+  char psclvhsm[51];                                              
+	char psclzmka[51];  //PRJ0258542
+	char psclzmki[51];  //PRJ0258542
+	char psclzika[51];  //PRJ0258542
+	char psclziki[51];  //PRJ0258542
+	char psclzpka[51];  //PRJ0258542
+	char psclzpki[51];  //PRJ0258542
+	char psclzaka[51];  //PRJ0258542
+	char psclzaki[51];  //PRJ0258542
+	char psclzeka[51];  //PRJ0258542
+	char psclzeki[51];  //PRJ0258542
+	char psclclap[51];  //PRJ0258542
+	char psclblop[51];  //PRJ0258542
+  }estrucPARA;                                                    
+                                                                  
+                                                                  
+EXEC SQL END DECLARE SECTION;                                     
+
+
+////////////////////////// CONEXION A LA BASE DE DATOS /////////////////////////
+int conexion_BBDD()
+{
+    printf("Entrando en conexion_BBDD  filefun 04122022v2.0\n");
+   if((Vent=getenv("ORAUID"))==(char *)NULL)
+   //recuperar usuario
+   {
+      printf("No existe variable de entorno ORAUID\n");
+      exit(-1);
+   }
+   if((Vent2=getenv("ORAPWD"))==(char *)NULL)
+   //recuperar password 
+   {
+      printf("No existe variable de entorno ORAPWD\n");
+      exit(-1);
+   }
+   strncpy(usuario1, Vent, strlen(Vent));
+   strncpy(usuario1+strlen(Vent), "/",1);
+   strncpy(usuario1+strlen(Vent)+1, Vent2,strlen(Vent2));
+
+    EXEC SQL CONNECT :usuario1;
+    if (sqlca.sqlcode)
+    {
+      printf("cadenaconexion %s\n", usuario1);
+      printf("Error en conexion de %d\n", sqlca.sqlcode);
+      exit(-1);
+    }
+    fprintf(stdout,"abro conexion bd\n");
+    fflush(stdout);
+    return(0);
+}
+
+
+/////////////////////////  DESCONEXION DE LA BASE DE DATOS ////////////////////////
+int desconexion_BBDD()
+{
+   fprintf(stdout, "cierro conexion bd\n");
+   EXEC SQL COMMIT RELEASE; 
+   if (sqlca.sqlcode != 0)
+   {
+      printf("sqlcode al cerrar bbdd %d\n",sqlca.sqlcode);
+      return(-1);
+   }
+   EXEC SQL CACHE FREE ALL;
+   return(0);
+}
+
+
+int salir_cm(int conecBBDD, int codSalida, char * salTabla, OPCION_FICH opcion)
+{
+   if(conecBBDD)
+   {
+      //fprintf(stdout, "commit y cierro conexion bd\n");
+      EXEC SQL COMMIT RELEASE; 
+      if (sqlca.sqlcode != 0)
+      {
+         printf("sqlcode al cerrar bbdd %d\n",sqlca.sqlcode);
+      }
+      EXEC SQL CACHE FREE ALL;
+   }  
+   else
+   {
+      if(strncmp(salTabla,"NPTDHSM",7)==0 || //pq se le llama desde cobol y la transacción la controlan ellos
+          strncmp(salTabla,"NPTIDEN",7)==0 ||
+          strncmp(salTabla,"HSMDRIP",7)==0 ||
+           opcion == IGUAL ||
+           opcion == MAYORIGUAL ||     //* añadido para PRICE*/
+		   opcion == PRIMERO ||        //* añadido para PRICE*/
+		   opcion == SIGUIENTE)        //* añadido para PRICE*/
+      {
+          //fprintf(stdout, "no commit tabla >%.7s<\n", salTabla); 
+      }
+      else
+      {       
+         fprintf(stdout, "commit tabla >%.7s<\n", salTabla); 
+         EXEC SQL COMMIT;    
+      }
+   }
+   return(codSalida);
+}
+
+int salir_rb(int conecBBDD, int codSalida, char * salTabla, OPCION_FICH opcion)
+{
+   if(conecBBDD)
+   {
+      fprintf(stdout, "rollback y cierro conexion bd\n");
+      EXEC SQL ROLLBACK RELEASE; 
+      if (sqlca.sqlcode != 0)
+      {
+         printf("sqlcode al cerrar bbdd %d\n",sqlca.sqlcode);
+      }
+      EXEC SQL CACHE FREE ALL;
+   }  
+   else
+   {
+      if(strncmp(salTabla,"NPTDHSM",7)==0 || //pq se le llama desde cobol y la transacción la controlan ellos
+          strncmp(salTabla,"NPTIDEN",7)==0 ||
+          strncmp(salTabla,"HSMDRIP",7)==0 ||
+           opcion == IGUAL ||
+           opcion == MAYORIGUAL ||    //* añadido para PRICE*//
+		   opcion == PRIMERO ||       //* añadido para PRICE*//
+		   opcion == SIGUIENTE)       //* añadido para PRICE*//      
+      {
+          //fprintf(stdout, "no rollback\n"); //pq se le llama desde cobol y la transacción la controlan ellos
+       }
+       else
+       {
+         fprintf(stdout, "rollback\n");
+         EXEC SQL ROLLBACK;    
+      }
+   }
+   return(codSalida);
+}
+
+
+
+//////////////////////////////////  TRATAR_FICH //////////////////////////
+int tratar_fich(char* ficher, OPCION_FICH opcion, void * registro, void * clave)
+{
+   	fprintf(stdout,"Dentro del filefun - tratar_fich\n");
+    fflush(stdout);
+    //printf("tratar_fich\n");
+    //printf("opcion de llamar en tratar_fich %i\n",opcion);
+    fflush(stdout);
+    int contador=0;
+    int ErrInsertar=0;
+    int retorReg=0;  //0=devuelve registro, 1=no devuelve registro
+    int abroConexion=0;
+    
+		//* añadido para PRICE*//
+    int err=0;
+    char ch05[5];
+    char ch04[4];
+    int ll=0;
+    int indice=0;
+    int terminaMal=0;
+
+    ch04[3]='\0';
+    ch05[4]='\0';
+		//* añadido para PRICE*//
+		//inicializamos la clave en cada nueva interaccion RAQUEL
+    memset(claveT, '\0', 200); 
+	
+		// fprintf(stdout,"RAQUEL DENTRO DE TRATAR_FICH opcion %s\n",opcion);
+    // fflush(stdout);
+	 
+    //prueba si hay conexion
+    
+    EXEC SQL SELECT (1) FROM DUAL; 
+    if (sqlca.sqlcode == -1012)
+    {
+    	fprintf(stdout,"Dentro filefun.cpp, abro conexion\n");
+      abroConexion=1;
+      conexion_BBDD();
+    }
+    else
+    {
+    	fprintf(stdout,"Comprueba conexion sqlca.sqlcode >%d<\n", sqlca.sqlcode);   
+    }
+    //fprintf(stdout,"Dentro filefun.cpp tratar_fich, con opcion >%s< ficher >%s< clave >%s<\n",opcion,ficher,clave); //PRJ0247167
+	
+		// fprintf(stdout,"RAQUEL ANTES DEL SWITCH  OPCION \n");
+    // fflush(stdout);
+
+		switch (opcion)
+  	{
+// * añadido para PRICE *//
+
+  		case ESCRIBIR :
+    		strncpy(tabla, (char *)ficher, 7);
+      	strncpy(opcionT, "INSERTAR",8);
+	      opcionT[8]='\0';
+				//printf("escribir\n");
+				//fflush(stdout);
+	      if (!strncmp(tabla, "NPTCASA", 7)) //directamente
+	      {
+	      	ErrInsertar=InsertarC(registro);
+	              //return(ErrInsertar);
+				  if(ErrInsertar)
+				  	return(salir_rb(abroConexion, ErrInsertar, tabla, opcion));
+				  else
+				  	return(salir_cm(abroConexion, ErrInsertar, tabla, opcion));
+	     	}
+	     	if (!strncmp(tabla, "NPTLOGO", 7)) //directamente
+	      {
+	      	ErrInsertar=InsertarL(registro);
+	        //return(ErrInsertar);
+			    if(ErrInsertar)
+			    	return(salir_rb(abroConexion, ErrInsertar, tabla, opcion));
+				  else
+				  	return(salir_cm(abroConexion, ErrInsertar, tabla, opcion));
+	     	}
+	      if (!strncmp(tabla, "NPTDSCD", 7)) //directamente
+	      {
+	      	ErrInsertar=InsertarD(registro);
+	        //return(ErrInsertar);
+			    if(ErrInsertar)
+			    	return(salir_rb(abroConexion, ErrInsertar, tabla, opcion));
+				  else
+				  	return(salir_cm(abroConexion, ErrInsertar, tabla, opcion));
+	    	}
+	      if (!strncmp(tabla, "NPTDIFE", 7)) //directamente
+	      {
+	      	ErrInsertar=InsertarDF(registro);
+	        //return(ErrInsertar);
+			    if(ErrInsertar)
+			    	return(salir_rb(abroConexion, ErrInsertar, tabla, opcion));
+				  else
+				  	return(salir_cm(abroConexion, ErrInsertar, tabla, opcion));	  
+	     	}
+				//PRJ288711 - INI
+	      if (!strncmp(tabla, "NPTERRD", 7)) //directamente
+	      {
+	      	printf(". . . . Entrando por NPTERRD de modificacion . . . .\n");
+	      	
+	      	ErrInsertar=InsertarDE(registro);
+	        //return(ErrInsertar);
+			    if(ErrInsertar)
+			    	return(salir_rb(abroConexion, ErrInsertar, tabla, opcion));
+				  else
+				  	return(salir_cm(abroConexion, ErrInsertar, tabla, opcion));	  
+	     	}
+				//PRJ288711 - FIN		   
+				//PRJ0258542 - INI
+	      if (!strncmp(tabla, "NPTPARA", 7))
+	      {
+	      	printf(". . . . Entrando por NPTPARA de ESCRIBIR . . . .\n");
+	      	
+	      	ErrInsertar=ActualizaClaves(registro);
+			    if(ErrInsertar)
+			    	return(salir_rb(abroConexion, ErrInsertar, tabla, opcion));
+				  else
+				  	return(salir_cm(abroConexion, ErrInsertar, tabla, opcion));	  
+	     	}
+	      if (!strncmp(tabla, "NPTDHSM", 7))
+	      {
+	      	printf(". . . . Entrando por NPTDHSM de ESCRIBIR . . . .\n");
+	      	//printf(" Registro antes de ActualizaHSM >%s<\n",registro);
+	      	ErrInsertar=ActualizaHSM(registro);
+			    if(ErrInsertar)
+			    	return(salir_rb(abroConexion, ErrInsertar, tabla, opcion));
+				  else
+				  	return(salir_cm(abroConexion, ErrInsertar, tabla, opcion));	  
+	     	}
+				//PRJ0258542 - FIN
+				
+	      strncpy(claveT, registro, strlen(registro));
+	      retorReg=1;
+	           
+	      break;
+
+		case CARGAR :
+    	//con una llamada cargamos el cursor que nos interesa: NPTDISO, NPTDAP2 y NPTBIMA
+      // printf("cargar\n");
+		   
+	    //fprintf(stdout,"RAQUEL opcion cargar \n");
+      //fflush(stdout);
+      strncpy (claveT, clave, (strlen(clave)));
+      strncpy(tabla, (char *)ficher, 7);
+		 	//  fprintf(stdout,"RAQUEL opcion cargar claveT %s\n",claveT);
+      //  fflush(stdout);
+      break;
+			//* añadido para PRICE*//           
+        
+        
+    	case REESCRIBIR :
+      	//  printf("reescribir\n");
+        strncpy(tabla, (char *)ficher, 7);
+        if(!strncmp(tabla,"NumeroC",7))
+        {
+             strncpy (registro, clave, (strlen(clave)));
+             strncpy(opcionT, "NUMEROOPE",9);
+             opcionT[9]='\0';
+             strncpy(claveT, clave, 1);
+             claveT[1]='\0';
+                retorReg=0;
+            }
+           else
+           {
+             strncpy(opcionT, "UPDATE",8);
+             opcionT[8]='\0';
+             if (!strncmp(tabla, "NPTLOGO", 7)) //directamente
+             {
+               ErrInsertar=InsertarL(registro);
+                  //return(ErrInsertar);
+                 if(ErrInsertar)
+                    return(salir_rb(abroConexion, ErrInsertar, tabla, opcion));
+                 else
+                    return(salir_cm(abroConexion, ErrInsertar, tabla, opcion));
+             }
+             if (!strncmp(tabla, "ANULAOP", 7) || !strncmp(tabla, "HSMDRIP", 7) )
+               strncpy (claveT, clave, (strlen(clave)));
+             else
+               strncpy (claveT, registro, strlen(registro));
+                retorReg=1;
+             }
+           
+           break;
+
+			//* añadido para PRICE *//
+
+      case FECMODIF :
+           strncpy(tabla, (char *)ficher, 7);
+           strncpy(opcionT, "FECMODIF",8);
+           opcionT[8]='\0';
+           strncpy (claveT, "   ", 3);
+           claveT[3]='\0';
+           retorReg=0;
+          // printf("fecmodif\n");
+           break;
+
+      case ACTIVAR :
+         //  printf("ACTIVAR\n");
+           strncpy(opcionT, "ACTIVA", 6);
+           opcionT[6]='\0';
+           strncpy(tabla,(char *)ficher, 7);
+           retorReg=1; 
+           strncpy (claveT, clave, (strlen(clave)));
+           break;
+
+      case DESACTIVAR :
+         //  printf("DESACTIVAR\n");
+           strncpy(opcionT, "DACTIVA", 7);
+           opcionT[7]='\0';
+           strncpy(tabla,(char *)ficher, 7);
+           retorReg=1; 
+           strncpy (claveT, clave, (strlen(clave)));
+           break;
+
+      case SEMAF :
+        //   printf("SEMAF\n");
+           strncpy(opcionT, "SEMAF", 5);
+           opcionT[5]='\0';
+           strncpy(tabla,(char *)ficher, 7);
+           retorReg=0; 
+           strncpy (claveT, clave, (strlen(clave)));
+           break;
+
+      case SEMAF00 :
+          // printf("SEMAF00\n");
+           strncpy (claveT, clave, (strlen(clave)));
+           strncpy(opcionT, "SEMAF00", 7);
+           opcionT[7]='\0';
+           strncpy(tabla, (char *)ficher, 7);
+           retorReg=1;
+           break;
+
+      case PACONCIL :
+        //   printf("paconcil \n");
+           strncpy (claveT, clave, (strlen(clave)));
+           strncpy(opcionT, "PACONCI", 7);
+           opcionT[7]='\0';
+           strncpy(tabla, (char *)ficher, 7);
+           retorReg=1;
+           break;
+
+      case MONITOR :
+         //  printf("monitor \n");
+           strncpy(opcionT, "MONITOR", 7);
+           opcionT[7]='\0';
+           strncpy (claveT, clave, (strlen(clave)));
+           strncpy(tabla, (char *)ficher, 7);
+           retorReg=0;
+           break;
+
+
+      case TOTAL :
+         //  printf("TOTAL\n");
+           strncpy(opcionT, "TOTAL", 5);
+           opcionT[5]='\0';
+           strncpy(tabla, (char *)ficher, 7);
+           strncpy (claveT, clave, (strlen(clave)));
+           retorReg=1;
+           break;
+
+      case IGUALBORRAR :
+         //  printf("IGUALBORRAR\n");
+           strncpy(opcionT, "IGUALBOR", 8);
+           opcionT[8]='\0';
+           strncpy(tabla, (char *)ficher, 7);
+           strncpy (claveT, registro, (strlen(clave)));
+            retorReg=0;
+           break;
+
+
+      case BORRAR :
+        //   printf("BORRAR\n");
+           strncpy (claveT, clave, (strlen(clave)));
+           strncpy(opcionT, "BORRAR", 6);
+           opcionT[6]='\0';
+           strncpy(tabla, (char *)ficher, 7);
+           retorReg=1;
+           break;
+			//* añadido para PRICE *//
+
+      case IGUAL :
+          // printf("IGUAL\n");
+           strncpy (claveT, clave, (strlen(clave)));
+           strncpy(opcionT, "IGUAL", 5);
+           opcionT[5]='\0';
+           strncpy(tabla, (char *)ficher, 7);
+           retorReg=0;
+          break;
+          
+			//* añadido para PRICE*//
+      case MAYORIGUAL :
+        //   printf("MAYORIGUAL\n");
+           strncpy(tabla, ficher, 7);
+           strncpy (claveT, clave,(strlen(clave)));
+           strncpy(opcionT, "MAYORIGUAL", 10);
+           retorReg=0;
+          break;
+
+      case PRIMERO :
+         //  printf("PRIMERO\n");
+           strncpy(tabla, ficher, 7);
+            //printf("recupero primero\n");
+            strncpy(opcionT, "PRIMERO", 7 );
+            opcionT[7]='\0';
+            strncpy(claveT, "00", 2);
+            claveT[2]='\0';
+            //printf("llamamos oracle %s\n", tabla);
+            
+            retorReg=0;
+            break;
+
+      case SIGUIENTE :
+         //  printf("siguiente\n");
+           strncpy (claveT, clave, (strlen(clave)));
+           strncpy(opcionT, "SIGUIENTE",9);
+           opcionT[9]='\0';
+           strncpy(tabla, (char *)ficher, 7);
+           retorReg=0;
+           break;
+
+      case SESIONF :
+         //  printf("sesion F \n");
+           strncpy (claveT, clave, 13);
+           strncpy(opcionT, "SESION", 6);
+           opcionT[6]='\0';
+           strncpy(tabla, (char *)ficher, 7);
+           retorReg=1;
+          break;
+
+      case ACTSALDO  :
+         //  printf("ACTSALDO\n");
+           strncpy(opcionT, "ACTSALDO", 8);
+           opcionT[8]='\0';
+           strncpy(tabla, (char *)ficher, 7);
+           strncpy (claveT, clave,(strlen(clave)));
+           retorReg=1;
+
+          break;
+      case MODIFESTADO:
+         //  printf("modificar estado\n");
+           strncpy(opcionT, "MODIFESTADO", 11);
+           opcionT[11]='\0';
+           strncpy(tabla, (char *)ficher, 7);
+           strncpy (claveT, clave, (strlen(clave)));
+           retorReg=1;
+           break;
+
+      case COMPENS :
+        //   printf("netos por tipo compensacion");
+           strncpy(opcionT, "COMPENS", 7);
+           opcionT[9]='\0';
+           strncpy (claveT, clave, (strlen(clave)));
+           strncpy(tabla, (char *)ficher, 7);
+           retorReg=0;
+           break;
+				// * añadido para PRICE* //
+    }
+    tabla[7]='\0';
+    claveT[strlen(claveT)]='\0'; 
+    //Inicializamos el error
+    memset(CodError, '\0', 4); 
+ 
+//* añadido para PRICE*//
+   if (opcion == CARGAR )
+   {
+   		// printf("if (opcion == CARGAR )\n");
+	   
+	    fprintf(stdout,"---------------------------\n");
+      fflush(stdout);
+      printf("tabla %s \n",tabla);
+      printf("claveT %s \n",claveT);
+			fflush(stdout);
+       
+      EXEC SQL ALLOCATE :registro3;
+       // printf("despues del ALLOCATE \n");
+        EXEC SQL CALL CARGARTABLA (:tabla, :claveT, :registro3, :CodError); 
+        
+        printf("CodError %s \n", CodError);
+       
+        if (!strncmp(CodError, "000", 3)) //retorno OK
+        {
+           EXEC SQL WHENEVER NOT FOUND DO break; 
+ 
+           ++registro3.curocn;
+           ll=0;
+           if (!strncmp(tabla, "NPTDAP2", 7))
+           {
+                tabla_apl[0].tipo_fc = '.';
+                tabla_apl[0].long_fc = 0;
+                tabla_apl[0].max_fc = 0;
+                tabla_apl[0].off_fc = 0;
+           }
+           for (;;)
+           {
+              //tratar cada tabla
+              if (!strncmp(tabla, "NPTTRMS", 7))
+              {
+                 EXEC SQL FETCH :registro3
+                     INTO :estrucTRMS; 
+                     
+                if (ll >=500)
+                {
+                   //EXEC SQL ROLLBACK RELEASE;
+                   //return (101);
+				   				return(salir_rb(abroConexion, 101, tabla, opcion));
+                }
+
+                strncpy(tabla_trms[ll].trms_emis, estrucTRMS.trmsemis , 2);
+                strncpy(tabla_trms[ll].trms_idtm, estrucTRMS.trmsidtm , 4);
+                strncpy(tabla_trms[ll].trms_copr, estrucTRMS.trmscopr , 6);
+                strncpy(tabla_trms[ll].trms_idtv, estrucTRMS.trmsidtv , 4);
+                strncpy(tabla_trms[ll].trms_idsi, estrucTRMS.trmsidsi , 4);
+                strncpy(tabla_trms[ll].trms_cosi, estrucTRMS.trmscosi , 6); 
+                strncpy(tabla_trms[ll].trms_oper, estrucTRMS.trmsoper , 1); //PRJ0387060
+                ll++;  
+              }
+			  
+			  //RAQUEL añadido para cargar configuracion y colas entidades unificadas bbdd
+			  if (!strncmp(tabla, "NPTIPCS", 7))
+              {
+								// fprintf(stdout,"RAQUEL FILEFUN ENTRANDO CARGAR TABLA NPTIPCS\n");
+                // fflush(stdout);
+                 EXEC SQL FETCH :registro3
+                     INTO :estrucIPCS; 
+                // fprintf(stdout,"RAQUEL FILEFUN DESPUES EXEC TABLA NPTIPCS\n");  
+								// fprintf(stdout,"RAQUEL DESPUES EXEC registro3 %s\n",registro3);  
+								// fprintf(stdout,"RAQUEL DESPUES EXEC estrucIPCS %s\n",estrucIPCS); 
+								// fflush(stdout);
+                if (ll >=100)
+                {
+                   //EXEC SQL ROLLBACK RELEASE;
+                   //return (101);
+				   				return(salir_rb(abroConexion, 101, tabla, opcion));
+                }
+
+                strncpy(tabla_ipcs[ll].ipcs_indi, estrucIPCS.ipcsindi , 3);
+								strncpy(tabla_ipcs[ll].ipcs_nsvm, estrucIPCS.ipcsnsvm , 8);
+                strncpy(tabla_ipcs[ll].ipcs_nomb, estrucIPCS.ipcsnomb , 5);   
+                strncpy(tabla_ipcs[ll].ipcs_clav, estrucIPCS.ipcsclav , 2);
+								tabla_ipcs[ll].ipcs_tama=estrucIPCS.ipcstama;         
+				ll++;  
+              }
+			  if (!strncmp(tabla, "NPTCONF", 7))
+              {
+				 				//fprintf(stdout,"RAQUEL FILEFUN ENTRANDO CARGAR TABLA NPTCONF\n");
+                 //fflush(stdout);
+                 EXEC SQL FETCH :registro3
+                     INTO :estrucCONF; 
+								// fprintf(stdout,"RAQUEL FILEFUN DESPUES EXEC TABLA NPTCONF\n");  
+								// fprintf(stdout,"RAQUEL DESPUES EXEC registro3 %s\n",registro3);  
+								// fprintf(stdout,"RAQUEL DESPUES EXEC estrucCONF %s\n",estrucCONF); 
+								// fflush(stdout);
+                     
+                if (ll >=100)
+                {
+                   //EXEC SQL ROLLBACK RELEASE;
+                   //return (101);
+				   return(salir_rb(abroConexion, 101, tabla, opcion));
+                }
+                strncpy(tabla_conf[ll].conf_indi, estrucCONF.confindi, 3);    
+                strncpy(tabla_conf[ll].conf_cdsu, estrucCONF.confcdsu, 5);
+                strncpy(tabla_conf[ll].conf_dsej, estrucCONF.confdsej, 11);
+                strncpy(tabla_conf[ll].conf_para, estrucCONF.confpara, 21);
+                strncpy(tabla_conf[ll].conf_cola, estrucCONF.confcola, 5);
+								strncpy(tabla_conf[ll].conf_tipp, estrucCONF.conftipp, 2);
+								tabla_conf[ll].conf_nmpr=estrucCONF.confnmpr; 
+								tabla_conf[ll].conf_capr=estrucCONF.confcapr;				
+                strncpy(tabla_conf[ll].conf_csal, estrucCONF.confcsal, 5); 				
+                ll++;  
+              }
+			  
+			  if (!strncmp(tabla, "NPTPARA", 7))
+              {
+				// fprintf(stdout,"RAQUEL FILEFUN ENTRANDO CARGAR TABLA NPTPARA\n");
+                // fflush(stdout);
+                 EXEC SQL FETCH :registro3
+                     INTO :estrucPARA; 
+                     
+                if (ll >2)
+                {
+                   //EXEC SQL ROLLBACK RELEASE;
+                   //return (101);
+				   				return(salir_rb(abroConexion, 101, tabla, opcion));
+                }
+								strncpy(tabla_para[ll].ps_indice, estrucPARA.psindice,3);  
+								strncpy(tabla_para[ll].ps_csb000, estrucPARA.pscsb000,5);         
+								strncpy(tabla_para[ll].ps_noment, estrucPARA.psnoment,21);        
+								strncpy(tabla_para[ll].ps_numope, estrucPARA.psnumope,7);         
+								strncpy(tabla_para[ll].ps_nument, estrucPARA.psnument,3);         
+								strncpy(tabla_para[ll].ps_hcamse, estrucPARA.pshcamse,7);         
+								strncpy(tabla_para[ll].ps_feinse, estrucPARA.psfeinse,9);         
+								strncpy(tabla_para[ll].ps_hoinse, estrucPARA.pshoinse,7);         
+								strncpy(tabla_para[ll].ps_modocs, estrucPARA.psmodocs,2);         
+								strncpy(tabla_para[ll].ps_timesp, estrucPARA.pstimesp,7);         
+								strncpy(tabla_para[ll].ps_numcross, estrucPARA.psnumcross,11);      
+								strncpy(tabla_para[ll].ps_cerrando, estrucPARA.pscerrando,2);       
+								strncpy(tabla_para[ll].ps_resolu, estrucPARA.psresolu,3);   
+								strncpy(tabla_para[ll].ps_monito, estrucPARA.psmonito,3);   
+								strncpy(tabla_para[ll].ps_cotrms, estrucPARA.pscotrms,3);  
+								strncpy(tabla_para[ll].ps_idered, estrucPARA.psidered,2);  
+								strncpy(tabla_para[ll].ps_cltrat, estrucPARA.pscltrat,9);  
+								strncpy(tabla_para[ll].ps_clenvi, estrucPARA.psclenvi,5);  
+								strncpy(tabla_para[ll].ps_clrece, estrucPARA.psclrece,9);         
+								strncpy(tabla_para[ll].ps_clvhsm, estrucPARA.psclvhsm,51);		
+								//PRJ0258542 - INI
+								strncpy(tabla_para[ll].ps_clzmka, estrucPARA.psclzmka,51);
+								strncpy(tabla_para[ll].ps_clzmki, estrucPARA.psclzmki,51);
+								strncpy(tabla_para[ll].ps_clzika, estrucPARA.psclzika,51);
+								strncpy(tabla_para[ll].ps_clziki, estrucPARA.psclziki,51);
+								strncpy(tabla_para[ll].ps_clzpka, estrucPARA.psclzpka,51);
+								strncpy(tabla_para[ll].ps_clzpki, estrucPARA.psclzpki,51);
+								strncpy(tabla_para[ll].ps_clzaka, estrucPARA.psclzaka,51);
+								strncpy(tabla_para[ll].ps_clzaki, estrucPARA.psclzaki,51);
+								strncpy(tabla_para[ll].ps_clzeka, estrucPARA.psclzeka,51);
+								strncpy(tabla_para[ll].ps_clzeki, estrucPARA.psclzeki,51);
+								strncpy(tabla_para[ll].ps_clclap, estrucPARA.psclclap,51);
+								strncpy(tabla_para[ll].ps_clblop, estrucPARA.psclblop,51);
+								//PRJ0258542 - FIN
+                ll++;  				
+              }
+              
+              if (!strncmp(tabla, "NPTDISO", 7))
+              {
+                 EXEC SQL FETCH :registro3
+                     INTO :estrucDISO; 
+
+                strncpy(cad_verif , estrucDISO.donumiso , 3);
+                cad_verif[3] = '\0';
+                indice = atoi(cad_verif) - 1;
+                if (indice >=128)
+                {
+                   //EXEC SQL ROLLBACK RELEASE;
+                   //return (101);
+				   return(salir_rb(abroConexion, 101, tabla, opcion));
+                }
+
+                tabla_iso[indice].tipo_fs=estrucDISO.dopictur[0];
+
+                strncpy(ch05, estrucDISO.dolongit, 4);
+                tabla_iso[indice].long_fs = atoi(ch05);
+                strncpy(ch04, estrucDISO.dolonmax, 3); //longitud maxima
+                tabla_iso[indice].max_fs = atoi(ch04);
+
+                tabla_iso[indice].mac_fs=estrucDISO.dousomac[0];
+              }
+              if (!strncmp(tabla, "NPTDAP2", 7))
+              {
+                   EXEC SQL FETCH :registro3
+                     INTO :estrucDAP2; 
+
+                  strncpy(cad_verif, estrucDAP2.a2numiso , 3);
+                  cad_verif[3] = '\0';
+                  indice = atoi(cad_verif) - 1;
+                  if (indice >=128)
+                  {
+                     //EXEC SQL ROLLBACK RELEASE;
+					 //return (101);
+					 return(salir_rb(abroConexion, 101, tabla, opcion));
+                  } 
+
+                  tabla_apl[indice].tipo_fc = estrucDAP2.a2pictur[0];
+                  tabla_apl[indice].long_fc = atoi(estrucDAP2.a2longit);
+                  tabla_apl[indice].max_fc  = atoi(estrucDAP2.a2lonmax);
+                  tabla_apl[indice].off_fc  = atoi(estrucDAP2.a2offset);
+              }
+              if (!strncmp(tabla, "NPTBIMA", 7))
+              {
+                if (ll>=100)
+                {
+                   printf("ll > 100\n");
+                   //EXEC SQL ROLLBACK RELEASE;
+                   //return(101);
+				   return(salir_rb(abroConexion, 101, tabla, opcion));
+                }
+
+                  EXEC SQL FETCH :registro3
+                    INTO :estrucBIMA; 
+
+ 
+                strncpy(tabla_bim[ll].tipo_bm , estrucBIMA.bmtipmen , 4);
+                tabla_bim[ll].sent_bm = estrucBIMA.bmsentra[0];
+
+                if(estrucBIMA.bmpervia[0] == '1' || estrucBIMA.bmpervia[0] == '2')
+                   tabla_bim[ll].perv_bm = estrucBIMA.bmpervia[0] == '1' ? 'S' : 'N';
+                else
+                   tabla_bim[ll].perv_bm = estrucBIMA.bmpervia[0] == 'S' ? 'S' : 'N';
+
+                strncpy(tabla_bim[ll].bim1_bm , estrucBIMA.bmbima01 , 192);
+                strncpy(tabla_bim[ll].bim2_bm , estrucBIMA.bmbima02 , 192);
+                ll++;
+              }
+
+              if (!strncmp(tabla, "NPTTBOP", 7))
+              {
+                 EXEC SQL FETCH :registro3
+                    INTO :estrucTBOP;
+
+                 ttbop *p = (ttbop *)malloc(sizeof(ttbop));
+                 if (!p)   /*** insuficiente memoria   ***/
+                 {
+                    printf( "Memoria insuficiente en nuevo_tb\n");
+                    //EXEC SQL ROLLBACK RELEASE;
+					//return (101);
+					return(salir_rb(abroConexion, 101, tabla, opcion));
+					
+                 }
+                 ptb=p;
+                 memset(ptb->clave, '\0', sizeof(ptb->clave));
+                 strncpy(ptb->clave, estrucTBOP.tbcodent,4);
+                 strncat(ptb->clave, estrucTBOP.tbtabla0,2);
+                 strncat(ptb->clave, estrucTBOP.tbclave0,12);
+                 strncpy(ptb->funcion, estrucTBOP.tbfuncis,20);
+                 ptb->siguiente = ptb_primero;
+                 ptb_primero = ptb;
+              }
+           }//for
+           EXEC SQL CLOSE :registro3; 
+           EXEC SQL FREE :registro3; 
+           
+           if (!strncmp(tabla, "NPTBIMA", 7) )
+             registro=(char*)tabla_bim;
+           if (!strncmp(tabla, "NPTDAP2", 7) )
+              registro=(char*)tabla_apl;
+           if (!strncmp(tabla, "NPTDISO", 7) )
+             registro=(char*)tabla_iso;
+           if (!strncmp(tabla, "NPTTBOP", 7) )
+             registro=(char*)ptb_primero;
+		   if (!strncmp(tabla, "NPTTRMS", 7) )
+               registro=(char*)tabla_trms;
+		   if (!strncmp(tabla, "NPTIPCS", 7) )
+               registro=(char*)tabla_ipcs;
+		   if (!strncmp(tabla, "NPTCONF", 7) )
+               registro=(char*)tabla_conf;
+		   if (!strncmp(tabla, "NPTPARA", 7) )
+               registro=(char*)tabla_para;
+
+        }//if no error
+        else
+        {
+           printf("se sale por el else de cargar\n");
+           //EXEC SQL ROLLBACK RELEASE;
+		   //return (101);
+		   return(salir_rb(abroConexion, 101, tabla, opcion));
+        } 
+   }
+   else
+   {
+// * añadido para PRICE*//
+   // printf (" else if (opcion == CARGAR ) \n");
+    if (((!strncmp(tabla, "NPTPARS", 7))  && (strncmp(opcionT,"UPDATE",6) && strncmp(opcionT,"FECMODIF",8)
+                                          &&  strncmp(opcionT,"MODIFESTADO",11) && strncmp(opcionT, "SEMAF", 5) 
+                                          &&  strncmp(opcionT, "SESION", 6) && strncmp(opcionT, "PACONCI", 7))) ||
+        ((!strncmp(tabla, "NPTCASA", 7)) && (!strncmp(opcionT, "IGUAL",5))) ||
+        ((!strncmp(tabla, "NPTDIFE", 7)) && (strncmp(opcionT, "BORRAR",5))) ||
+        ((!strncmp(tabla, "PREVIAA", 7)) && (!strncmp(opcionT, "IGUAL",5))) ||
+        ((!strncmp(tabla, "NPTIDEN", 7)) && (!strncmp(opcionT, "IGUAL",5))) //||
+	//	((!strncmp(tabla, "NPTPARA", 7)) && (!strncmp(opcionT, "IGUAL",5)))    //añadido para arranque por bbdd
+       )  //cursores
+     {
+         fprintf(stdout,"cursores llamadaProc2 claveT>%s< tabla %s, opcion %s\n", claveT, (char*)tabla, (char*)opcionT);
+         fflush(stdout);
+
+          contador=0;
+        //  printf ("antes del allocate\n");
+          EXEC SQL ALLOCATE :registro3;
+       //   printf ("despues del allocate\n");
+          //printf ("antes del call llamadaProc2\n");
+          EXEC SQL CALL llamadaProc2 (:opcionT, :tabla, :claveT, :registro3, :CodError); 
+          //printf ("despues del call llamadaProc2\n");
+          EXEC SQL WHENEVER NOT FOUND DO break; 
+  
+         ++registro3.curocn;
+         for (;;){
+           //  printf("dentro del for \n");
+           //  printf("contador dentro del for%i\n", contador);
+           //  printf("dentro del for claveT>%s< tabla %s, opcion %s\n", claveT, (char*)tabla, (char*)opcionT);
+             fflush(stdout);
+             
+           if (!strncmp(tabla, "NPTIDEN", 7))
+           {
+             EXEC SQL FETCH :registro3
+             INTO :estrucIDEN; 
+             //printf("estructura estrucIDEN %s\n", estrucIDEN);
+           }
+//* añadido para PRICE*//
+           else
+             if (!strncmp(tabla, "NPTPARS", 7))
+             {
+                EXEC SQL FETCH :registro3
+                INTO :estrucPARS; 
+            //    printf("estructura estrucPARS %s\n", estrucPARS);
+             }
+             else
+               if (!strncmp(tabla, "NPTCASA", 7))
+               {
+                 EXEC SQL FETCH :registro3
+                 INTO :estrucCASA; 
+            //     printf("estructura estrucCASA %s\n", estrucCASA);
+               }
+               else
+                 if (!strncmp(tabla, "NPTDIFE", 7))
+                 {
+                    EXEC SQL FETCH :registro3
+                    INTO :estrucDIFE; 
+              //      printf("estructura estrucDIFE %s\n", estrucDIFE);
+                 }
+             //    else
+	         //   	 if (!strncmp(tabla, "NPTPARA", 7))
+             //        {
+             //           EXEC SQL FETCH :registro3
+             //           INTO :estrucPARA; 
+             // //      printf("estructura estrucDIFE %s\n", estrucPARa);
+             //        }
+                     else 
+				     {
+                         EXEC SQL FETCH :registro3
+                         INTO :estrucLOGO;  
+					 }
+
+//* añadido para PRICE*//
+
+           fprintf(stdout,"Contador >%d< CodError >%s< sqlca.sqlcode >%d<\n", contador, CodError, sqlca.sqlcode);
+           contador++;
+           if (!strncmp(opcionT, "IGUAL",5))
+              break;
+         }
+       //  printf("salgo del for \n");
+       //  printf("contador %i\n", contador);
+          EXEC SQL CLOSE :registro3;  
+          EXEC SQL FREE :registro3; 
+        //  printf("despues del EXEC SQL CLOSE Y FREE registro3 \n");
+
+         ///////////// Si el proceso ha abierto la conexion la libera, si no no
+         if ((strncmp(CodError,"000",3)) || (contador==0))
+         {
+            fprintf(stdout,"Contador >%d< CodError >%s< sqlca.sqlcode >%d<\n", contador, CodError, sqlca.sqlcode);
+               return(salir_rb(abroConexion, 101, tabla, opcion));
+
+         }
+         else
+         {
+//* añadido para PRICE *//
+
+         if (!strncmp(tabla, "NPTPARS", 7))
+         {
+            memset(registro, '\0', sizeof(NPSPARS));
+            strcat(registro, estrucPARS.pasubsis);
+            strcat(registro, estrucPARS.pasubapl);
+            strcat(registro, estrucPARS.panomsub);
+            strcat(registro, estrucPARS.pasemaf1);
+            strcat(registro, estrucPARS.pasemaf2);
+            strcat(registro, estrucPARS.paestado);
+            strcat(registro, estrucPARS.patrepet);
+            strcat(registro, estrucPARS.patrerep);
+            strcat(registro, estrucPARS.patresnf);
+            strcat(registro, estrucPARS.panumrea);
+            strcat(registro, estrucPARS.pafecses);
+            strcat(registro, estrucPARS.panumses);
+            strcat(registro, estrucPARS.paconcil);
+            strcat(registro, estrucPARS.panip);
+            strcat(registro, estrucPARS.paportnume);
+            strcat(registro, estrucPARS.pacidesti);
+            strcat(registro, estrucPARS.paciadqui);
+            strcat(registro, estrucPARS.paenvoff);
+            strcat(registro, estrucPARS.paenvtst);
+            strcat(registro, estrucPARS.patisub);
+            strcat(registro, estrucPARS.paidred);
+         }
+         else
+         {
+          if (!strncmp(tabla, "NPTCASA", 7))
+          {
+          	NPSCASA casa;
+          	int despla=0;
+          	
+            memset(registro, '\0', sizeof(NPSCASA));
+            
+            //PRJ0247167: se modifica la concatenacion de string por una copia de un numero de posiciones fija debido a la
+            //            diferencia de medida entre los campos reales de NPTCASA y la estructura "formato_interno"
+            /*strcat(registro, estrucCASA.canumope);
+            strcat(registro, estrucCASA.catieabs);
+            strcat(registro, estrucCASA.catieesp);
+            strcat(registro, estrucCASA.caforitn);
+            */
+            
+            memcpy(registro, estrucCASA.canumope,sizeof(casa.canumope));
+            despla=sizeof(casa.canumope);
+            memcpy(registro+despla, estrucCASA.catieabs, sizeof(casa.catieabs));
+            despla=despla+sizeof(casa.catieabs);
+            memcpy(registro+despla, estrucCASA.catieesp, sizeof(casa.catieesp));
+            despla=despla+sizeof(casa.catieesp);
+            memcpy(registro+despla, estrucCASA.caforitn, sizeof(casa.caforitn));
+            
+            // FIN modificacion PRJ0247167   
+          }
+          else
+          {
+           if(!strncmp(tabla, "NPTDIFE", 7))
+           {
+          	 NPSDIFE dife;
+          	 int despla=0;
+          	 
+          	 printf ("JFL - Paso por la nueva modificacio del filefun de NPSDIFE\n");
+             memset(registro, '\0', sizeof(NPSDIFE));
+            //PRJ0247167: se modifica la concatenacion de string por una copia de un numero de posiciones fija debido a la
+            //            diferencia de medida entre los campos reales de NPSDIFE y la estructura "formato_interno"
+            /*strcat(registro, estrucDIFE.disubsis);
+             strcat(registro, estrucDIFE.disubapl);
+             strcat(registro, estrucDIFE.difecha0);
+             strcat(registro, estrucDIFE.dihora00);
+             strcat(registro, estrucDIFE.dinumope);
+             strcat(registro, estrucDIFE.diforitn);*/
+            
+			//strcat(registro, estrucDIFE.diclavpr);
+
+            memcpy(registro, estrucDIFE.disubsis, sizeof(dife.disubsis));
+            despla=sizeof(dife.disubsis);
+            memcpy(registro+despla, estrucDIFE.disubapl, sizeof(dife.disubapl));
+            despla=despla+sizeof(dife.disubapl);
+            memcpy(registro+despla, estrucDIFE.difecha0, sizeof(dife.difecha0));
+            despla=despla+sizeof(dife.difecha0);
+            memcpy(registro+despla, estrucDIFE.dihora00, sizeof(dife.dihora00));
+            despla=despla+sizeof(dife.dihora00);
+            memcpy(registro+despla, estrucDIFE.dinumope, sizeof(dife.dinumope));
+            despla=despla+sizeof(dife.dinumope);
+            memcpy(registro+despla, estrucDIFE.diforitn, sizeof(dife.diforitn)); 
+
+            // FIN modificacion PRJ0247167   
+
+
+           }
+           else
+           {
+ //* añadido para PRICE *//              
+            if(!strncmp(tabla, "NPTIDEN", 7))
+            {
+              memset(registro, '\0', sizeof(NPSIDEN));
+              strcat(registro, estrucIDEN.idsubsis);
+              strcat(registro, estrucIDEN.idsubapl);
+              strcat(registro, estrucIDEN.idcomando);
+              strcat(registro, estrucIDEN.idclave1);                                                      
+              strcat(registro, estrucIDEN.idclave2);                                                      
+            }                                                                                             
+//* añadido para arranque sisma por bbdd *//                                                              
+																									      
+            else                                                                                          
+            {                                                                                             
+			 // if(!strncmp(tabla, "NPTPARA", 7))                                                          
+			 // {                                                                                          
+			 //   memset(registro, '\0', sizeof(NPSPARA)); 
+             //   strcat(registro, estrucPARA.psindice);				 
+			 //   strcat(registro, estrucPARA.pscsb000);                                                   
+			 //   strcat(registro, estrucPARA.psnoment);                                      
+			 //   strcat(registro, estrucPARA.psnumope);                                      
+             //   strcat(registro, estrucPARA.psnument);				                         
+			 //   strcat(registro, estrucPARA.pshcamse);                                      
+			 //   strcat(registro, estrucPARA.psfeinse);                                      
+             //   strcat(registro, estrucPARA.pshoinse);                                      
+             //   strcat(registro, estrucPARA.psmodocs);                                      
+             //   strcat(registro, estrucPARA.pstimesp);                                      
+             //   strcat(registro, estrucPARA.psnumcross); 				                         
+             //   strcat(registro, estrucPARA.pscerrando);                                         
+             //   strcat(registro, estrucPARA.psresolu);       
+			//strcat(registro, estrucPARA.psmonito);
+			//strcat(registro, estrucPARA.pscotrms);
+			//strcat(registro, estrucPARA.psidered);
+			//strcat(registro, estrucPARA.pscltrat);
+			//strcat(registro, estrucPARA.psclenvi);
+			//strcat(registro, estrucPARA.psclrece);
+             //   strcat(registro, estrucPARA.psclvhsm);                                              
+			 // }                                                                                     
+			   
+//* añadido para PRICE *//			   
+			 //  else                                                                  
+			 //  {                                                                     
+			      NPSLOGO logo;
+          	int despla=0;
+          	
+          	memset(registro, '\0', sizeof(NPSLOGO));     
+			                            
+            //PRJ0247167: se modifica la concatenacion de string por una copia de un numero de posiciones fija debido a la
+            //            diferencia de medida entre los campos reales de NPTLOGO y la estructura "formato_interno"
+            /*
+                 strcat(registro, estrucLOGO.lonumope);                              
+                 strcat(registro, estrucLOGO.lofecha0);                              
+                 strcat(registro, estrucLOGO.lohora00);
+                 strcat(registro, estrucLOGO.lonumpan);
+                 strcat(registro, estrucLOGO.locomerc);
+                 strcat(registro, estrucLOGO.loclavpr);
+                 strcat(registro, estrucLOGO.loeseven);
+                 strcat(registro, estrucLOGO.loesanul);
+                 strcat(registro, estrucLOGO.loimporte);
+                 strcat(registro, estrucLOGO.losesion);
+                 strcat(registro, estrucLOGO.lofecses);
+                 strcat(registro, estrucLOGO.loforitn);
+            */     
+            memcpy(registro, estrucLOGO.lonumope, sizeof(logo.lonumope));
+            despla=sizeof(logo.lonumope);
+            memcpy(registro+despla, estrucLOGO.lofecha0, sizeof(logo.lofecha0));
+            despla=despla+sizeof(logo.lofecha0);            
+            memcpy(registro+despla, estrucLOGO.lohora00, sizeof(logo.lohora00));
+            despla=despla+sizeof(logo.lohora00);
+            memcpy(registro+despla, estrucLOGO.lonumpan, sizeof(logo.lonumpan));
+            despla=despla+sizeof(logo.lonumpan);
+            memcpy(registro+despla, estrucLOGO.locomerc, sizeof(logo.locomerc));
+            despla=despla+sizeof(logo.locomerc);
+            memcpy(registro+despla, estrucLOGO.loclavpr, sizeof(logo.loclavpr));
+            despla=despla+sizeof(logo.loclavpr);
+            memcpy(registro+despla, estrucLOGO.loeseven, sizeof(logo.loeseven));
+            despla=despla+sizeof(logo.loeseven);
+            memcpy(registro+despla, estrucLOGO.loesanul, sizeof(logo.loesanul));
+            despla=despla+sizeof(logo.loesanul);
+            memcpy(registro+despla, estrucLOGO.loimporte, sizeof(logo.loimporte));
+            despla=despla+sizeof(logo.loimporte);
+            memcpy(registro+despla, estrucLOGO.losesion, sizeof(logo.losesion));
+            despla=despla+sizeof(logo.losesion);
+            memcpy(registro+despla, estrucLOGO.lofecses, sizeof(logo.lofecses));
+            despla=despla+sizeof(logo.lofecses);
+            memcpy(registro+despla, estrucLOGO.loforitn, sizeof(logo.loforitn));
+            
+            // FIN modificacion PRJ0247167   
+                 
+			   //}//else npslpara
+			 } //else iden
+            }//else dife
+           }//else casa
+          }//else pars 
+         }//else coderor
+       } // if cursores 
+
+     else
+     {
+       if (!strncmp(tabla, "NPTLOGO", 7)) //cursores
+       {
+         //printf("NPTLOGO llamadaProc2\n"); 
+         contador=0;
+         EXEC SQL ALLOCATE :registro3;  
+         EXEC SQL CALL llamadaProc2 (:opcionT, :tabla, :claveT, :registro3, :CodError); 
+         EXEC SQL WHENEVER NOT FOUND DO break; 
+
+         ++registro3.curocn;
+         for (;;){
+            EXEC SQL FETCH :registro3
+                INTO :estrucLOGO; 
+            contador++;
+         }
+          EXEC SQL CLOSE :registro3; 
+          EXEC SQL FREE :registro3; 
+         if ((strncmp(CodError,"000",3)) || (contador==0))
+         {
+            printf("Contador >%d< CodError >%s< sqlca.sqlcode >%d< llamdaProc2 NPTLOGO\n", contador, CodError, sqlca.sqlcode);
+            //EXEC SQL ROLLBACK RELEASE;
+            //return  (101);
+						return(salir_rb(abroConexion, 101, tabla, opcion));
+         }
+         else
+         {
+			      NPSLOGO logo;
+          	int despla=0;
+          	
+            memset(registro, '\0', sizeof(NPSLOGO));
+            
+            //PRJ0247167: se modifica la concatenacion de string por una copia de un numero de posiciones fija debido a la
+            //            diferencia de medida entre los campos reales de NPTLOGO y la estructura "formato_interno"    
+            /*
+            strcat(registro, estrucLOGO.lonumope);
+            strcat(registro, estrucLOGO.lofecha0);
+            strcat(registro, estrucLOGO.lohora00);
+            strcat(registro, estrucLOGO.lonumpan);
+            strcat(registro, estrucLOGO.locomerc);
+            strcat(registro, estrucLOGO.loclavpr);
+            strcat(registro, estrucLOGO.loeseven);
+            strcat(registro, estrucLOGO.loesanul);
+            strcat(registro, estrucLOGO.loimporte);
+            strcat(registro, estrucLOGO.losesion);
+            strcat(registro, estrucLOGO.lofecses);
+            strcat(registro, estrucLOGO.loforitn);
+            */
+            
+            memcpy(registro, estrucLOGO.lonumope, sizeof(logo.lonumope));
+            despla=sizeof(logo.lonumope);
+            memcpy(registro+despla, estrucLOGO.lofecha0, sizeof(logo.lofecha0));
+            despla=despla+sizeof(logo.lofecha0);            
+            memcpy(registro+despla, estrucLOGO.lohora00, sizeof(logo.lohora00));
+            despla=despla+sizeof(logo.lohora00);
+            memcpy(registro+despla, estrucLOGO.lonumpan, sizeof(logo.lonumpan));
+            despla=despla+sizeof(logo.lonumpan);
+            memcpy(registro+despla, estrucLOGO.locomerc, sizeof(logo.locomerc));
+            despla=despla+sizeof(logo.locomerc);
+            memcpy(registro+despla, estrucLOGO.loclavpr, sizeof(logo.loclavpr));
+            despla=despla+sizeof(logo.loclavpr);
+            memcpy(registro+despla, estrucLOGO.loeseven, sizeof(logo.loeseven));
+            despla=despla+sizeof(logo.loeseven);
+            memcpy(registro+despla, estrucLOGO.loesanul, sizeof(logo.loesanul));
+            despla=despla+sizeof(logo.loesanul);
+            memcpy(registro+despla, estrucLOGO.loimporte, sizeof(logo.loimporte));
+            despla=despla+sizeof(logo.loimporte);
+            memcpy(registro+despla, estrucLOGO.losesion, sizeof(logo.losesion));
+            despla=despla+sizeof(logo.losesion);
+            memcpy(registro+despla, estrucLOGO.lofecses, sizeof(logo.lofecses));
+            despla=despla+sizeof(logo.lofecses);
+            memcpy(registro+despla, estrucLOGO.loforitn, sizeof(logo.loforitn));
+         	            
+            // FIN modificacion PRJ0247167   
+         }
+       }
+       else
+       {
+        if (!strncmp(tabla, "NPTDIFE", 7) && !strncmp(opcionT, "BORRAR", 6))
+        {
+            strncpy(subsisF, claveT, 2);
+            subsisF[2]='\0';
+            strncpy(subapl, claveT+2, 2);
+            subapl[2]='\0';
+            strncpy(fecha0, claveT+4, 8);
+            fecha0[8]='\0';
+            strncpy(hora00, claveT+12, 6);
+            hora00[6]='\0';
+            strncpy(numope, claveT+18, 6);
+            numope[6]='\0';
+            
+            contador = 0;
+            while (contador == 0)
+            {
+              EXEC SQL DELETE NPTDIFE WHERE disubsis = :subsisF and disubapl = :subapl and difecha0 = :fecha0 and 
+                                         dihora00 = :hora00 and dinumope = :numope;
+              contador++;
+           }
+           if (sqlca.sqlcode != 0)
+           {
+               printf("sqlcode tras el borrado NPTDIFE %d\n",sqlca.sqlcode);
+			  //EXEC SQL ROLLBACK RELEASE;
+              //return(101);
+			  return(salir_rb(abroConexion, 101, tabla, opcion));
+           }
+           //printf("borrado\n");
+        }
+			//* añadido para PRICE *//        
+     else
+     {
+         fprintf(stdout,"LLamadaProc opcion %s,  tabla %s, clave %.25s\n",  (char*)opcionT, (char*)tabla, (char*)claveT);
+         fflush(stdout);
+         memset(registro2, '\0', 3000);
+
+         EXEC SQL CALL LlamadaProc (:opcionT, :tabla, :claveT, :registro2, :CodError); 
+         
+         if (sqlca.sqlcode != 0) 
+         {
+           if ((sqlca.sqlcode != -1405) || 
+               ((sqlca.sqlcode == -1405) && (retorReg==0)))
+           {
+             printf("error en el acceso LlamadaProc %i\n", sqlca.sqlcode );
+           }
+         } 
+         
+         ///////// Si el proceso ha abierto la conexion la libera, si no no
+         if  (strncmp(CodError,"000",3))
+         {
+             printf("CodError >%s< sqlca.sqlcode >%d< en LlamadaProc\n", CodError, sqlca.sqlcode);
+             return(salir_rb(abroConexion, 101, tabla, opcion));
+         }
+         else
+            if (retorReg==0)
+            {
+              strncpy (registro, (char*)registro2, (strlen(registro2)));
+            }
+          printf("BBDD OK\n");
+        }
+       }
+     }
+   }
+   
+     return(salir_cm(abroConexion,0, tabla, opcion));
+     
+} //FIN tratar_fich
+
+int bloquear(short tipobloq)
+{
+    return(0);
+}
+
+int transaccion(int transmodo)
+{
+  return(0);
+}
+
+//* añadido para PRICE *//
+int InsertarC(void* registro)
+{
+    int cont=0;
+    int errSQL=0;
+
+    QuitarCaracteres(registro,sizeof(NPSCASA));  
+
+    strncpy(numope, registro, 6);
+    numope[6]='\0';
+    strncpy(catieabs, (char*)registro+6, 10);
+    catieabs[10]='\0';
+    strncpy(catieesp, (char*)registro+16, 10);
+    catieesp[10]='\0';
+    strncpy(formatoI, (char*)registro+26, sizeof(formatoI)-1);
+    formatoI[sizeof(formatoI)-1]='\0';
+
+    while (cont==0)
+    {
+	   cont++;
+	   
+       EXEC SQL INSERT INTO NPTCASA VALUES (:numope,:catieabs,:catieesp,:formatoI ); 
+       
+	   // si da error por clave duplicada hacemos update
+	   if(sqlca.sqlcode == -1)
+	   {
+           EXEC SQL UPDATE NPTCASA set        
+           CATIEABS = :catieabs,
+		   CATIEESP = :catieesp,
+		   CAFORITN = :formatoI
+           where CANUMOPE=:numope; 	   
+	   }
+       if (sqlca.sqlcode != 0)
+       {
+         errSQL = sqlca.sqlcode;
+         printf("sqlcode tras el insert NPTCASA >%d<\n",sqlca.sqlcode);
+       } 
+    }
+	
+    return(errSQL);
+}
+//* añadido para PRICE *//
+
+int InsertarL(void* registro)
+{
+
+    int cont=0;
+    int errSQL=0;
+    NPSLOGO logo;
+
+		//printf("...... Llamada al procedimiento InsertarL .-.-.- \n"); // temporal
+		//printf(".... Cadena de entrada registro 1 >%s< >%d< \n", registro, strlen(registro));       // temporal
+
+    //PRJ0247167: se modifica la concatenacion de string por una copia de un numero de posiciones fija debido a la
+    //            diferencia de medida entre los campos reales de NPTLOGO y la estructura "formato_interno"    
+    //QuitarCaracteres(registro, sizeof(NPSLOGO));
+    QuitarCaracteres(registro, sizeof(logo));
+		//printf(".... Cadena de entrada registro 2 >%s< >%d< \n", registro, strlen(registro));			 // temporal
+
+    strncpy(numope,registro, 6);
+    numope[6]='\0';
+
+    strncpy(fecha0, (char*)registro+6, 8);
+    fecha0[8]='\0';
+
+    strncpy(hora00, (char*)registro+14, 6);
+    hora00[6]='\0';
+
+    strncpy(lonumpan, (char*)registro+20, 19);
+    lonumpan[19]='\0';
+    
+    strncpy(locomerc, (char*)registro+39, 15);
+    locomerc[15]='\0';
+
+    strncpy(loclavpr, (char*)registro+54, 35);
+    loclavpr[35]='\0';
+
+    strncpy(loeseven, (char*)registro+89, 1);
+    loeseven[1]='\0';
+
+    strncpy(loesanul, (char*)registro+90, 1);
+    loesanul[1]='\0';
+
+    strncpy(loimporte, (char*)registro+91, 12);
+    loimporte[12]='\0';
+
+    strncpy(losesion, (char*)registro+103, 3);
+    losesion[3]='\0';
+
+    strncpy(lofecses, (char*)registro+106, 6);
+    lofecses[6]='\0';
+
+	
+    //PRJ0247167: se modifica la concatenacion de string por una copia de un numero de posiciones fija debido a la
+    //            diferencia de medida entre los campos reales de NPTLOGO y la estructura "formato_interno"    
+    //strncpy(formatoI, (char*)registro+112, sizeof(formatoI)-1);
+    strncpy(formatoI, (char*)registro+112, sizeof(logo.loforitn)-1);
+		//PRJ0258542 - quitar cadena erronea del final
+		if (strncmp(formatoI + 2510, loclavpr, 35) != 0)
+		{
+			strncpy(formatoI + 2510, "                                   ", 35);
+		}
+		//PRJ0258542 - quitar cadena erronea del final
+    formatoI[sizeof(formatoI)-1]='\0';
+	
+	//BIMSF-3087
+	printf("filefun.cpp antes de el insert NPTLOGO fecha0 >%s<\n",fecha0);
+	printf("filefun.cpp antes de el insert NPTLOGO hora00 >%s<\n",hora00);
+	printf("filefun.cpp antes de el insert NPTLOGO numope >%s<\n",numope);
+	printf("filefun.cpp antes de el insert NPTLOGO lonumpan >%s<\n",lonumpan);
+	printf("filefun.cpp antes de el insert NPTLOGO locomerc >%s<\n",locomerc);
+	printf("filefun.cpp antes de el insert NPTLOGO loclavpr >%s<\n",loclavpr);
+	printf("filefun.cpp antes de el insert NPTLOGO loeseven >%s<\n",loeseven);
+	printf("filefun.cpp antes de el insert NPTLOGO loesanul >%s<\n",loesanul);
+	printf("filefun.cpp antes de el insert NPTLOGO loimporte >%s<\n",loimporte);
+	printf("filefun.cpp antes de el insert NPTLOGO formatoI >%s<\n",formatoI);
+	printf("filefun.cpp antes de el insert NPTLOGO losesion >%s<\n",losesion);
+	printf("filefun.cpp antes de el insert NPTLOGO lofecses >%s<\n",lofecses);
+ 
+ //* añadido para PRICE * //
+     while (cont==0)  // si no lo meto en un bucle no compila
+    {
+      cont ++;
+      if (!strncmp(opcionT, "INSERTAR",8 ))
+      {
+	
+         EXEC SQL INSERT INTO NPTLOGO VALUES (:fecha0, :hora00,:numope
+            ,:lonumpan
+            ,:locomerc, :loclavpr, :loeseven, :loesanul, :loimporte,:formatoI, :losesion, :lofecses); 
+		 //BIMSF-3087
+	     printf("filefun.cpp tras el insert NPTLOGO sqlcode >%d<\n",sqlca.sqlcode);
+		 printf("filefun.cpp tras el insert NPTLOGO sqlerrm >%s<\n",sqlca.sqlerrm);
+	    // si da error por clave duplicada hacemos update
+	    if(sqlca.sqlcode == -1)
+	    {
+           EXEC SQL UPDATE NPTLOGO set        
+           datos_forminterno = :formatoI,
+           loclavpr          = :loclavpr
+           where lofecha0=:fecha0 and lohora00=:hora00  and lonumope=:numope; 	   
+	    } 
+	  }	
+      else
+      {
+         //printf("loclavpr %.35s\n", loclavpr);
+         EXEC SQL UPDATE NPTLOGO set        
+         datos_forminterno = :formatoI,
+         loclavpr          = :loclavpr
+         where lofecha0=:fecha0 and lohora00=:hora00  and lonumope=:numope; 
+      }
+	}
+ // * añadido para PRICE *//
+ 
+    errSQL = sqlca.sqlcode;
+
+
+    return(errSQL);
+}
+
+//* añadido para PRICE *//
+int InsertarDF(void* registro)
+{
+    int cont=0;
+    int errSQL=0;
+
+
+    QuitarCaracteres(registro,sizeof(NPSDIFE));  
+
+    strncpy(subsisF, registro, 2);
+    subsisF[2]='\0';
+    strncpy(subapl, (char*)registro+2, 2);
+    subapl[2]='\0';
+    strncpy(fecha0, (char*)registro+4, 8);
+    fecha0[8]='\0';
+    strncpy(hora00, (char*)registro+12, 6);
+    hora00[6]='\0';
+    strncpy(numope, (char*)registro+18, 6); 
+    numope[6]='\0';
+    strncpy(formatoI, (char*)registro+24, sizeof(formatoI)-1);
+    formatoI[sizeof(formatoI)-1]='\0';
+    strncpy(loclavpr, (char*)registro + 24 + sizeof(formatoI)-1, 35);
+    loclavpr[35]='\0';
+	
+
+    while (cont==0)
+    {
+    		printf("Hace el insert de NPTDIFE\n");
+        EXEC SQL INSERT INTO NPTDIFE VALUES (:subsisF, :subapl, :fecha0, :hora00, :numope, :formatoI, :loclavpr); 
+				printf("sqlcode tras el insert NPTDIFE %d\n",sqlca.sqlcode);
+				EXEC SQL COMMIT;
+				printf("sqlcode tras el commit NPTDIFE %d\n",sqlca.sqlcode);
+        cont++;
+        if (sqlca.sqlcode != 0)
+        {
+           errSQL = sqlca.sqlcode;
+           printf("error sqlcode tras el insert NPTDIFE %d\n",sqlca.sqlcode);
+        }
+    
+    		printf("Hace el insert de NPTERRD\n");
+        EXEC SQL INSERT INTO NPTERRD VALUES (:subsisF, :subapl, :fecha0, :hora00, :numope, SUBSTR(:formatoI,-35,35), '0000', :formatoI, 'P'); 
+				printf("sqlcode tras el insert NPTERRD %d\n",sqlca.sqlcode);
+				EXEC SQL COMMIT;
+				printf("sqlcode tras el commit NPTERRD %d\n",sqlca.sqlcode);
+        cont++;
+        if (sqlca.sqlcode != 0)
+        {
+           errSQL = sqlca.sqlcode;
+           printf("error sqlcode tras el insert NPTERRD %d\n",sqlca.sqlcode);
+        }
+    }
+
+    return(errSQL);
+}
+
+int InsertarD(void* registro)
+{
+    int cont=0;
+    int errSQL=0;
+
+    QuitarCaracteres(registro,sizeof(NPSDSCD));  
+
+    strncpy(subsisF, registro, 2);
+    subsisF[2]='\0';
+    strncpy(subapl, (char*)registro+2, 2);
+    subapl[2]='\0';
+    strncpy(fecha0, (char*)registro+4, 8);
+    fecha0[8]='\0';
+    strncpy(hora00, (char*)registro+12, 6);
+    hora00[6]='\0';
+    strncpy(numope, (char*)registro+18, 6);
+    numope[6]='\0';
+    strncpy(formatoI, (char*)registro+24, sizeof(formatoI)-1);
+    formatoI[sizeof(formatoI)-1]='\0';
+
+    while (cont==0)
+    {
+       EXEC SQL INSERT INTO NPTDSCD VALUES (:subsisF, :subapl, :fecha0, :hora00, :numope, :formatoI); 
+        if (sqlca.sqlcode != 0)
+        {
+           errSQL = sqlca.sqlcode;
+           printf("sqlcode tras el insert NPTDSCD %d\n",sqlca.sqlcode);
+        }
+       cont++;
+    }
+	
+    return(errSQL);
+}
+//* añadido para PRICE *//
+
+void QuitarCaracteres(char* cadena, int longi)
+{
+   int i=0;
+   for(i=0; i<longi; i++)
+   {
+      if (  cadena[i] == '\0'
+         || cadena[i] < 41
+         || cadena[i] == 44
+         )
+         cadena[i] = ' ';
+   }
+}
+
+//PRJ288711 - INI
+int InsertarDE(void* registro)
+{
+    int cont=0;
+    int errSQL=0;
+		int tamano=0;
+		char auxAccion[1];
+		NPSERRD regdier;
+				
+		tamano = sizeof(NPSERRD);
+		printf("...... Llamada al procedimiento ACTUALIZANPTERRD .-.-.- \n");
+		//printf(".... Cadena de entrada registro 1 >%s< con tamano >%d< \n", registro, tamano);
+    //QuitarCaracteres(registro, sizeof(NPSERRD));  
+		//QuitarCaracteres(registro, tamano);
+		//printf(".... Cadena de entrada registro 2 >%s< con tamano >%d< \n", registro, tamano);
+
+		strncpy(auxAccion, registro, 1);
+		auxAccion[1] = '\0';
+    strncpy(subsisF, registro+1, 2);
+    subsisF[2] = '\0';
+		strncpy(subapl, registro+3, 2);
+		subapl[2] = '\0';
+    strncpy(numope, registro+5, 6);
+    numope[6] = '\0';
+    strncpy(errorn, registro+11, 4);
+    errorn[4] = '\0';
+    formatoDE[14]='\0';
+        
+		printf(".... Cadena a procedimiento con subsisF >%.2s< con subapl >%.2s< con numope >%.6s< con errorn >%.4s<\n", subsisF, subapl, numope, errorn);
+		strncpy(accion, auxAccion, 1);
+		accion[1] = '\0';
+		strncpy(formatoDE, subsisF, 2);
+		strncpy(formatoDE+2, subapl, 2);
+		strncpy(formatoDE+4, numope, 6);
+		strncpy(formatoDE+10, errorn, 4);
+    formatoDE[14]='\0';
+		printf(".... Cadena a procedimiento con accion >%s< con auxAccion >%s< con formatoDE >%.14s<\n", accion, auxAccion, formatoDE);
+
+    while (cont==0)
+    {
+    		//EXEC SQL CALL ACTUALIZANPTERRD (:accion, :formatoDE, :CodError);
+    		if (strcmp(auxAccion,"B")==0)
+    		{
+    			printf(".... ¿Entra con valor accion B? >%s<\n", auxAccion);
+    			EXEC SQL CALL ACTUALIZANPTERRD ('B', :formatoDE, :CodError);
+    		//	EXEC SQL UPDATE NPTERRD SET ERESTADO = 'T', ERNUMERR = LPAD(TRIM(:errorn),4,'0') WHERE ERSUBSIS = :subsisF AND ERSUBAPL = :subapl AND ERNUMOPE = :numope AND ERESTADO = 'P';
+    		}
+    		if (strcmp(auxAccion,"E")==0)
+    		{
+    			printf(".... ¿Entra con valor accion E? >%s<\n", auxAccion);
+    			EXEC SQL CALL ACTUALIZANPTERRD ('E', :formatoDE, :CodError);
+    		//	EXEC SQL UPDATE NPTERRD SET ERESTADO = 'E', ERNUMERR = LPAD(TRIM(:errorn),4,'0') WHERE ERSUBSIS = :subsisF AND ERSUBAPL = :subapl AND ERNUMOPE = :numope AND ERESTADO = 'P';
+    		}
+ 
+				//printf("---.- CodError salida ACTUALIZANPTERRD %.3s\n", CodError);
+        cont++;
+        if (sqlca.sqlcode != 0)
+        {
+           errSQL = sqlca.sqlcode;
+           printf(".-.-.-.-.sqlcode tras el insert NPTERRD >%d<\n", sqlca.sqlcode);
+        }
+        else
+        {
+        	printf(".-.-.-.-.sale con error 0 del procedimiento >%d<\n", sqlca.sqlcode);
+        }
+    }
+
+    return(errSQL);
+}
+//PRJ288711 - FIN
+
+
+//PRJ0258542 - INI
+int ActualizaClaves(void* registro)
+{
+	int cont=0;
+	int errSQL=0;
+	int tamano=0;
+	char auxAccion[1];
+	strncpy(cadenaEntrada1, registro, 16); //PRJ0258542 - Fase 3 - Cambio 11052026, aumenta a 16
+	cadenaEntrada1[17] = '\0';
+	strncpy(cadenaEntrada2, registro + 16, 450); //PRJ0258542 - Fase 3 - Cambio 11052026, aumenta a 16
+	cadenaEntrada2[451] = '\0';
+	strncpy(CodError,"000",3);
+	CodError[3] = '\0';
+	printf("...... Llamada al procedimiento CAMBIOCLAVES .-.-.- \n");
+	printf("--- Parametrizacion de entrada 1>%.16s< ---\n", cadenaEntrada1);
+	printf("--- Parametrizacion de entrada 2>%.450s< ---\n", cadenaEntrada2);
+	EXEC SQL CALL CAMBIOCLAVES (:cadenaEntrada1, :cadenaEntrada2, :CodError);
+	printf("--- Error de salida >%.3s< ---\n", CodError);
+	if (sqlca.sqlcode != 0 && strncmp(CodError, "000", 3) != 0)
+	{
+		errSQL = sqlca.sqlcode;
+		printf(".-.-.-.-.sqlcode tras llamada procedimiento >%d<\n", sqlca.sqlcode);
+	}
+	else
+	{
+		if (strncmp(CodError, "000", 3) == 0)
+		{
+			printf(".-.-.-.-.salida con error 000 del procedimiento, valor sqlcode >%d<\n", sqlca.sqlcode);
+		}
+		else
+		{
+			errSQL = -1;
+			printf(".-.-.-.-.salida con error -1 del procedimiento, por error >%.3s<\n", CodError);
+		}
+	}
+	return(errSQL);
+}
+
+int ActualizaHSM(void* registro)
+{
+	int cont=0;
+	int errSQL=0;
+	int tamano=0;
+	char auxAccion[1];
+	strncpy(Entidad, registro, 4);
+	Entidad[5] = '\0';
+	strncpy(Accion, registro + 4, 1);
+	Accion[2] = '\0';
+	strncpy(Valor, registro + 5, 2);
+	Valor[3] = '\0';
+	strncpy(CodError,"000",3);
+	CodError[3] = '\0';
+	strncpy(Cadenaerr, " ", 100);
+	Cadenaerr[101] = '\0';
+	printf("...... Llamada al procedimiento ACTUALIZANPTDHSM .-.-.- \n");
+	printf("--- Parametrizacion de entrada >%.4s< >%.1s< >%.2s<  >%.3s<---\n", Entidad, Accion, Valor, CodError);
+	EXEC SQL CALL ACTUALIZANPTDHSM (:Entidad, :Accion, :Valor, :CodError, :Cadenaerr);
+	//EXEC SQL CALL ACTUALIZANPTDHSM ('0001', '1', '01', :CodError);
+	printf("--- Error de salida >%.3s< ---\n", CodError);
+	if (sqlca.sqlcode != 0 && strncmp(CodError, "000", 3) != 0)
+	{
+		errSQL = sqlca.sqlcode;
+		printf(".-.-.-.-.sqlcode tras llamada procedimiento >%d< >%.100s<\n", sqlca.sqlcode, Cadenaerr);
+	}
+	else
+	{
+		if (strncmp(CodError, "000", 3) == 0)
+		{
+			printf(".-.-.-.-.salida con error 000 del procedimiento, valor sqlcode >%d< >%.100s<\n", sqlca.sqlcode, Cadenaerr);
+		}
+		else
+		{
+			errSQL = -1;
+			printf(".-.-.-.-.salida con error -1 del procedimiento, por error >%.3s<, valor sqlcode >%d< >%.100s<\n", CodError, sqlca.sqlcode, Cadenaerr);
+		}
+	}
+	return(errSQL);
+}
+
+//PRJ0258542 - FIN
+
+//PRJ0258542 - INI - Fase 3
+int tratar_fich1(char* ficher, OPCION_FICH opcion, char * registro, long tamanoE, char * salida)
+{
+	printf("Dentro de tratar_fich1 20260224\n");
+	fflush(stdout);
+	printf("Valores de entrada: registro >%s<, tamanoE >%d<\n",registro,tamanoE);
+	fflush(stdout);
+	int contador=0;
+	int ErrInsertar=0;
+	int retorReg=0;  //0=devuelve registro, 1=no devuelve registro
+	int abroConexion=0;
+	long tamano = 0;
+	//* añadido para PRICE*//
+	int err=0;
+	char ch05[5];
+	char ch04[4];
+	int ll=0;
+	int indice=0;
+	int terminaMal=0;
+	char cadena[500];
+	char valorSal[10];
+	
+	cadena[0] = '\0';
+	valorSal[0] = '\0';
+
+	ch04[3]='\0';
+	ch05[4]='\0';
+	//* añadido para PRICE*//
+	memset(claveT, '\0', 200); 
+	tamano = tamanoE;
+	strncpy(tabla, (char *)ficher, 7);
+	strncpy(opcionT, "INSERTAR", 8);
+	opcionT[8]='\0';
+
+	while (contador == 0)
+	{
+		EXEC SQL SELECT (1) FROM DUAL; 
+		if (sqlca.sqlcode == -1012)
+		{
+			printf("Dentro filefun.cpp, abro conexion\n");
+			fflush(stdout);
+		  abroConexion=1;
+		  conexion_BBDD();
+		}
+		else
+		{
+			printf("Comprueba conexion sqlca.sqlcode >%d<\n", sqlca.sqlcode);
+			fflush(stdout);
+		}
+		contador++;
+	}
+	printf(". . . . Entrando por NPTRHSM desde procedimiento . . . .\n");
+	fflush(stdout);
+	//printf("Valores de registro >%s< y tamano >%d<\n",registro,tamano);
+	//fflush(stdout);
+	strncpy(cadena, registro, tamano);
+	cadena[tamano] = '\0';
+	//printf(" Registro antes de ActualizaClaves >%.*s<\n", tamano, cadena);
+	//fflush(stdout);
+	ErrInsertar=InsertarRH(cadena, tamano, valorSal);
+
+	//strncpy(claveT, registro, strlen(registro));
+	//retorReg=1;        
+	//tabla[7]='\0';
+	//claveT[strlen(claveT)]='\0'; 
+	//memset(CodError, '\0', 4); 
+	strncpy(salida, valorSal, 10);
+	  
+  if(ErrInsertar)
+  	return(salir_rb(abroConexion, ErrInsertar, tabla, opcion));
+  else
+		return(salir_cm(abroConexion, ErrInsertar, tabla, opcion));	  
+	
+	printf("Salida de tratar_fich1\n");
+	fflush(stdout); 
+	return(salir_cm(abroConexion,0, tabla, opcion));
+} //FIN tratar_fich1
+
+int tratar_fich2(char* ficher, OPCION_FICH opcion, char * registro, long tamanoE)
+{
+	printf("Dentro de tratar_fich2 20260519\n");
+	printf("Valores de entrada: ficher >%s<\n", ficher);
+	printf(" registro >%s<\n", registro);
+	printf(" tamano   >%d<\n", tamanoE);
+	int contador=0;
+	int ErrInsertar=0;
+	int retorReg=0;  //0=devuelve registro, 1=no devuelve registro
+	int abroConexion=0;
+	long tamano = 0;
+	//* añadido para PRICE*//
+	int err=0;
+	char ch05[5];
+	char ch04[4];
+	int ll=0;
+	int indice=0;
+	int terminaMal=0;
+	char cadena[465];
+	char valorSal[10];
+	tamano = tamanoE;
+	ch04[3]='\0';
+	ch05[4]='\0';
+	strncpy(cadena, registro, tamanoE);
+	cadena[tamanoE]='\0';
+	memset(claveT, '\0', 200); 
+	tamano = tamanoE;
+	strncpy(tabla, (char *)ficher, 7);
+	strncpy(opcionT, "INSERTAR", 8);
+	opcionT[8]='\0';
+
+	while (contador == 0)
+	{
+		EXEC SQL SELECT (1) FROM DUAL; 
+		if (sqlca.sqlcode == -1012)
+		{
+			fprintf(stdout,"Dentro filefun.cpp, abro conexion\n");
+		  abroConexion=1;
+		  conexion_BBDD();
+		}
+		else
+		{
+			fprintf(stdout,"Comprueba conexion sqlca.sqlcode >%d<\n", sqlca.sqlcode);   
+		}
+		contador++;
+	}
+
+	printf(". . . . Entrando por NPTPARA de ESCRIBIR . . . .\n");
+	
+	ErrInsertar=ActualizaClaves(cadena);
+  if(ErrInsertar)
+  	return(salir_rb(abroConexion, ErrInsertar, tabla, opcion));
+  else
+  	return(salir_cm(abroConexion, ErrInsertar, tabla, opcion));	  
+
+	return(salir_cm(abroConexion,0, tabla, opcion));
+     
+} //FIN tratar_fich2
+
+int InsertarRH(void* registro, long longi, char * valorSale)
+{
+    int cont=0;
+    int errSQL=0;
+		int tamano=0;
+		char auxAccion[1];
+				
+		printf("...... Llamada al procedimiento ACTUALIZANPTRHSM .-.-.- \n");
+		//printf(".... Cadena de entrada registro 1 >%.*s< con tamano >%d< \n", longi, registro, longi);
+		strncpy(identifica, registro, 4);
+		identifica[5] = '\0';
+    strncpy(valore, registro + 4, 10);
+    valore[11] = '\0';
+		strncpy(Accion, registro + 14, 1);
+		Accion[2] = '\0';
+    strncpy(estado, registro + 15, 2);
+    estado[3] = '\0';
+    //printf("Valor registro 17 >%.1s<\n", registro + 17);
+    strncpy(IPentra, registro + 17, 1);
+    IPentra[2] = '\0';
+    //printf("Valor IPentra >%.1s<\n", IPentra);
+    strncpy(registroe, registro + 18, longi - 18);
+    registroe[longi - 18] = '\0';
+    strncpy(CodError,"000",3);
+		CodError[3] = '\0';
+		strncpy(valors, "0000000000", 10);
+		valors[11] = '\0';
+		
+		printf(".... Cadena a procedimiento con identifica >%.4s< con valore >%.10s< con valors >%.10s< \n", identifica, valore, valors);
+		printf("     con accion >%.1s< con coderror >%.3s< con estado >%.2s< por IP >%.1s< \n", Accion, CodError, estado, IPentra);
+		printf("     con registroe >%.*s<\n", tamano - 18, registroe);
+		EXEC SQL CALL ACTUALIZANPTRHSM (:identifica, :valore, :Accion, :registroe, :estado, :IPentra, :valors, :CodError);
+		printf("--- Error de salida >%.3s< valor >%.10s< ---\n", CodError, valors);
+
+		if (sqlca.sqlcode != 0 && strncmp(CodError, "000", 3) != 0)
+		{
+			errSQL = sqlca.sqlcode;
+			//printf(".-.-.-.-.sqlcode tras llamada procedimiento >%d< >%.10s<\n", sqlca.sqlcode, valors);
+		}
+		else
+		{
+			if (strncmp(CodError, "000", 3) == 0)
+			{
+				//printf(".-.-.-.-.salida con error 000 del procedimiento, valor sqlcode >%d< >%.10s<\n", sqlca.sqlcode, valors);
+				strncpy(valorSale, valors, 10);
+			}
+			else
+			{
+				errSQL = -1;
+				printf(".-.-.-.-.salida con error -1 del procedimiento, por error >%.3s<, valor sqlcode >%d< >%.10s<\n", CodError, sqlca.sqlcode, valors);
+			}
+		}
+
+    return(errSQL);
+} //FIN InsertarRH
+//PRJ0258542 - FIN - Fase 3
+
+//PRJ0385382 - INI
+int tratar_fich3(char* ficher, OPCION_FICH opcion, char * registro, long tamanoE, char * salida)
+{
+	printf("Dentro de tratar_fich3 20260630\n");
+	fflush(stdout);
+	printf("Valores de entrada: registro >%s<, tamanoE >%d<\n",registro,tamanoE);
+	fflush(stdout);
+	int contador=0;
+	int ErrInsertar=0;
+	int retorReg=0;  //0=devuelve registro, 1=no devuelve registro
+	int abroConexion=0;
+	long tamano = 0;
+	//* añadido para PRICE*//
+	int err=0;
+	char ch05[5];
+	char ch04[4];
+	int ll=0;
+	int indice=0;
+	int terminaMal=0;
+	char cadena[500];
+	char valorSal[10];
+	
+	cadena[0] = '\0';
+	valorSal[0] = '\0';
+
+	ch04[3]='\0';
+	ch05[4]='\0';
+	//* añadido para PRICE*//
+	memset(claveT, '\0', 200); 
+	tamano = tamanoE;
+	strncpy(tabla, (char *)ficher, 7);
+	strncpy(opcionT, "INSERTAR", 8);
+	opcionT[8]='\0';
+
+	while (contador == 0)
+	{
+		EXEC SQL SELECT (1) FROM DUAL; 
+		if (sqlca.sqlcode == -1012)
+		{
+			printf("Dentro filefun.cpp, abro conexion\n");
+			fflush(stdout);
+		  abroConexion=1;
+		  conexion_BBDD();
+		}
+		else
+		{
+			printf("Comprueba conexion sqlca.sqlcode >%d<\n", sqlca.sqlcode);
+			fflush(stdout);
+		}
+		contador++;
+	}
+	strncpy(cadena, registro, tamano);
+	cadena[tamano] = '\0';
+	ErrInsertar=InsertarGT(cadena, tamano, valorSal);
+
+	//strncpy(claveT, registro, strlen(registro));
+	//retorReg=1;        
+	//tabla[7]='\0';
+	//claveT[strlen(claveT)]='\0'; 
+	//memset(CodError, '\0', 4); 
+	strncpy(salida, valorSal, 10);
+	  
+  if(ErrInsertar)
+  	printf("Tendria que hacer rollback\n");
+  else
+		printf("Tendria que hacer commit\n");	  
+  //if(ErrInsertar)
+  //	return(salir_rb(abroConexion, ErrInsertar, tabla, opcion));
+  //else
+	//	return(salir_cm(abroConexion, ErrInsertar, tabla, opcion));	  
+	
+	printf("Salida de tratar_fich3\n");
+	fflush(stdout); 
+	//return(salir_cm(abroConexion,0, tabla, opcion));
+	return(0);
+} //FIN tratar_fich3
+
+int InsertarGT(void* registro, long longi, char * valorSale)
+{
+    int cont=0;
+    int errSQL=0;
+		int tamano=0;
+		char auxAccion[1];
+				
+		printf("...... Llamada al procedimiento MODIFGESTTSAS .-.-.- \n");
+		//printf(".... Cadena de entrada registro 1 >%.*s< con tamano >%d< \n", longi, registro, longi);
+		
+		strncpy(clavegt, registro, 9);
+		clavegt[10] = '\0';
+    strncpy(indicadorgt, registro + 9, 1);
+    indicadorgt[2] = '\0';
+    if (strncmp(indicadorgt, "T", 1) == 0)
+    {
+			strncpy(infcidcifivgt, registro + 10, 32);
+			infcidcifivgt[33] = '\0';
+	    strncpy(infcidmsgchavecgt, registro + 42, 4);
+	    infcidmsgchavecgt[5] = '\0';
+	    strncpy(infcidcifmsggt, registro + 46, 128); //30062026 cambia de 64 a 128
+	    infcidcifmsggt[129] = '\0';
+	    strncpy(sigdatsigtypgt, registro + 174, 2); //30062026
+	    sigdatsigtypgt[3] = '\0';
+	    strncpy(sigdatsiggt, registro + 176, 16);
+	    sigdatsiggt[17] = '\0';
+	    strncpy(descrierrgt, "                                ", 32);
+	    descrierrgt[33] = '\0';
+    }
+    else
+    {
+			strncpy(descrierrgt, registro + 10, 32);
+			descrierrgt[33] = '\0';
+			strncpy(infcidcifivgt, "                                ", 32);
+			infcidcifivgt[33] = '\0';
+	    strncpy(infcidmsgchavecgt, "    ", 4);
+	    infcidmsgchavecgt[5] = '\0';
+	    strncpy(infcidcifmsggt, "                                                                                                                                ", 129);
+	    infcidcifmsggt[129] = '\0';
+	    strncpy(sigdatsigtypgt, "  ", 2);
+	    sigdatsigtypgt[3] = '\0';
+	    strncpy(sigdatsiggt, "                ", 16);
+	    sigdatsiggt[17] = '\0';
+    }
+    strncpy(CodError,"000",3);
+		CodError[3] = '\0';
+		
+		
+		printf(".... Cadena a procedimiento con infcidcifivgt >%.32s< con infcidmsgchavecgt >%.4s< \n", infcidcifivgt, infcidmsgchavecgt);
+		printf("     con infcidcifmsggt >%.128s< con sigdatsigtypgt >%.2s< \n", infcidcifmsggt, sigdatsigtypgt);
+		printf("     con sigdatsiggt >%.16s< con descrierrgt >%.32s< \n", sigdatsiggt, descrierrgt);
+		EXEC SQL CALL MODIFGESTTSAS (:clavegt, :indicadorgt, :infcidcifivgt, :infcidmsgchavecgt, :infcidcifmsggt, :sigdatsigtypgt, :sigdatsiggt, :descrierrgt, :CodError);
+		printf("--- Error de salida >%.3s< ---\n", CodError);
+
+		if (sqlca.sqlcode != 0 && strncmp(CodError, "000", 3) != 0)
+		{
+			errSQL = sqlca.sqlcode;
+			printf(".-.-.-.-.sqlcode tras llamada procedimiento >%d< >%.10s<\n", sqlca.sqlcode, valors);
+			strncpy(valorSale, CodError, 3);
+		}
+		else
+		{
+			if (strncmp(CodError, "000", 3) == 0)
+			{
+				printf(".-.-.-.-.salida con error 000 del procedimiento, valor sqlcode >%d< >%.10s<\n", sqlca.sqlcode, valors);
+				strncpy(valorSale, CodError, 3);
+			}
+			else
+			{
+				errSQL = -1;
+				printf(".-.-.-.-.salida con error -1 del procedimiento, por error >%.3s<, valor sqlcode >%d< >%.10s<\n", CodError, sqlca.sqlcode, valors);
+				strncpy(valorSale, CodError, 3);
+			}
+		}
+
+    return(errSQL);
+} //FIN InsertarGT
+
+int leer_fich(char* ficher, OPCION_FICH opcion, void * registro, void * clave)
+{
+	fprintf(stdout,"Dentro del filefun - leer_fich\n");
+	fflush(stdout);
+	int contador=0;
+	int ErrInsertar=0;
+	int retorReg=1;  //0=devuelve registro, 1=no devuelve registro
+	int abroConexion=0;
+
+	//* añadido para PRICE*//
+	int err=0;
+	char ch05[5];
+	char ch04[4];
+	int ll=0;
+	int indice=0;
+	int terminaMal=0;
+
+	ch04[3]='\0';
+	ch05[4]='\0';
+	//* añadido para PRICE*//
+	//inicializamos la clave en cada nueva interaccion RAQUEL
+	memset(claveT, '\0', 200); 
+
+	while (contador == 0)
+	{
+		EXEC SQL SELECT (1) FROM DUAL; 
+		if (sqlca.sqlcode == -1012)
+		{
+			fprintf(stdout,"Dentro filefun.cpp, abro conexion\n");
+		  abroConexion=1;
+		  conexion_BBDD();
+		}
+		else
+		{
+			fprintf(stdout,"Comprueba conexion sqlca.sqlcode >%d<\n", sqlca.sqlcode);   
+		}
+		contador++;
+	}
+	// printf("IGUAL\n");
+	strncpy (claveT, clave, (strlen(clave)));
+	strncpy(opcionT, "IGUAL", 5);
+	opcionT[5]='\0';
+	strncpy(tabla, (char *)ficher, 7);
+	retorReg=1;
+
+	tabla[7]='\0';
+	claveT[strlen(claveT)]='\0'; 
+	//Inicializamos el error
+	memset(CodError, '\0', 4); 
+	
+	if (!strncmp(tabla, "NPTIDEN", 7))
+	{
+		fprintf(stdout,"leer_fich llamadaProc2 claveT>%s< tabla %s, opcion %s\n", claveT, (char*)tabla, (char*)opcionT);
+		fflush(stdout);
+		strncpy(CodError, "101", 3);
+    contador=0;
+    EXEC SQL ALLOCATE :registro3;
+    EXEC SQL CALL llamadaProc2 (:opcionT, :tabla, :claveT, :registro3, :CodError); 
+    EXEC SQL WHENEVER NOT FOUND DO break; 
+
+		++registro3.curocn;
+		for (;;){
+			if (!strncmp(tabla, "NPTIDEN", 7))
+			{
+			 EXEC SQL FETCH :registro3
+			 INTO :estrucIDEN; 
+			}
+      memset(registro, '\0', sizeof(NPSIDEN));
+      strcat(registro, estrucIDEN.idsubsis);
+      strcat(registro, estrucIDEN.idsubapl);
+      strcat(registro, estrucIDEN.idcomando);
+      strcat(registro, estrucIDEN.idclave1);                                                      
+      strcat(registro, estrucIDEN.idclave2);                                                      
+			retorReg = 0;
+			fprintf(stdout,"Contador >%d< CodError >%s< sqlca.sqlcode >%d<\n", contador, CodError, sqlca.sqlcode);
+			contador++;
+			if (!strncmp(opcionT, "IGUAL",5))
+				break;
+		}
+		EXEC SQL CLOSE :registro3;  
+		EXEC SQL FREE :registro3; 
+	}
+	else
+	{
+		fprintf(stdout,"LLamadaProc opcion %s,  tabla %s, clave %.25s\n",  (char*)opcionT, (char*)tabla, (char*)claveT);
+	  fflush(stdout);
+	  memset(registro2, '\0', 3000);
+
+	  EXEC SQL CALL LlamadaProc (:opcionT, :tabla, :claveT, :registro2, :CodError); 
+	       
+		if (sqlca.sqlcode != 0) 
+		{
+			//if ((sqlca.sqlcode != -1405) || ((sqlca.sqlcode == -1405) && (retorReg==0)))
+			if ((sqlca.sqlcode != -1405) || ((sqlca.sqlcode == -1405) && (retorReg!=0)))
+		 	{
+		  	printf("error en el acceso LlamadaProc %i\n", sqlca.sqlcode );
+				return (retorReg);
+		 	}
+		} 
+		retorReg = 0;
+	   
+		///////// Si el proceso ha abierto la conexion la libera, si no no
+		if  (strncmp(CodError,"000",3))
+		{
+			printf("CodError >%s< sqlca.sqlcode >%d< en LlamadaProc\n", CodError, sqlca.sqlcode);
+			return (retorReg);
+		}
+		else
+		{
+		  if (retorReg==0)
+		  {
+		  	strncpy (registro, (char*)registro2, (strlen(registro2)));
+		  }
+			printf("BBDD OK\n");
+			return(retorReg);
+		}
+	}
+	fprintf(stdout,"Saliendo del filefun - leer_fich >%i<\n",retorReg);
+	fflush(stdout);
+	return(retorReg);
+} //FIN leer_fich
+
+
+//PRJ0385382 - FIN

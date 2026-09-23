@@ -1,0 +1,16 @@
+HAY_SUP='0'
+ps -fe | grep supervis | grep -v "grep" | while read i
+do
+  HAY_SUP='1'
+  echo $i
+done
+
+if [ $HAY_SUP == '0' ]
+then
+   echo "LANZO SUPERVIS"
+   cd /appl/itecban/mepa/sisma/exec
+   ./supervis &
+else
+   echo "YA EXISTE SUPERVIS"
+fi
+

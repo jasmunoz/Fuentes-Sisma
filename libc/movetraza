@@ -1,0 +1,31 @@
+###1: se recibe la ruta de la aplicacion sisma por ej "/sf/sisma"
+###2: se recibe el nombre del directorio de trazas destino por ej "tr201601190910"
+
+###############################################################################################
+### OBTENER LA FECHA DEL DIA EN EL FORMATO QUE SE GRABAN LOS NOMBRES DE LOS FICHEROS DE TRAZAS
+###############################################################################################
+
+
+#########################################
+### MOVER TRAZAS DEL DIRECTORIO /TRAZAS
+#########################################
+cd $1/trazas
+varDIA=`date +"%d%m%Y"`
+echo $varDIA
+ls | grep -v $varDIA | while read i
+do
+     echo $i
+     mv $i $1/datos/trazas/$2
+done
+
+#########################################
+### MOVER TRAZAS DEL DIRECTORIO /TUX
+#########################################
+cd $1/tux
+varDIA=`date +"%Y%m%d"`
+echo $varDIA
+ls | grep -v $varDIA | while read i
+do
+     echo $i
+     mv $i $1/datos/trazas/$2
+done

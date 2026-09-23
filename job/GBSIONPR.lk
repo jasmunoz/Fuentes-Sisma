@@ -1,0 +1,13 @@
+#
+# En el caso de que el batch necesite librerias hay que incluirlas
+# en la variable que se define a continuacion con la siguiente sintaxis
+#
+#  LIBRERIAS=" -L/sf/lib -lherr -lpers -lctas etc... "
+#
+
+NOMBRE_SOURCE=/sf/sisma/obj/GBSIONPR.o
+NOMBRE_EXE=/sf/sisma/obj/GBSIONPR
+LIBRERIAS="-L/sf/sisma/obj -lsisma"
+
+cob -C IBMCOMP -C NESTCALL -x -o $NOMBRE_EXE $NOMBRE_SOURCE $LIBRERIAS \
+$ORACLE_HOME/precomp/lib/cobsqlintf.o -L$ORACLE_HOME/lib -lclntsh 

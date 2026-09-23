@@ -1,0 +1,541 @@
+﻿//PRJ0257005 - Revisado tokenizacion
+/***************************************************************************
+ PROGRAMA:  CLIENT RE
+ DESCRIPCION: Proceso servidor de la red.
+             - Se conecta a las colas de intercambio de mensajes con SISMA   
+         - Abre el canal.
+         - Comunica a la red la direccion del canal.
+             - Se pone en disposicion de aceptar conexiones.
+         - Bucle infinto
+         - Si recibe una peticion crea un hijo para que la atienda  
+             - Proceso hijo       
+             - Recibe el mensaje 
+             - Entrega el mensaje a SISMA en la cola QRECEP
+***************************************************************************/
+#include <stdio.h>
+#include <stdlib.h>
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <signal.h>
+#include <unistd.h>
+#include <string.h>
+
+#include <sys/timeb.h>
+#include "netwin.h"
+#include "datagen.h"
+#include "deffich.h"
+#include "procesos.h"
+#include "nptinci.h"
+#include "svm.h"
+#include "colas.h"
+#include "max_min.h"
+#include "nptpars.h" 
+
+#define LONMSG_IN   4096
+#define LONMSG_OUT  4096
+#define PRUCARGA
+#define USURBUFSIZE 20 
+
+
+//#define PORTNUM atoi((psvm+posic_subsis)->str_svm.svmpars.papuerto)
+
+/***  --------- prototipos de funciones  ----------------  ***/
+int  fgraba_incidencia_cp(char *coderror, char *numope, char *nompro, char *nomfic);
+int TratarMsg(int tiempo, int leidos, char * Datomsg);
+void sigue();
+void cierre();
+void fprintLog(char ficheroPlantilla[50], char* format, ...);
+int  damecola(SVM *psvm_par,char *proce,char *subsis);
+int  encuentra_svm(SVM *psvm_par,char *aux,int tipo);
+int  busca_proc_svm(SVM *psvm_par,char *proce,pid_t auxpid);
+int  busca_proc_svm_na(SVM *psvm_par,char *proce);
+int  InicializarSocket(char * clavesock);
+int  modifica_estado(char* preg_sock, char * estado);
+char *itoa(int numero);
+int Pkill(int Ppid,int Psenal);
+void conectar_socket();
+int setOptionMsg( int totalRecibido, int totalMsg);
+int sendUserData(int sfd, char *msg, char *sistema, char *aplic, char *sesion, char *envRec);//SUBSISTEMA 
+//int sendUserData(int sfd, char *msg, char *aplic, char *sesion, char *envRec);//ORIGINAL
+int recvFromRedsys(int fd, char *buffer, int to);
+
+/**--------------funciones de manejo de la SVM-----------***/
+int qrecep=0;  
+NPSINCI  reginci;
+SVM    *psvm;
+int posic_subsis; 
+int sfd; 
+int rtrata_svm=0, rtrata_svmB=0;
+int retorno; 
+int contCX=0;
+
+char Csubapl[3];
+char nomProg[50];
+char subsis[5];
+char subsistema_general[3];
+char MIPRECEP[30];
+char hermano[9];
+
+/******* para obtener la clave de la tabla NPTSOCK ***/
+char clavesock[5];
+
+int  leidos;
+char Datomsg[max(LONMSG_IN,LONMSG_OUT)];
+char coderror[4];
+int  ret_modif;
+int  pid;
+int conectado=0;
+
+/******* fichero de captura de operaciones **********/
+char comando[1024];
+FILE * fcaptura = NULL;
+//xavi
+char GRABA[30];
+struct sockaddr_in cli_addr;
+struct sockaddr_in ser_addr;
+
+int main(int argc,char **argv)    /***     FUNCION PRINCIPAL     ***/
+{
+   size_t cli_addr_len;
+   int queda; 
+   int tiempo;
+   char bufferMsg[LONMSG_IN+1];
+   char ch_03[3];
+   int cuantasCapt=0;
+   
+   // incluido para recuperar la variable de entorno y crear las trazas en su entorno correspondiente
+// segun el usuario que arranque
+
+  char* HOME;
+  HOME = getenv ("SF_HOME");
+
+   signal(SIGCLD,SIG_IGN); //sinonimo de SIGCHLD en Linux
+   signal(SIGHUP,SIG_IGN);
+   signal(SIGINT,SIG_IGN);
+   signal(SIGQUIT,SIG_IGN);
+   signal(SIGTERM,SIG_IGN);
+   signal(SIGALRM,SIG_IGN);
+//xavi miramos el valor de la variable graba para guardar mensajes
+   if (getenv("graba"))
+   {
+      strncpy(GRABA,getenv("graba"),2);
+      GRABA[2] = '\0';
+   } else {
+      printf("No esta definida la variable GRABA\n");
+      strcpy(GRABA,"NO");
+   }
+   //
+   //asignar el nomnbre
+   strncpy(nomProg, argv[0], strlen(argv[0]));
+   strncpy(hermano, nomProg, strlen(argv[0]));
+   strncpy(hermano+6, "en", 2);
+   if (atoi(argv[1]) > 1)
+      strncpy(nomProg + strlen(argv[0]), argv[1], 1);
+
+   fprintLog(nomProg, "los hermano son %s y %s\n", nomProg, hermano);
+
+   strncpy(subsistema_general,argv[0]+2,2);
+   strncpy(Csubapl, argv[0]+4, 2);
+   subsistema_general[2] = '\0';
+   Csubapl[2] = '\0';
+
+   strcpy(subsis, subsistema_general);
+   strcpy(subsis + 2, Csubapl);
+   strcpy(MIPRECEP,PRECEP);
+   strcat(MIPRECEP,subsistema_general);
+
+    memset(clavesock,' ',5);
+    memcpy(clavesock,subsistema_general,2);
+    memcpy(clavesock +2,Csubapl,2);
+    clavesock[5]='\0';
+
+#if defined (TRAZA) && (TRAZA > 1) 
+   fprintLog(nomProg,"inicio \n");  
+#endif
+   sprintf(reginci.innompro,"CLIEN%s",subsistema_general);
+
+    //RAQUEL SE DEVUELVE AL ESTADO ORIGINAL PORQUE AHORA NO BUSCAMOS POR SUBSISTEMA
+    retorno=conecSVM((void *) &psvm); //ORIGINAL
+
+   if (retorno != 0) 
+   {
+#if defined (TRAZA) && (TRAZA > 1) 
+    fprintLog(nomProg,"error conecSVM\n");  
+#endif
+    strcpy(reginci.innomfic,"CON_SVM");
+    strcpy(coderror, "011");
+    fgraba_incidencia_cp(coderror, NULL, NULL, reginci.innomfic);
+    exit(-1);
+   }
+
+   rtrata_svm=busca_proc_svm(psvm,argv[0], -1);
+   if (rtrata_svm < 0)
+   {
+#if defined (TRAZA) && (TRAZA > 1) 
+    fprintLog(nomProg,"busca_proc_svm\n");  
+#endif
+    strcpy(reginci.innomfic,"BUSCA_P");
+    strcpy(coderror, "011");
+    fgraba_incidencia_cp(coderror, NULL,  NULL, reginci.innomfic);
+    exit(-1);
+   }
+ 
+   posic_subsis=encuentra_svm(psvm,subsis,TIP_SUBSIS);
+   if (posic_subsis < 0)
+   {
+#if defined (TRAZA) && (TRAZA > 1) 
+    fprintLog(nomProg,"error encuentra_svm\n");  
+#endif
+    strcpy(reginci.innomfic,"ENC_SVM");
+    strcpy(coderror, "011");
+    fgraba_incidencia_cp(coderror, NULL, NULL, reginci.innomfic);
+    exit(-1); 
+   }
+   tiempo =(psvm + posic_subsis)->str_svm.svmpars.patrepet;
+
+   qrecep = damecola(psvm,MIPRECEP,NULL);
+   fprintLog(nomProg, "qrecep >%d<\n",qrecep);
+   if (qrecep == -1)  
+   {
+#if defined (TRAZA) && (TRAZA > 1) 
+    fprintLog(nomProg,"error crea cola QRECEP%s\n",subsistema_general);  
+#endif
+    sprintf(reginci.innomfic,"QRECEP%s",subsistema_general);
+    strcpy(coderror, "009");
+    //Añadido para Monitorizacion SISMA 
+    fprintLog(nomProg,"TIPO SISTEMA - ACCESO A LAS COLAS: Tipo Creacion QRECEP%s codigo de error >%.3s<\n",subsistema_general, coderror);
+
+    fgraba_incidencia_cp(coderror, NULL, NULL, reginci.innomfic);
+    exit(-1);
+   }
+
+   signal(SIGALRM,sigue);
+   alarm(TIMEWAIT*2);
+   /* graba su pid en la SVM */   
+   (psvm+rtrata_svm)->str_svm.svmproc.pid=getpid();
+   (psvm+rtrata_svm)->estado=ESPERA;
+#if defined (TRAZA) && (TRAZA > 1) 
+   fprintLog(nomProg,"Espero seqal\n");
+   fflush(stdout);
+#endif
+   pause();
+   queda=alarm(0);
+   if (queda==0)
+   {
+    (psvm+rtrata_svm)->str_svm.svmproc.pid=-1;
+#if defined (TRAZA) && (TRAZA > 1) 
+    fprintLog(nomProg,"No me han despertado seqal\n");
+#endif
+    strcpy(reginci.innomfic,"      ");
+    strcpy(reginci.innomfic,"ALARM");
+    strcpy(coderror, "251");
+    //Añadido para Monitorizacion SISMA 
+    fprintLog(nomProg,"TIPO SISTEMA - MUERTE DE PROCESO: codigo de error >%.3s<\n",coderror);
+    
+    fgraba_incidencia_cp(coderror, NULL, NULL, reginci.innomfic);
+    exit(-1);
+   } 
+   (psvm+rtrata_svm)->estado=TRABAJO;
+   (psvm+rtrata_svm)->senal=SIGUSR1;
+
+   /***   este proceso se cierra con esta segnal especial   ***/
+   signal(SIGUSR1,cierre);
+
+        //conectamos el socket 
+#if defined (TRAZA) && (TRAZA > 1) 
+        fprintLog(nomProg,"conectar socket\n");
+#endif
+
+  conectar_socket();
+  memset(bufferMsg,0X00,LONMSG_IN+1);
+
+// buffer de captura de operaciones
+
+if (!strcmp(GRABA, "SI"))
+{
+  sprintf(comando, "%s%s/capt%.4s.dat", HOME,DIRTRAZA, nomProg);
+  fcaptura = fopen(comando, "ab+");
+  if(!fcaptura)
+    fcaptura = stderr;
+} 
+ 
+  /******* este de conectar ****/
+  while (conectado == 1)
+  {
+  
+    fprintLog(nomProg,"esperamos que lleguen datos por socket >%d<\n",sfd);
+        
+     retorno = recvFromRedsys(sfd,Datomsg,1); //1 seg es el timeout maximo.      
+     fprintLog(nomProg,"leemos algo %d\n", retorno);
+	 
+	 if(retorno > 0 && retorno != 538976288)
+         {
+	 
+////////////////////////////////////// SOLO PARA PRUEBAS COMENTAR PARA PRODUCCION //////////	 
+//	    if(cuantasCapt<100)
+
+               if (!strcmp(GRABA, "SI"))
+		{
+//	     //fichero de captura
+//          fseek(fcaptura, 0L, SEEK_END);
+          memcpy(bufferMsg, Datomsg,retorno);
+		  bufferMsg[retorno]='\n'; // fuerzo final de linea
+         fwrite(bufferMsg, retorno+1, 1, fcaptura);
+          fflush(fcaptura);
+        }		
+////////////////////////////////////////////////////////////////////////////////////////////////			
+	 
+		 
+		 /// tratar el mensaje recibido
+         fprintLog(nomProg, "qrecep antes de tratarmsg >%d<\n",qrecep);
+  	     if (TratarMsg(tiempo,retorno,Datomsg) == -1) //trata el mensaje
+ 	     {
+ 	          fgraba_incidencia_cp("909", NULL, NULL, "TrataMsg" );
+ 	          strncpy(reginci.incoderr,"        ",8);
+              break;
+		 }
+	}
+	else
+	{
+        //Añadido para Monitorizacion SISMA 
+        fprintLog(nomProg,"TIPO SISTEMA - CONEXION TCP-IP CON REDSYS: Tipo Recepcion sfd >%i< codigo de error>%d< Socket Cerrado\n",sfd, retorno);
+
+        fprintLog(nomProg,"Error en recv socket. retorno>%d<\n", retorno);
+
+              strcpy(reginci.innomfic,"LeerSocCerrado");
+	       strncpy(reginci.incoderr,itoa(retorno),8);
+	       ret_modif = modifica_estado(clavesock, "02");
+           conectado = 0;
+           retorno= close(sfd);
+
+           //parar el otro servicio, el clxxxxen para que lo levante el supervis
+           //20161216 - en vez de pararlo le manda se�al al clxxxxen y que se reconecte
+           hermano[8]='\0';
+           rtrata_svmB=busca_proc_svm_na(psvm,hermano);
+           if (rtrata_svmB < 0)
+           {
+              fprintLog(nomProg,"No encuentra en svm al hermano %s\n", hermano);
+           }
+           else
+           {
+              //20161216 - el estado del clxxxxen no lo toco pq no interviene el supervis
+              //(psvm+rtrata_svmB)->estado=RECARGAR; //queremos que lo arranque el supervis
+               if ((psvm+rtrata_svmB)->str_svm.svmproc.pid > 1)
+                   Pkill((psvm+rtrata_svmB)->str_svm.svmproc.pid,SIGUSR2);
+           }
+
+
+           //volver a inicializar el socket
+           conectar_socket();
+         //}
+
+     }
+     fprintLog(nomProg,"while    \n");
+  }//fin del while
+        fprintLog(nomProg,"fin      \n");
+  if(fcaptura && fcaptura != stderr)
+     fclose(fcaptura);
+
+}
+
+//Funcion para conectar el socket
+void conectar_socket()
+{
+
+ //libera la conexion si hubiera
+ if(sfd != -1)
+ {
+      close(sfd);
+      fprintLog(nomProg, "shutdown liberando >%d<\n", sfd);
+ }
+ sfd = 0;
+
+#if defined (TRAZA) && (TRAZA > 1)
+  fprintLog(nomProg,"abrir  socket\n");
+#endif
+  while (conectado == 0)
+  {
+    
+   /* antes del socket llamamos a la nueva funcion InicializarSocket */
+     retorno = InicializarSocket(clavesock);
+     if (retorno != 0)
+     {
+        fprintLog(nomProg,"error inicializar socket %d\n");
+        strcpy(reginci.innomfic,"SOCKET");
+        strcpy(coderror, "909");
+        fgraba_incidencia_cp(coderror, NULL, NULL, reginci.innomfic);
+        exit(-1);
+     }
+
+  /******* este de conectar ****/
+  }//while
+  //return(0);
+
+}
+
+/***** 
+FUNCION: Inicializar Socket
+****/
+int InicializarSocket(char * clavesock)
+{
+  char portnume[6];
+  char num_ip[16];
+  unsigned short portnum=0;
+  unsigned long addr;
+  struct hostent * php;
+  char send_buffer[USURBUFSIZE]; 
+  int return_write =0; 
+  int opcion=1;
+
+
+
+  if ((sfd = socket(AF_INET, SOCK_STREAM, 0)) == -1)
+  {
+#if defined (TRAZA) && (TRAZA > 1)
+      fprintLog(nomProg,"error llamada socket %d\n",errno);
+      perror("error en socket");
+#endif
+      return(-1);
+  }
+
+   /* recupera la ip y el puerto a variables internas */
+   strncpy(num_ip, (psvm+posic_subsis)->str_svm.svmpars.panip, 15);
+   num_ip[15]='\0';
+
+   /* formateamos el puerto */
+   strncpy(portnume, (psvm+posic_subsis)->str_svm.svmpars.paportnume, 5);
+   portnume[5]='\0';
+   portnum = (unsigned short) atoi(portnume);
+   memset(&ser_addr, 0, sizeof(ser_addr));
+   ser_addr.sin_port=htons(portnum);
+
+   /* formateamos la ip */
+   //php = gethostbyname(num_ip);
+
+   /* inicializamos los datos del socket */
+   ser_addr.sin_family=AF_INET;
+
+
+   ser_addr.sin_addr.s_addr=inet_addr(num_ip);
+#if defined (TRAZA) && (TRAZA > 1)   
+   fprintLog(nomProg,"socket addr>%s< y puerto>%s<\n", num_ip , portnume);
+#endif   
+   
+   opcion=1;
+
+   retorno = setsockopt(sfd, SOL_SOCKET, SO_KEEPALIVE, (char *)&opcion, sizeof(opcion));
+
+   if (retorno)
+   {
+       fprintLog(nomProg,"retorno de setsockopt es %d ", retorno);
+       fprintLog(nomProg,"con error %d\n", errno);
+       return(-1);
+   }
+
+
+    retorno = connect(sfd, (struct sockaddr *)&ser_addr, sizeof(ser_addr));
+    if (retorno == -1)
+    {
+       if (contCX == 0)
+       {
+         fprintLog(nomProg, "Error de connect PRINCIPAL retorno >%d<\n",retorno);
+         fprintLog(nomProg,"error llamada socket %d\n",errno);
+ 
+          //Añadido para Monitorizacion SISMA 
+         fprintLog(nomProg,"TIPO SISTEMA - CONEXION TCP-IP CON REDSYS: Tipo Conexion IP >%s< PUERTO >%s<codigo de error>%d<\n",num_ip ,portnume, errno);
+       }
+       contCX++;
+       if ( contCX == 11)
+          contCX=0;
+       sleep(1);
+    }
+    else
+    {
+       fprintLog(nomProg,"CONECTADO PRINCIPAL\n");
+     // socket conectado.
+       ret_modif = modifica_estado(clavesock, "01");
+       conectado=1;
+
+    //    return_write = sendUserData(sfd, send_buffer,Csubapl, "02", "2"); //ORIGINAL
+	return_write = sendUserData(sfd, send_buffer,subsistema_general,Csubapl, "02", "2"); //CON SUBSISTEMA 
+	 
+    if (return_write<=0)
+     fprintLog(nomProg,"ERROR NO SE HA ENVIADO LA TRAMA DE ID DEL SOCKET\n",return_write);
+    else{
+     fprintLog(nomProg,"OK SE HA ENVIADO LA TRAMA DE ID DEL SOCKET\n",return_write);    
+     fhexdump(stderr, send_buffer, USURBUFSIZE); //si va bien pintamos el msg
+	 fflush(stderr);
+    }
+          
+    }
+
+   return(0);
+
+}  // fin inicializar socket
+
+
+/***** 
+FUNCION: CIERRE del proceso 
+****/
+void cierre()
+{
+  int err;
+  err=0;
+  errno=0;
+
+#if defined (TRAZA) && (TRAZA > 1) 
+   fprintLog(nomProg,"estoy en cierre, y voy a cerrar el socket\n");
+#endif
+   err= close(sfd);
+/**** OJO 
+   este cierre de nsfd (que es necesario) no se puede hacer aqui porque no
+   esta definido, habria que definirlo a nivel global
+ ****/
+/*   err= close(nsfd); */
+#if defined (TRAZA) && (TRAZA > 1) 
+   perror("He cerrado el socket");
+   fprintLog(nomProg,"He cerrado el socket. err=%d , errno = %d\n",err,errno); 
+#endif
+
+   (psvm+rtrata_svm)->str_svm.svmproc.pid=-1;
+   (psvm+rtrata_svm)->estado=NOUSO;
+   exit(0);
+
+} // fin funcion cierre
+
+
+/***** 
+FUNCION: tratar mensaje
+****/
+int TratarMsg(int tiempo, int leidos, char * Datomsg)
+{
+  int retorno;
+  int tipo;
+  tm_dec tm;
+/*  
+  char ch_03[3];
+  int lenMsg=0;
+*/  
+#if defined (TRAZA) && (TRAZA > 1) 
+    fprintLog(nomProg,"****** Mensaje Recibido de la Linea ***>%d<*******\n", leidos);
+    fhexdump(stderr, Datomsg, leidos); 
+    fflush(stderr);
+    fprintLog(nomProg,"******* Escribir en la cola %i*****************************\n", qrecep);
+#endif
+
+
+  tipo=atoi(subsis);
+
+  retorno = EnviaCola(qrecep,2,Datomsg,leidos,tipo); 
+ 
+ if (retorno == -1)
+ {
+    strcpy(reginci.innomfic,"Envia_q");
+    strncpy(reginci.incoderr,itoa(retorno),8);
+ }
+ fprintLog(nomProg, "error del retorno %i\n", retorno); 
+ return(retorno);
+}
+
+#include "fEstadoSockt.c"

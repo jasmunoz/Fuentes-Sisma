@@ -1,0 +1,429 @@
+      ******************************************************************
+      * NOMBRE DE LA APLICACION : MEDIOS DE PAGO                       *
+      *                                                                *
+      * PROGRAMA....:SMPXHSM0                                          *
+      * PROGRAMADOR.:INDRA                                             *
+      * DESCRIPCION:                                                   *
+      * RUTINA PARA CONEXION Y DESCONEXION                             *
+      *                                                                *
+      * RUTINAS DE TRATAMIENTO DE ERRORES:                             *
+      *                                                                *
+      *                                                                *
+      * COPYS..............:PMPXHSM0                                   *
+      *                                                                *
+      *                                                                *
+      * RUTINAS...........:                                            *
+      ******************************************************************
+      *
+       IDENTIFICATION DIVISION.
+       PROGRAM-ID.    SMPXHSM0.
+       AUTHOR.        INDRA.
+       DATE-WRITTEN.  MAYO-2019
+
+       ENVIRONMENT DIVISION.
+       CONFIGURATION SECTION.
+       SPECIAL-NAMES.
+               DECIMAL-POINT IS COMMA.
+       INPUT-OUTPUT SECTION.
+
+       FILE-CONTROL.
+       I-O-CONTROL.
+       DATA DIVISION.
+
+       FILE SECTION.
+       WORKING-STORAGE SECTION.
+      ******************************************************************
+      ***                      VARIABLES                             ***
+      ******************************************************************
+       01 WS-VARIABLES.
+          05 WS-CODIGO                       PIC X(06)     VALUE SPACES.
+          05 WS-VALOR-SALIDA                 PIC X(3000)   VALUE SPACES.
+          05 WS-RECONEXION                   PIC 9(1)      VALUE 1.
+       01  WK-JFL PIC X.            
+      ******************************************************************
+      ***                      COPYS                                 ***
+      ******************************************************************
+        COPY "SMPCDHSM.LRD".
+
+       LINKAGE SECTION.
+        COPY "PMPXHSM0.LRD".
+
+      ***********************************************
+       PROCEDURE DIVISION USING PMPXHSM0.
+      ***********************************************
+           PERFORM 100000-INICIALIZAR-ENTORNO
+           PERFORM 200000-PROCESO
+           PERFORM 8000-FIN
+           .
+
+      ******************************************************************
+      *  -INICIALIZAR-ENTORNO                                          *
+      ******************************************************************
+       100000-INICIALIZAR-ENTORNO.
+      *-------------------------
+           INITIALIZE     SMPXHSM0  REPLACING
+                          ALPHANUMERIC BY SPACES
+                               NUMERIC BY ZEROES
+
+           INITIALIZE WS-VARIABLES
+           DISPLAY 'GRCONHSM 20210914V1'  
+           PERFORM 110000-VALIDAR-ENTRADA
+
+           SET OK-SMPXHSM0 TO TRUE
+           SET CORRECTO OF CRSPSTA OF SMPXHSM0 TO TRUE
+           MOVE 1 TO WS-RECONEXION.
+           .
+
+      ******************************************************************
+      *  -VALIDAR-ENTRADA                                              *
+      ******************************************************************
+       110000-VALIDAR-ENTRADA.
+      *---------------------
+      
+           IF NUEMPRCE OF EMPXHSM0 = SPACES
+              SET DATOS-ENTRADA-ERRONEOS OF SMPXHSM0 TO TRUE
+              MOVE ZEROS              TO CSQLCODE OF SMPXHSM0
+              MOVE '000001'           TO WS-CODIGO
+              PERFORM 9999-ENVIAR-MENSAJE
+           END-IF
+
+           EVALUATE TRUE
+               WHEN ABRIR-HSM
+                   IF COMANDO OF EMPXHSM0 = SPACES
+                      SET DATOS-ENTRADA-ERRONEOS OF SMPXHSM0 TO TRUE
+                      MOVE ZEROS              TO CSQLCODE OF SMPXHSM0
+                      MOVE '000001'           TO WS-CODIGO
+                      PERFORM 9999-ENVIAR-MENSAJE
+                   END-IF
+               WHEN OBTENER-CLAVES
+                   IF COMANDO OF EMPXHSM0 = SPACES
+                      SET DATOS-ENTRADA-ERRONEOS OF SMPXHSM0 TO TRUE
+                      MOVE ZEROS              TO CSQLCODE OF SMPXHSM0
+                      MOVE '000001'           TO WS-CODIGO
+                      PERFORM 9999-ENVIAR-MENSAJE
+                   END-IF
+
+                   IF CDESTINO OF EMPXHSM0 = SPACES
+                      SET DATOS-ENTRADA-ERRONEOS OF SMPXHSM0 TO TRUE
+                      MOVE ZEROS              TO CSQLCODE OF SMPXHSM0
+                      MOVE '000001'           TO WS-CODIGO
+                      PERFORM 9999-ENVIAR-MENSAJE
+                   END-IF
+               WHEN OBTENER-VALOR
+                   IF COMANDO OF EMPXHSM0 = SPACES AND 
+                   NOT HASHEADO-TRAD
+                      SET DATOS-ENTRADA-ERRONEOS OF SMPXHSM0 TO TRUE
+                      MOVE ZEROS              TO CSQLCODE OF SMPXHSM0
+                      MOVE '000001'           TO WS-CODIGO
+                      PERFORM 9999-ENVIAR-MENSAJE
+                   END-IF
+                   
+                   IF COMANDO-TRAD OF EMPXHSM0 = SPACES
+                      SET DATOS-ENTRADA-ERRONEOS OF SMPXHSM0 TO TRUE
+                      MOVE ZEROS              TO CSQLCODE OF SMPXHSM0
+                      MOVE '000001'           TO WS-CODIGO
+                      PERFORM 9999-ENVIAR-MENSAJE
+                   END-IF
+
+                   IF NUSOCKET OF EMPXHSM0 = SPACES
+                      SET DATOS-ENTRADA-ERRONEOS OF SMPXHSM0 TO TRUE
+                      MOVE ZEROS              TO CSQLCODE OF SMPXHSM0
+                      MOVE '000001'           TO WS-CODIGO
+                      PERFORM 9999-ENVIAR-MENSAJE
+                   END-IF
+
+                   IF TCLAVES OF EMPXHSM0 = SPACES
+                      SET DATOS-ENTRADA-ERRONEOS OF SMPXHSM0 TO TRUE
+                      MOVE ZEROS              TO CSQLCODE OF SMPXHSM0
+                      MOVE '000001'           TO WS-CODIGO
+                      PERFORM 9999-ENVIAR-MENSAJE
+                   END-IF
+
+                   IF TVALOR OF EMPXHSM0 = SPACES
+                      SET DATOS-ENTRADA-ERRONEOS OF SMPXHSM0 TO TRUE
+                      MOVE ZEROS              TO CSQLCODE OF SMPXHSM0
+                      MOVE '000001'           TO WS-CODIGO
+                      PERFORM 9999-ENVIAR-MENSAJE
+                   END-IF
+
+                   IF NULONGVA OF EMPXHSM0 = ZEROES
+                      SET DATOS-ENTRADA-ERRONEOS OF SMPXHSM0 TO TRUE
+                      MOVE ZEROS              TO CSQLCODE OF SMPXHSM0
+                      MOVE '000001'           TO WS-CODIGO
+                      PERFORM 9999-ENVIAR-MENSAJE
+                   END-IF
+               WHEN CERRAR-HSM
+                   IF NUSOCKET OF EMPXHSM0 = SPACES
+                      SET DATOS-ENTRADA-ERRONEOS OF SMPXHSM0 TO TRUE
+                      MOVE ZEROS              TO CSQLCODE OF SMPXHSM0
+                      MOVE '000001'           TO WS-CODIGO
+                      PERFORM 9999-ENVIAR-MENSAJE
+                   END-IF
+
+               WHEN TODO
+         
+                   IF COMANDO OF EMPXHSM0 = SPACES AND 
+                   NOT HASHEADO-TRAD
+                      SET DATOS-ENTRADA-ERRONEOS OF SMPXHSM0 TO TRUE
+                      MOVE ZEROS              TO CSQLCODE OF SMPXHSM0
+                      MOVE '000001'           TO WS-CODIGO
+                      PERFORM 9999-ENVIAR-MENSAJE
+                   END-IF
+                   
+                   IF COMANDO-TRAD OF EMPXHSM0 = SPACES
+                      SET DATOS-ENTRADA-ERRONEOS OF SMPXHSM0 TO TRUE
+                      MOVE ZEROS              TO CSQLCODE OF SMPXHSM0
+                      MOVE '000001'           TO WS-CODIGO
+                      PERFORM 9999-ENVIAR-MENSAJE
+                   END-IF
+
+                   IF TVALOR OF EMPXHSM0 = SPACES
+                      SET DATOS-ENTRADA-ERRONEOS OF SMPXHSM0 TO TRUE
+                      MOVE ZEROS              TO CSQLCODE OF SMPXHSM0
+                      MOVE '000001'           TO WS-CODIGO
+                      PERFORM 9999-ENVIAR-MENSAJE
+                   END-IF
+
+                   IF CDESTINO OF EMPXHSM0 = SPACES
+      *Si el destino no viene informado le movemos zeros. Destino interno
+                      MOVE '0000'             TO CDESTINO OF EMPXHSM0
+                   END-IF
+
+               WHEN OTHER
+                    SET DATOS-ENTRADA-ERRONEOS OF SMPXHSM0 TO TRUE
+                    MOVE ZEROS                   TO CSQLCODE OF SMPXHSM0
+                    MOVE '000001'                TO WS-CODIGO
+                    PERFORM 9999-ENVIAR-MENSAJE
+           END-EVALUATE
+           .
+
+      ******************************************************************
+      *  -PROCESO                                               *
+      ******************************************************************
+       200000-PROCESO.
+      *------------------
+
+           EVALUATE TRUE
+               WHEN ABRIR-HSM
+                   PERFORM 210000-CONECTAR-HSM
+               WHEN OBTENER-CLAVES
+                   PERFORM 220000-OBTENER-CLAVES
+               WHEN OBTENER-VALOR
+                   PERFORM 230000-OBTENER-VALOR
+               WHEN CERRAR-HSM
+                   PERFORM 240000-CERRAR-HSM
+               WHEN TODO
+                   PERFORM 210000-CONECTAR-HSM
+                   IF NOT HASHEADO-TRAD OF EMPXHSM0  
+                      PERFORM 220000-OBTENER-CLAVES
+                   END-IF
+                   PERFORM 230000-OBTENER-VALOR
+                   PERFORM 240000-CERRAR-HSM
+                   MOVE  WS-VALOR-SALIDA        TO TVALOR-S OF SMPXHSM0
+               WHEN OTHER
+                    SET DATOS-ENTRADA-ERRONEOS OF SMPXHSM0 TO TRUE
+                    MOVE ZEROS                   TO CSQLCODE OF SMPXHSM0
+                    MOVE '000001'                TO WS-CODIGO
+                    PERFORM 9999-ENVIAR-MENSAJE
+           END-EVALUATE
+           .
+
+      ******************************************************************
+      *  -CONECTAR-HSM
+      *   *conexhsm_C(char* codent, char *comando, char *socket) ok
+      ******************************************************************
+       210000-CONECTAR-HSM.
+      *--------------------
+
+           DISPLAY 'ENTRANDO EN CONECTAR-HSM'
+           MOVE ZEROES                  TO REPCOL
+           MOVE NUEMPRCE OF EMPXHSM0    TO COM-ENTIDAD
+           MOVE COMANDO  OF EMPXHSM0    TO COM-OPCION
+           MOVE SPACES                  TO COM-CODRESP
+
+           CALL 'conexhsm_C' USING COM-ENTIDAD-P
+                                   COM-OPCION-P
+                                   COM-SOCKET-P
+                                   COM-CODRESP-P
+             RETURNING REPCOL
+           END-CALL
+
+           IF COM-CODRESP NOT EQUAL '01'
+              DISPLAY 'Error en conectar hsm'
+              SET DATOS-ENTRADA-ERRONEOS OF SMPXHSM0 TO TRUE
+              MOVE ZEROS                   TO CSQLCODE OF SMPXHSM0
+              MOVE '001517'                TO WS-CODIGO
+              PERFORM 9999-ENVIAR-MENSAJE
+           ELSE
+               MOVE COM-SOCKET-P  TO NUSOCKET-S OF SMPXHSM0
+                                     NUSOCKET   OF EMPXHSM0
+           END-IF
+           DISPLAY 'SALIENDO DE CONECTAR-HSM'
+           .
+
+      ******************************************************************
+      *  -OBTENER-CLAVES
+      *claveshsm_C(char * comando, char * subsistema, char * clave1,
+      *   char * clave2);
+      ******************************************************************
+       220000-OBTENER-CLAVES.
+      *-----------------------
+           
+           DISPLAY 'ENTRANDO EN OBTENER-CLAVES'
+           MOVE COMANDO  OF EMPXHSM0    TO COM-OPCION
+           MOVE CDESTINO OF EMPXHSM0    TO COM-SUBSISTEMA
+           MOVE CBIN     OF EMPXHSM0    TO COM-BIN
+           MOVE SPACES                  TO COM-CODRESP
+           
+
+      *//char * comando, char * subsistema, char * bin, char * clave1, char * clave2, char * codResp
+           CALL 'claveshsm_C' USING COM-OPCION-P
+                                    COM-SUBISTEMA-P
+                                    COM-BIN-P
+                                    COM-CLAVES-P1
+                                    COM-CLAVES-P2
+                                    COM-CODRESP-P
+             RETURNING REPCOL
+           END-CALL
+           
+           IF COM-CODRESP  EQUAL '01'
+               MOVE COM-CLAVE-1  TO TCLAVES-S1 OF SMPXHSM0
+                                    TCLAVES    OF EMPXHSM0
+               MOVE COM-CLAVE-2  TO TCLAVES-S2 OF SMPXHSM0
+
+           ELSE
+              DISPLAY 'Error en Obtener Clave: ' COM-CODRESP
+              IF TODO
+                 PERFORM 240000-CERRAR-HSM
+              END-IF
+              SET DATOS-ENTRADA-ERRONEOS OF SMPXHSM0 TO TRUE
+              MOVE ZEROS                   TO CSQLCODE OF SMPXHSM0
+              MOVE '001518'                TO WS-CODIGO
+              PERFORM 9999-ENVIAR-MENSAJE
+           END-IF
+           DISPLAY 'SALIENDO DE OBTENER-CLAVES'
+           .
+           
+      ******************************************************************
+      *  -OBTENER-VALOR
+      * long manejhsm_C(char * clavehsm, char* comandohsm,
+      * char * datoshsm, char *NumByte, char *sfd, char * prespuestahsm)
+      ******************************************************************
+       230000-OBTENER-VALOR.
+      *--------------------
+        
+           DISPLAY 'ENTRANDO EN OBTENER-VALOR'
+           MOVE TCLAVES         OF EMPXHSM0 TO  COM-CLAVE-1
+           MOVE COMANDO-TRAD    OF EMPXHSM0 TO  COM-OPCION
+           MOVE TVALOR          OF EMPXHSM0 TO  COM-ENTRADA
+           MOVE NULONGVA        OF EMPXHSM0 TO  COM-LONG
+           MOVE NUSOCKET        OF EMPXHSM0 TO  COM-SOCKET
+           MOVE SPACES                      TO  COM-CODRESP
+            
+           CALL 'manejhsm_C'     USING COM-CLAVES-P1
+                                       COM-OPCION-P
+                                       COM-ENTRADA-P
+                                       COM-LONG-P
+                                       COM-SOCKET-P
+                                       COM-SALIDA-P
+                                       COM-CODRESP-P
+           RETURNING REPCOL
+           END-CALL
+
+      *    si retorna con error de comunicacion y habiamos entrado con la opcion TODO 
+      *    se reintenta la conexion 1 vez
+      *    si se habia entrado con la opcion de obtener valor se devuelve un codigo
+      *    de respuesta especifico para que se reconecte desde fuera
+
+           EVALUATE TRUE
+              
+               WHEN COM-CORRECTO
+                  
+                  MOVE SPACES      TO WS-VALOR-SALIDA
+                                   TVALOR-S OF SMPXHSM0
+                  MOVE COM-SALIDA  TO TVALOR-S OF SMPXHSM0
+                                   WS-VALOR-SALIDA
+
+               WHEN COM-ERR-DATOS-ENTRADA
+                  SET DATOS-ENTRADA-ERRONEOS OF SMPXHSM0 TO TRUE
+                  MOVE ZEROS                   TO CSQLCODE OF SMPXHSM0
+                  MOVE '001519'                TO WS-CODIGO
+                  PERFORM 9999-ENVIAR-MENSAJE
+               WHEN COM-ERROR-HSM
+                  SET OTRO-ERROR-HSM           OF SMPXHSM0 TO TRUE
+                  MOVE ZEROS                   TO CSQLCODE OF SMPXHSM0
+                  MOVE '001519'                TO WS-CODIGO
+                  PERFORM 9999-ENVIAR-MENSAJE
+               WHEN COM-ERR-COMUNICACION
+                  DISPLAY 'Error de comunicacion al obtener valor'
+                  DISPLAY 'WS-RECONEXION: ' WS-RECONEXION
+                  IF TODO AND WS-RECONEXION > 0
+                     DISPLAY 'reintenta todo'
+                     ADD -1 TO WS-RECONEXION 
+                     PERFORM 210000-CONECTAR-HSM
+                     PERFORM 220000-OBTENER-CLAVES
+                     PERFORM 230000-OBTENER-VALOR
+                     PERFORM 240000-CERRAR-HSM
+                     MOVE  WS-VALOR-SALIDA      TO TVALOR-S OF SMPXHSM0
+                  ELSE
+                     IF TODO
+                        PERFORM 240000-CERRAR-HSM
+                     END-IF
+                     SET OTRO-ERROR-HSM         OF SMPXHSM0 TO TRUE
+                     MOVE ZEROS                 TO CSQLCODE OF SMPXHSM0
+                     MOVE '001519'              TO WS-CODIGO
+                     PERFORM 9999-ENVIAR-MENSAJE
+                  END-IF
+           END-EVALUATE
+           DISPLAY 'SALIENDO DE OBTENER-VALOR'
+           .
+
+      ******************************************************************
+      *  -CERRAR-HSM
+      ******************************************************************
+       240000-CERRAR-HSM.
+      *--------------------
+          
+           DISPLAY 'ENTRANDO EN CERRAR-HSM'
+           CALL 'desconexhsm_C' USING COM-SOCKET-P
+                                      COM-CODRESP-P
+           END-CALL
+
+           IF COM-CODRESP NOT EQUAL '01'
+               SET DATOS-ENTRADA-ERRONEOS OF SMPXHSM0 TO TRUE
+               MOVE ZEROS                   TO CSQLCODE OF SMPXHSM0
+               MOVE '001520'                TO WS-CODIGO
+               PERFORM 9999-ENVIAR-MENSAJE
+           END-IF
+            DISPLAY 'SALIENDO DE CERRAR-HSM'
+           .
+
+      ******************************************************************
+      *  -ENVIAR-PRMTRS-SALIDA                                     *
+      ******************************************************************
+       5000-ENVIAR-PRMTRS-SALIDA.
+      *------------------------------
+           GOBACK
+           .
+
+      ******************************************************************
+      *  -FIN                                                      *
+      ******************************************************************
+       8000-FIN.
+      *-----------------
+           SET OK-SMPXHSM0 OF CRTRNO  OF SMPXHSM0    TO TRUE
+           SET CORRECTO    OF CRSPSTA OF SMPXHSM0    TO TRUE
+
+           PERFORM 5000-ENVIAR-PRMTRS-SALIDA
+           .
+
+      ******************************************************************
+      * ENVIAR-MENSAJE                                                 *
+      ******************************************************************
+       9999-ENVIAR-MENSAJE.
+      *-------------------------
+           MOVE WS-CODIGO                      TO NUMNSJE  OF SMPXHSM0
+           SET ERROR-PREVISTO                  OF SMPXHSM0  TO TRUE
+
+           PERFORM 5000-ENVIAR-PRMTRS-SALIDA
+           .

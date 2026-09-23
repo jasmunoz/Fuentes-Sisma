@@ -1,0 +1,40 @@
+       01 SMPCCO01. 
+      * MENSAJES.  
+          05 COLA-READ         PIC X(20) VALUE 'leer_cola_cob'.
+          05 COLA-READ-ID      PIC X(20) VALUE 'leer_cola_cob_id'.
+          05 COLA-WRITE        PIC X(20) VALUE 'escribir_cola_id'.
+      * VARIABLES
+          05 COLA-NOM-P.
+             10 COLA-NOM          PIC X(08) VALUE SPACES.
+             10 FILLER            PIC X VALUE X'00'.
+          05 COLA-ID-P.
+             10 COLA-ID           PIC X(8) VALUE SPACES.
+             10 FILLER            PIC X VALUE X'00'.
+          05 COLA-COMMAREA-P.
+             10 COLA-COMMAREA     PIC X(8000) VALUE SPACES.
+             10 FILLER            PIC X VALUE X'00'.
+          05 COLA-LENGTH-P.
+             10 COLA-LENGTH       PIC 9(05) VALUE 0.
+             10 FILLER            PIC X VALUE X'00'.
+          05 COLA-TIME-P.
+             10 COLA-TIME       PIC X(08) VALUE SPACES.
+             10 FILLER          PIC X VALUE X'00'.
+
+         01 COD-RESP.
+            05 RESPCOL     PIC S9(8).
+      * MENSAJE RETORNO OK		 
+		 88 ROK               VALUE 0.
+      * MENSAJE RETORNO DE COLA VACIA EN EL CASO DE MSGRCV Y IPC_NOWAIT
+		 88 QVACIA            VALUE 1.
+      * MENSAJE DE TIMEOUT		 
+		 88 QTIMEOUT          VALUE 2.
+      * LONGITUD DE MENSAJE ERRONEA		 
+		 88 LENGERR           VALUE 3.
+      * NO EXISTE LA REFERENCIA IPC
+                 88 QNOIPC            VALUE 4.
+      * COLA LLENA		 		 
+                 88 QBUSY             VALUE 5. 
+
+
+      
+
