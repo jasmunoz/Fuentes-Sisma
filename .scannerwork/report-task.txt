@@ -2,5 +2,5 @@ projectKey=Controlador-Sisma
 serverUrl=http://localhost:9000
 serverVersion=26.9.0.129388
 dashboardUrl=http://localhost:9000/dashboard?id=Controlador-Sisma
-ceTaskId=1ae1dcca-2f7a-49ad-bef3-472dfd43cddc
-ceTaskUrl=http://localhost:9000/api/ce/task?id=1ae1dcca-2f7a-49ad-bef3-472dfd43cddc
+ceTaskId=2f053424-2458-4574-af96-0acdb4794e64
+ceTaskUrl=http://localhost:9000/api/ce/task?id=2f053424-2458-4574-af96-0acdb4794e64

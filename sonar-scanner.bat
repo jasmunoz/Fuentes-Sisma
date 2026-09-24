@@ -1,0 +1,1 @@
+c:\inversis\sonarscanner\bin\sonar-scanner.bat -D"sonar.projectKey=Controlador-Sisma" -D"sonar.sources=." -D"sonar.host.url=http://localhost:9000" -D"sonar.token=sqp_79ba12949dadfd04566256edb68269628a7e6065"
